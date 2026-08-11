@@ -1,0 +1,106 @@
+export type DayType = "pecho" | "espalda" | "hombro" | "pierna";
+export type ArmFocus = "biceps" | "triceps";
+
+export const DAY_OPTIONS: Array<{
+  id: DayType;
+  label: string;
+  subtitle: string;
+}> = [
+  {
+    id: "pecho",
+    label: "Pecho",
+    subtitle: "Tríceps obligatorio",
+  },
+  {
+    id: "espalda",
+    label: "Espalda",
+    subtitle: "Bíceps obligatorio",
+  },
+  {
+    id: "hombro",
+    label: "Hombro",
+    subtitle: "Eliges bíceps o tríceps",
+  },
+  {
+    id: "pierna",
+    label: "Pierna",
+    subtitle: "Sin brazos",
+  },
+];
+
+const CHEST: string[] = [
+  "Press banca",
+  "Press inclinado con mancuernas",
+  "Pec deck",
+  "Cruce de poleas alto",
+  "Fondos",
+];
+
+const TRICEPS: string[] = [
+  "Press francés con barra Z",
+  "Extensión de tríceps con cuerda",
+  "Extensión de tríceps trasnuca",
+  "Extensión de tríceps unilateral",
+];
+
+const BACK: string[] = [
+  "Dominadas",
+  "Jalón al pecho",
+  "Remo con máquina",
+  "Remo unilateral (agarre al tronco)",
+  "Face pull",
+];
+
+const BICEPS: string[] = [
+  "Curl martillo",
+  "Bíceps con mancuernas",
+  "Bíceps unilateral concentrado",
+  "Bíceps barra Z",
+];
+
+const SHOULDERS: string[] = [
+  "Dominadas agarre neutro",
+  "Press militar con mancuernas",
+  "Elevaciones unilaterales con cable",
+  "Elevaciones hacia el frente unilaterales con cable",
+  "Face-pull o reverse peck deck",
+  "Encogimiento de hombros",
+];
+
+const LEGS: string[] = [
+  "Sentadilla libre",
+  "Peso muerto rumano",
+  "Extensión de espalda",
+  "Extensión de cuádriceps",
+  "Prensa de pierna",
+  "Extensión de gemelos",
+  "Aducción de cadera",
+];
+
+export function getDayLabel(day: DayType): string {
+  return DAY_OPTIONS.find((d) => d.id === day)?.label ?? day;
+}
+
+export function getExercisesForDay(
+  day: DayType,
+  armFocus?: ArmFocus | null,
+): string[] {
+  switch (day) {
+    case "pecho":
+      return [...CHEST, ...TRICEPS];
+    case "espalda":
+      return [...BACK, ...BICEPS];
+    case "hombro":
+      if (armFocus === "triceps") return [...SHOULDERS, ...TRICEPS];
+      if (armFocus === "biceps") return [...SHOULDERS, ...BICEPS];
+      return [...SHOULDERS];
+    case "pierna":
+      return [...LEGS];
+    default:
+      return [];
+  }
+}
+
+export const ALL_ROUTINE_EXERCISES: string[] = [
+  ...new Set([...CHEST, ...TRICEPS, ...BACK, ...BICEPS, ...SHOULDERS, ...LEGS]),
+];

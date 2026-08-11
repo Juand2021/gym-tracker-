@@ -1,0 +1,231 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #070707;
+  --bg-elevated: #0e0e0e;
+  --surface: #141414;
+  --surface-2: #1c1c1c;
+  --ink: #f3f3f1;
+  --muted: #8b8b86;
+  --accent: #ff4d1a;
+  --accent-soft: #2a140c;
+  --accent-glow: color-mix(in srgb, var(--accent) 28%, transparent);
+  --line: #262626;
+  --line-strong: #3a3a3a;
+  --danger: #ff5c5c;
+  --chart: #ff4d1a;
+  --chart-2: #c9c9c3;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --radius: 0.65rem;
+  --touch: 3.1rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-body);
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-glow), transparent 55%),
+    linear-gradient(180deg, #0c0c0c 0%, var(--bg) 42%, #050505 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  min-height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 55%, black);
+  color: white;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+.card {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.card-interactive {
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.card-interactive:active {
+  transform: scale(0.985);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface-2) 80%, var(--accent-soft));
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--touch);
+  border-radius: 0.55rem;
+  padding: 0.85rem 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.92rem;
+  transition:
+    transform 0.12s ease,
+    opacity 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #ff6430 0%, var(--accent) 100%);
+  color: #120800;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, white);
+  box-shadow: 0 8px 24px rgba(255, 77, 26, 0.28);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+}
+
+.field {
+  width: 100%;
+  min-height: var(--touch);
+  border: 1px solid var(--line-strong);
+  background: #0a0a0a;
+  border-radius: 0.55rem;
+  padding: 0.8rem 0.95rem;
+  color: var(--ink);
+}
+
+.field::placeholder {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+
+.field:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-color: var(--accent);
+}
+
+input[type="date"].field {
+  color-scheme: dark;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: var(--accent-soft);
+  color: #ffd7c4;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.page-title {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2.1rem, 8vw, 2.75rem);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-family: var(--font-display), sans-serif;
+  font-size: 2.4rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.exercise-title-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.85rem, 7.5vw, 2.6rem);
+  line-height: 1.05;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0.35rem 1.6rem 0.55rem 0.25rem;
+  cursor: pointer;
+}
+
+.exercise-title-select:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+  color: #fff;
+}
+
+.exercise-title-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.exercise-title-select option {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 1rem;
+  text-transform: none;
+  letter-spacing: normal;
+  background: #141414;
+  color: var(--ink);
+}

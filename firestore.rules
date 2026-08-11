@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Acceso solo vía Firebase Admin SDK (servidor Next.js).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

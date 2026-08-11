@@ -1,0 +1,49 @@
+import type { Metadata, Viewport } from "next";
+import { Barlow, Bebas_Neue } from "next/font/google";
+import { AppNav } from "@/components/AppNav";
+import "./globals.css";
+
+const body = Barlow({
+  variable: "--font-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const display = Bebas_Neue({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+export const metadata: Metadata = {
+  title: "Fuerza — Gym Tracker",
+  description:
+    "Registra entrenos, peso corporal y obtén recomendaciones con IA.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Fuerza",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#070707",
+  colorScheme: "dark",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html lang="es" className={`${body.variable} ${display.variable} h-full`}>
+      <body className="min-h-full antialiased">
+        <AppNav />
+        <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-4">
+          {children}
+        </main>
+      </body>
+    </html>
+  );
+}
