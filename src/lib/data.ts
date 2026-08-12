@@ -14,7 +14,12 @@ import {
   localListWorkouts,
   localUpdateWorkout,
 } from "@/lib/local-store";
-import type { ArmFocus, DayType } from "@/lib/routines";
+import {
+  DAY_OPTIONS,
+  getExercisesForDay,
+  type ArmFocus,
+  type DayType,
+} from "@/lib/routines";
 import type {
   BodyWeightEntry,
   CreateBodyWeightInput,
@@ -37,26 +42,70 @@ function asArmFocus(value: unknown): ArmFocus | null {
 }
 
 function mapSet(id: string, data: Record<string, unknown>): WorkoutSet {
+  const orderRaw = data.orderIndex;
+  const orderIndex =
+    typeof orderRaw === "number" && Number.isFinite(orderRaw)
+      ? orderRaw
+      : undefined;
   return {
     id,
     exercise: String(data.exercise ?? ""),
     weightKg: Number(data.weightKg ?? 0),
     reps: Number(data.reps ?? 0),
     setNumber: Number(data.setNumber ?? 0),
+    orderIndex,
   };
 }
 
-async function loadSets(workoutId: string): Promise<WorkoutSet[]> {
+/** Orden de ejecución: orderIndex → plantilla del día → setNumber. */
+export function sortSetsBySessionOrder(
+  sets: WorkoutSet[],
+  dayType?: DayType | null,
+  armFocus?: ArmFocus | null,
+): WorkoutSet[] {
+  const template = dayType ? getExercisesForDay(dayType, armFocus) : [];
+  const templateIndex = new Map(template.map((name, i) => [name, i]));
+  const firstSeen = new Map<string, number>();
+  sets.forEach((set, i) => {
+    if (!firstSeen.has(set.exercise)) firstSeen.set(set.exercise, i);
+  });
+
+  const hasOrderIndex = sets.some((s) => typeof s.orderIndex === "number");
+
+  return [...sets].sort((a, b) => {
+    if (hasOrderIndex) {
+      const ao = a.orderIndex ?? Number.POSITIVE_INFINITY;
+      const bo = b.orderIndex ?? Number.POSITIVE_INFINITY;
+      if (ao !== bo) return ao - bo;
+    }
+
+    const ae = templateIndex.has(a.exercise)
+      ? templateIndex.get(a.exercise)!
+      : 1000 + (firstSeen.get(a.exercise) ?? 0);
+    const be = templateIndex.has(b.exercise)
+      ? templateIndex.get(b.exercise)!
+      : 1000 + (firstSeen.get(b.exercise) ?? 0);
+    if (ae !== be) return ae - be;
+
+    return a.setNumber - b.setNumber;
+  });
+}
+
+async function loadSets(
+  workoutId: string,
+  dayType?: DayType | null,
+  armFocus?: ArmFocus | null,
+): Promise<WorkoutSet[]> {
   const snap = await getDb()
     .collection("workouts")
     .doc(workoutId)
     .collection("sets")
-    .orderBy("setNumber", "asc")
     .get();
 
-  return snap.docs.map((doc) =>
+  const sets = snap.docs.map((doc) =>
     mapSet(doc.id, doc.data() as Record<string, unknown>),
   );
+  return sortSetsBySessionOrder(sets, dayType, armFocus);
 }
 
 export async function listWorkouts(limit = 80): Promise<Workout[]> {
@@ -71,38 +120,61 @@ export async function listWorkouts(limit = 80): Promise<Workout[]> {
             .get()
         ).docs.map(async (doc) => {
           const data = doc.data();
+          const dayType = asDayType(data.dayType);
+          const armFocus = asArmFocus(data.armFocus);
           return {
             id: doc.id,
             date: String(data.date ?? ""),
             notes: String(data.notes ?? ""),
             createdAt: String(data.createdAt ?? ""),
-            dayType: asDayType(data.dayType),
-            armFocus: asArmFocus(data.armFocus),
-            sets: await loadSets(doc.id),
+            dayType,
+            armFocus,
+            sets: await loadSets(doc.id, dayType, armFocus),
           } satisfies Workout;
         }),
       );
 
-  return mergeWithDemoWorkouts(real, limit);
+  return mergeWithDemoWorkouts(real, limit).map((workout) => ({
+    ...workout,
+    sets: sortSetsBySessionOrder(
+      workout.sets,
+      workout.dayType,
+      workout.armFocus,
+    ),
+  }));
 }
 
 export async function getWorkout(id: string): Promise<Workout | null> {
   const demo = getDemoWorkoutById(id);
-  if (demo) return demo;
+  if (demo) {
+    return {
+      ...demo,
+      sets: sortSetsBySessionOrder(demo.sets, demo.dayType, demo.armFocus),
+    };
+  }
 
-  if (!isFirebaseConfigured()) return localGetWorkout(id);
+  if (!isFirebaseConfigured()) {
+    const local = localGetWorkout(id);
+    if (!local) return null;
+    return {
+      ...local,
+      sets: sortSetsBySessionOrder(local.sets, local.dayType, local.armFocus),
+    };
+  }
 
   const doc = await getDb().collection("workouts").doc(id).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
+  const dayType = asDayType(data.dayType);
+  const armFocus = asArmFocus(data.armFocus);
   return {
     id: doc.id,
     date: String(data.date ?? ""),
     notes: String(data.notes ?? ""),
     createdAt: String(data.createdAt ?? ""),
-    dayType: asDayType(data.dayType),
-    armFocus: asArmFocus(data.armFocus),
-    sets: await loadSets(doc.id),
+    dayType,
+    armFocus,
+    sets: await loadSets(doc.id, dayType, armFocus),
   };
 }
 
@@ -122,13 +194,14 @@ export async function createWorkout(input: CreateWorkoutInput): Promise<Workout>
   const batch = getDb().batch();
   batch.set(ref, payload);
 
-  input.sets.forEach((set) => {
+  input.sets.forEach((set, index) => {
     const setRef = ref.collection("sets").doc();
     batch.set(setRef, {
       exercise: set.exercise,
       weightKg: set.weightKg,
       reps: set.reps,
       setNumber: set.setNumber,
+      orderIndex: set.orderIndex ?? index,
     });
   });
 
@@ -144,6 +217,7 @@ export async function createWorkout(input: CreateWorkoutInput): Promise<Workout>
     sets: input.sets.map((set, index) => ({
       id: `temp-${index}`,
       ...set,
+      orderIndex: set.orderIndex ?? index,
     })),
   };
 }
@@ -196,13 +270,14 @@ export async function updateWorkout(
   const oldSets = await ref.collection("sets").get();
   oldSets.docs.forEach((doc) => batch.delete(doc.ref));
 
-  input.sets.forEach((set) => {
+  input.sets.forEach((set, index) => {
     const setRef = ref.collection("sets").doc();
     batch.set(setRef, {
       exercise: set.exercise,
       weightKg: set.weightKg,
       reps: set.reps,
       setNumber: set.setNumber,
+      orderIndex: set.orderIndex ?? index,
     });
   });
 
@@ -218,6 +293,7 @@ export async function updateWorkout(
     sets: input.sets.map((set, index) => ({
       id: `temp-${index}`,
       ...set,
+      orderIndex: set.orderIndex ?? index,
     })),
   };
 }
@@ -267,23 +343,81 @@ export async function deleteBodyWeight(id: string): Promise<void> {
   await getDb().collection("bodyWeight").doc(id).delete();
 }
 
+function formatSessionForAi(workout: Workout): string {
+  const ordered = sortSetsBySessionOrder(
+    workout.sets,
+    workout.dayType,
+    workout.armFocus,
+  );
+
+  const exerciseOrder: string[] = [];
+  const setsByExercise = new Map<string, WorkoutSet[]>();
+  for (const set of ordered) {
+    if (!setsByExercise.has(set.exercise)) {
+      setsByExercise.set(set.exercise, []);
+      exerciseOrder.push(set.exercise);
+    }
+    setsByExercise.get(set.exercise)!.push(set);
+  }
+
+  const day = workout.dayType
+    ? ` [${workout.dayType}${workout.armFocus ? `/${workout.armFocus}` : ""}]`
+    : "";
+  const header = `Sesión ${workout.date}${day}${
+    workout.notes ? ` — ${workout.notes}` : ""
+  }`;
+
+  if (exerciseOrder.length === 0) {
+    return `${header}\n  (sin series)`;
+  }
+
+  const orderLine = `Orden de ejecución (1 = primero del día; el usuario registra en este mismo orden): ${exerciseOrder
+    .map((name, i) => `${i + 1}) ${name}`)
+    .join(" → ")}`;
+
+  const body = exerciseOrder
+    .map((exercise, index) => {
+      const sets = setsByExercise.get(exercise)!;
+      const setLines = sets
+        .map((s) => `     serie ${s.setNumber}: ${s.weightKg}kg x ${s.reps}`)
+        .join("\n");
+      return `  ${index + 1}. ${exercise}\n${setLines}`;
+    })
+    .join("\n");
+
+  return `${header}\n${orderLine}\n${body}`;
+}
+
+function formatRoutineTemplates(): string {
+  const blocks = DAY_OPTIONS.map((day) => {
+    if (day.id === "hombro") {
+      const base = getExercisesForDay("hombro");
+      const withBiceps = getExercisesForDay("hombro", "biceps");
+      const withTriceps = getExercisesForDay("hombro", "triceps");
+      return [
+        `Plantilla ${day.label}:`,
+        `  Base: ${base.map((e, i) => `${i + 1}. ${e}`).join(" | ")}`,
+        `  + Bíceps: ${withBiceps.map((e, i) => `${i + 1}. ${e}`).join(" | ")}`,
+        `  + Tríceps: ${withTriceps.map((e, i) => `${i + 1}. ${e}`).join(" | ")}`,
+      ].join("\n");
+    }
+
+    const exercises = getExercisesForDay(day.id);
+    return `Plantilla ${day.label}: ${exercises
+      .map((e, i) => `${i + 1}. ${e}`)
+      .join(" | ")}`;
+  });
+
+  return blocks.join("\n");
+}
+
 export async function buildAiContext(): Promise<string> {
   const [workouts, bodyWeight] = await Promise.all([
     listWorkouts(80),
     listBodyWeight(40),
   ]);
 
-  const workoutLines = workouts.map((w) => {
-    const sets = w.sets
-      .map(
-        (s) =>
-          `  - ${s.exercise}: ${s.weightKg}kg x ${s.reps} (serie ${s.setNumber})`,
-      )
-      .join("\n");
-    const day = w.dayType ? ` [${w.dayType}${w.armFocus ? `/${w.armFocus}` : ""}]` : "";
-    return `Sesión ${w.date}${day}${w.notes ? ` — ${w.notes}` : ""}\n${sets || "  (sin series)"}`;
-  });
-
+  const workoutLines = workouts.map(formatSessionForAi);
   const weightLines = bodyWeight.map((b) => `${b.date}: ${b.weightKg} kg`);
 
   return [
@@ -294,7 +428,15 @@ export async function buildAiContext(): Promise<string> {
     "- Máquina: lo que marca el pin/stack.",
     "- Dominadas/fondos: lastre añadido (0 = solo peso corporal).",
     "",
-    "Historial de entrenamientos (más recientes primero):",
+    "Orden de la rutina:",
+    "- El usuario entrena en el mismo orden en que aparecen los ejercicios al registrar la sesión.",
+    "- El primer ejercicio listado es el primero que hizo; el último listado es el cierre (p. ej. bíceps/antebrazo al final del día de espalda).",
+    "- NO inviertas el orden ni asumas que empezó por brazos si aparecen al final.",
+    "",
+    "Plantillas de rutina (orden previsto por día):",
+    formatRoutineTemplates(),
+    "",
+    "Historial de entrenamientos (sesiones más recientes primero; dentro de cada sesión, orden de ejecución real):",
     workoutLines.join("\n\n") || "(sin entrenamientos)",
     "",
     "Historial de peso corporal:",

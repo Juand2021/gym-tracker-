@@ -6,6 +6,8 @@ export type WorkoutSet = {
   weightKg: number;
   reps: number;
   setNumber: number;
+  /** Posición global en la sesión (0 = primer set del día). */
+  orderIndex?: number;
 };
 
 export type Workout = {
@@ -29,6 +31,7 @@ export type WorkoutSetInput = {
   weightKg: number;
   reps: number;
   setNumber: number;
+  orderIndex?: number;
 };
 
 export type CreateWorkoutInput = {

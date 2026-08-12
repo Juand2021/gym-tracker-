@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       );
     }
 
-    const sets = body.sets.map((set) => {
+    const sets = body.sets.map((set, index) => {
       const weightKg = parseDecimal(set.weightKg);
       const reps = parseDecimal(set.reps);
       const setNumber = parseDecimal(set.setNumber);
@@ -53,6 +53,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
         weightKg,
         reps,
         setNumber: Number.isFinite(setNumber) && setNumber > 0 ? setNumber : 1,
+        orderIndex: index,
       };
     });
 

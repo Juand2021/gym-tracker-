@@ -58,6 +58,12 @@ const BICEPS: string[] = [
   "Bíceps barra Z",
 ];
 
+/** Antebrazo: suele ir al final del trabajo de bíceps. */
+const FOREARMS: string[] = [
+  "Curl de antebrazo con mancuernas",
+  "Curl inverso de antebrazo con mancuernas",
+];
+
 const SHOULDERS: string[] = [
   "Dominadas agarre neutro",
   "Press militar con mancuernas",
@@ -89,10 +95,10 @@ export function getExercisesForDay(
     case "pecho":
       return [...CHEST, ...TRICEPS];
     case "espalda":
-      return [...BACK, ...BICEPS];
+      return [...BACK, ...BICEPS, ...FOREARMS];
     case "hombro":
       if (armFocus === "triceps") return [...SHOULDERS, ...TRICEPS];
-      if (armFocus === "biceps") return [...SHOULDERS, ...BICEPS];
+      if (armFocus === "biceps") return [...SHOULDERS, ...BICEPS, ...FOREARMS];
       return [...SHOULDERS];
     case "pierna":
       return [...LEGS];
@@ -102,5 +108,13 @@ export function getExercisesForDay(
 }
 
 export const ALL_ROUTINE_EXERCISES: string[] = [
-  ...new Set([...CHEST, ...TRICEPS, ...BACK, ...BICEPS, ...SHOULDERS, ...LEGS]),
+  ...new Set([
+    ...CHEST,
+    ...TRICEPS,
+    ...BACK,
+    ...BICEPS,
+    ...FOREARMS,
+    ...SHOULDERS,
+    ...LEGS,
+  ]),
 ];

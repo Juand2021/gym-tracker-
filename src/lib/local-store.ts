@@ -54,12 +54,13 @@ export function localCreateWorkout(input: CreateWorkoutInput): Workout {
     createdAt: new Date().toISOString(),
     dayType: input.dayType ?? null,
     armFocus: input.armFocus ?? null,
-    sets: input.sets.map((set) => ({
+    sets: input.sets.map((set, index) => ({
       id: randomUUID(),
       exercise: set.exercise,
       weightKg: set.weightKg,
       reps: set.reps,
       setNumber: set.setNumber,
+      orderIndex: set.orderIndex ?? index,
     })),
   };
   store.workouts.unshift(workout);
@@ -88,12 +89,13 @@ export function localUpdateWorkout(
     notes: input.notes ?? "",
     dayType: input.dayType ?? null,
     armFocus: input.armFocus ?? null,
-    sets: input.sets.map((set) => ({
+    sets: input.sets.map((set, setIndex) => ({
       id: randomUUID(),
       exercise: set.exercise,
       weightKg: set.weightKg,
       reps: set.reps,
       setNumber: set.setNumber,
+      orderIndex: set.orderIndex ?? setIndex,
     })),
   };
   store.workouts[index] = updated;

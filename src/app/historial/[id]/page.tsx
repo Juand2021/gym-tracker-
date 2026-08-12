@@ -236,8 +236,8 @@ export default function WorkoutDetailPage() {
 
       {editing ? (
         <form onSubmit={onSave} className="space-y-4">
-          <div className="card grid grid-cols-2 gap-3 p-4">
-            <div className="col-span-2 sm:col-span-1">
+          <div className="card space-y-3 p-4">
+            <div className="field-wrap">
               <label className="label" htmlFor="date">
                 Fecha
               </label>
@@ -250,7 +250,7 @@ export default function WorkoutDetailPage() {
                 required
               />
             </div>
-            <div className="col-span-2">
+            <div className="field-wrap">
               <label className="label" htmlFor="notes">
                 Notas
               </label>
@@ -281,12 +281,12 @@ export default function WorkoutDetailPage() {
                     {group.sets.map((set, index) => (
                       <div
                         key={set.key}
-                        className="grid grid-cols-[auto_1fr_1fr_auto] items-end gap-2"
+                        className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
                       >
                         <span className="pb-3 text-sm font-semibold tabular-nums text-[var(--muted)]">
                           {index + 1}.
                         </span>
-                        <div>
+                        <div className="field-wrap">
                           <label className="label">kg</label>
                           <input
                             className="field text-center text-lg font-semibold tabular-nums"
@@ -298,7 +298,7 @@ export default function WorkoutDetailPage() {
                             required
                           />
                         </div>
-                        <div>
+                        <div className="field-wrap">
                           <label className="label">reps</label>
                           <input
                             className="field text-center text-lg font-semibold tabular-nums"
@@ -312,7 +312,7 @@ export default function WorkoutDetailPage() {
                         </div>
                         <button
                           type="button"
-                          className="btn btn-ghost min-w-[3rem] px-0 text-[var(--danger)]"
+                          className="btn btn-ghost min-w-[3rem] shrink-0 px-0 text-[var(--danger)]"
                           onClick={() => removeSet(set.key)}
                           aria-label="Quitar serie"
                         >

@@ -86,8 +86,8 @@ export default function PesoPage() {
       </div>
 
       <form onSubmit={onSubmit} className="card space-y-3 p-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+          <div className="field-wrap">
             <label className="label" htmlFor="date">
               Fecha
             </label>
@@ -100,7 +100,7 @@ export default function PesoPage() {
               required
             />
           </div>
-          <div>
+          <div className="field-wrap">
             <label className="label" htmlFor="weight">
               Peso (kg)
             </label>

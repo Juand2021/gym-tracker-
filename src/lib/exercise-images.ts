@@ -18,6 +18,18 @@ export const EXERCISE_IMAGES: Record<string, string> = {
   "Bíceps con mancuernas": "/exercises/biceps-mancuernas.png",
   "Bíceps unilateral concentrado": "/exercises/biceps-concentrado.png",
   "Bíceps barra Z": "/exercises/biceps-barra-z.png",
+  "Curl de antebrazo con mancuernas": "/exercises/curl-antebrazo-mancuernas.png",
+  "Curl inverso de antebrazo con mancuernas":
+    "/exercises/curl-inverso-antebrazo-mancuernas.png",
+  // Nombres libres usados al registrar la sesión
+  "Contracción de antebrazo": "/exercises/contraccion-antebrazo.png",
+  "Contraccion de antebrazo": "/exercises/contraccion-antebrazo.png",
+  "Contracción Antebrazo": "/exercises/contraccion-antebrazo.png",
+  "Contraccion Antebrazo": "/exercises/contraccion-antebrazo.png",
+  "Aducción de antebrazo": "/exercises/aduccion-antebrazo.png",
+  "Aduccion de antebrazo": "/exercises/aduccion-antebrazo.png",
+  "Aducción Antebrazo": "/exercises/aduccion-antebrazo.png",
+  "Aduccion Antebrazo": "/exercises/aduccion-antebrazo.png",
   "Dominadas agarre neutro": "/exercises/dominadas-neutro.png",
   "Press militar con mancuernas": "/exercises/press-militar-mancuernas.png",
   "Elevaciones unilaterales con cable": "/exercises/elevaciones-laterales-cable.png",
@@ -34,6 +46,44 @@ export const EXERCISE_IMAGES: Record<string, string> = {
   "Aducción de cadera": "/exercises/aduccion-cadera.png",
 };
 
+function normalizeExerciseKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const IMAGE_BY_NORMALIZED = new Map(
+  Object.entries(EXERCISE_IMAGES).map(([name, src]) => [
+    normalizeExerciseKey(name),
+    src,
+  ]),
+);
+
+/** Alias de nombres libres → imagen canónica. */
+const IMAGE_ALIASES: Record<string, string> = {
+  "contraccion de antebrazo": "/exercises/contraccion-antebrazo.png",
+  "contraccion del antebrazo": "/exercises/contraccion-antebrazo.png",
+  "contraccion antebrazo": "/exercises/contraccion-antebrazo.png",
+  "aduccion de antebrazo": "/exercises/aduccion-antebrazo.png",
+  "aduccion del antebrazo": "/exercises/aduccion-antebrazo.png",
+  "aduccion antebrazo": "/exercises/aduccion-antebrazo.png",
+  "elevacion de antebrazo": "/exercises/aduccion-antebrazo.png",
+  "elevacion de mancuernas antebrazo": "/exercises/aduccion-antebrazo.png",
+  "curl de antebrazo": "/exercises/curl-antebrazo-mancuernas.png",
+  "curl de antebrazo con mancuernas": "/exercises/curl-antebrazo-mancuernas.png",
+  "curl inverso de antebrazo": "/exercises/curl-inverso-antebrazo-mancuernas.png",
+  "curl inverso de antebrazo con mancuernas":
+    "/exercises/curl-inverso-antebrazo-mancuernas.png",
+};
+
 export function getExerciseImage(exercise: string): string | null {
-  return EXERCISE_IMAGES[exercise] ?? null;
+  if (!exercise) return null;
+  const direct = EXERCISE_IMAGES[exercise];
+  if (direct) return direct;
+
+  const key = normalizeExerciseKey(exercise);
+  return IMAGE_ALIASES[key] ?? IMAGE_BY_NORMALIZED.get(key) ?? null;
 }

@@ -65,6 +65,9 @@ export async function POST(request: NextRequest) {
       "Si hay pocos datos, dilo en el resumen y da consejos generales prudentes.",
       "No inventes series o pesos que no aparezcan en el historial.",
       "Respeta la convención de pesos del usuario (mancuerna = una sola, no sumes pares).",
+      "Respecta el ORDEN DE EJECUCIÓN de cada sesión: el listado va de primero a último tal como entrenó.",
+      "En espalda, lo normal es empezar por dominadas/jalón/remo y cerrar con bíceps/antebrazo; no digas que empezó por bíceps si esos ejercicios aparecen al final.",
+      "Si comentas el orden de la rutina, usa la secuencia numerada de la sesión o de la plantilla.",
     ].join(" ");
 
     const input = `${question}\n\n---\nDATOS:\n${context}`;

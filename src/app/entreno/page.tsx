@@ -95,8 +95,8 @@ function ExerciseBlock({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-        <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+        <div className="field-wrap">
           <label className="label" title={load.detail}>
             kg · {load.short}
           </label>
@@ -114,7 +114,7 @@ function ExerciseBlock({
             }}
           />
         </div>
-        <div>
+        <div className="field-wrap">
           <label className="label">reps</label>
           <input
             className="field text-center text-xl font-semibold tabular-nums"
@@ -131,7 +131,7 @@ function ExerciseBlock({
         </div>
         <button
           type="button"
-          className="btn btn-primary min-w-[3.4rem] px-0 text-2xl"
+          className="btn btn-primary min-w-[3.4rem] shrink-0 px-0 text-2xl"
           onClick={add}
           disabled={
             !isValidWeight(parseDecimal(weightKg)) ||
@@ -399,8 +399,8 @@ function EntrenoForm() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="card grid grid-cols-2 gap-3 p-4">
-          <div className="col-span-2 sm:col-span-1">
+        <div className="card space-y-3 p-4">
+          <div className="field-wrap">
             <label className="label" htmlFor="date">
               Fecha
             </label>
@@ -413,7 +413,7 @@ function EntrenoForm() {
               required
             />
           </div>
-          <div className="col-span-2">
+          <div className="field-wrap">
             <label className="label" htmlFor="notes">
               Notas (opcional)
             </label>
@@ -441,13 +441,15 @@ function EntrenoForm() {
 
         <div className="card space-y-3 p-4">
           <p className="font-semibold">Otro ejercicio</p>
-          <div className="flex gap-2">
-            <input
-              className="field"
-              value={customExercise}
-              onChange={(e) => setCustomExercise(e.target.value)}
-              placeholder="Nombre libre"
-            />
+          <div className="flex min-w-0 gap-2">
+            <div className="field-wrap min-w-0 flex-1">
+              <input
+                className="field"
+                value={customExercise}
+                onChange={(e) => setCustomExercise(e.target.value)}
+                placeholder="Nombre libre"
+              />
+            </div>
             <button
               type="button"
               className="btn btn-ghost shrink-0"
@@ -460,7 +462,7 @@ function EntrenoForm() {
 
         {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
 
-        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 pt-2">
+        <div className="sticky-save">
           <button
             className="btn btn-primary w-full"
             type="submit"
