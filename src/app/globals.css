@@ -553,22 +553,31 @@ input[type="date"].field {
 .stack-picker-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem;
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  padding: max(0.65rem, env(safe-area-inset-top))
+    max(0.65rem, env(safe-area-inset-right))
+    max(0.65rem, env(safe-area-inset-bottom))
+    max(0.65rem, env(safe-area-inset-left));
   background: rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  overscroll-behavior: none;
+  isolation: isolate;
   animation: stack-fade-in 0.2s ease;
 }
 
 .stack-picker-sheet {
   width: min(100%, 26rem);
-  max-height: min(90dvh, 44rem);
-  overflow: auto;
+  max-height: min(88vh, 44rem);
+  max-height: min(88dvh, 44rem);
+  max-height: min(88svh, 44rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   border-radius: 1.15rem;
   border: 1px solid var(--line-strong);
   background:
@@ -937,22 +946,31 @@ input[type="date"].field {
 .db-picker-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem;
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  padding: max(0.65rem, env(safe-area-inset-top))
+    max(0.65rem, env(safe-area-inset-right))
+    max(0.65rem, env(safe-area-inset-bottom))
+    max(0.65rem, env(safe-area-inset-left));
   background: rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  overscroll-behavior: none;
+  isolation: isolate;
   animation: stack-fade-in 0.2s ease;
 }
 
 .db-picker-sheet {
   width: min(100%, 28rem);
-  max-height: min(90dvh, 46rem);
-  overflow: auto;
+  max-height: min(88vh, 46rem);
+  max-height: min(88dvh, 46rem);
+  max-height: min(88svh, 46rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   border-radius: 1.15rem;
   border: 1px solid var(--line-strong);
   background:
@@ -1167,22 +1185,31 @@ input[type="date"].field {
 .bb-picker-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem;
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  padding: max(0.65rem, env(safe-area-inset-top))
+    max(0.65rem, env(safe-area-inset-right))
+    max(0.65rem, env(safe-area-inset-bottom))
+    max(0.65rem, env(safe-area-inset-left));
   background: rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  overscroll-behavior: none;
+  isolation: isolate;
   animation: stack-fade-in 0.2s ease;
 }
 
 .bb-picker-sheet {
   width: min(100%, 28rem);
-  max-height: min(90dvh, 44rem);
-  overflow: auto;
+  max-height: min(88vh, 44rem);
+  max-height: min(88dvh, 44rem);
+  max-height: min(88svh, 44rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   border-radius: 1.15rem;
   border: 1px solid var(--line-strong);
   background:

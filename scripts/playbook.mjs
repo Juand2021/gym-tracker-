@@ -52,6 +52,7 @@ step("Archivos del experimento existen", () => {
     "src/components/DumbbellRackPicker.tsx",
     "src/components/BarbellPlatePicker.tsx",
     "src/components/EzBarRackPicker.tsx",
+    "src/components/PickerPortal.tsx",
     "src/app/entreno/page.tsx",
     "src/lib/numbers.ts",
     "src/app/historial/[id]/page.tsx",
@@ -70,11 +71,11 @@ step("TypeScript (tsc --noEmit)", () => {
 
 step("ESLint archivos tocados", () => {
   runShell(
-    "npx eslint src/lib/machine-stacks.ts src/lib/dumbbell-rack.ts src/lib/barbell-plates.ts src/lib/ez-bar-rack.ts src/components/MachineStackPicker.tsx src/components/DumbbellRackPicker.tsx src/components/BarbellPlatePicker.tsx src/components/EzBarRackPicker.tsx src/app/entreno/page.tsx src/lib/numbers.ts",
+    "npx eslint src/lib/machine-stacks.ts src/lib/dumbbell-rack.ts src/lib/barbell-plates.ts src/lib/ez-bar-rack.ts src/components/MachineStackPicker.tsx src/components/DumbbellRackPicker.tsx src/components/BarbellPlatePicker.tsx src/components/EzBarRackPicker.tsx src/components/PickerPortal.tsx src/app/entreno/page.tsx src/lib/numbers.ts",
   );
 });
 
-step("Entreno integra stack, racks, barra y bullet", () => {
+step("Entreno integra stack, racks, barra, portal y bullet", () => {
   const entreno = fs.readFileSync(
     path.join(root, "src/app/entreno/page.tsx"),
     "utf8",
@@ -92,6 +93,13 @@ step("Entreno integra stack, racks, barra y bullet", () => {
   assert.doesNotMatch(entreno, /lb · 1 manc/);
   assert.doesNotMatch(entreno, /formatDumbbellTriggerLbsFromKg/);
   assert.doesNotMatch(entreno, /\{index \+ 1\}\.\s*\{set\.weightKg\}/);
+
+  const portal = fs.readFileSync(
+    path.join(root, "src/components/PickerPortal.tsx"),
+    "utf8",
+  );
+  assert.match(portal, /createPortal/);
+  assert.match(portal, /document\.body/);
 });
 
 step("Historial usa bullet de serie", () => {

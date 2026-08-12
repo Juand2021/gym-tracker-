@@ -3,6 +3,12 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado con [SemVer](https://semver.org/lang/es/): `MAYOR.MENOR.PARCHE`.
 
+## [1.1.1] — 2026-08-12
+
+### Fixed
+- Modales de carga en iPhone: se renderizan con portal a `document.body` para no quedar bajo otras cards (stacking context de `backdrop-filter`).
+- Altura/scroll de sheets con `svh` + safe-area; bloqueo de scroll del body al abrir.
+
 ## [1.1.0] — 2026-08-12
 
 Release de experiencia de carga visual (antes `experiment/visual-redesign`).  

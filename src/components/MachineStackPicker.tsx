@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  useEffect,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { PickerPortal } from "@/components/PickerPortal";
 import {
   buildStackPlates,
   formatStackKg,
@@ -46,15 +46,6 @@ export function MachineStackPicker({
       setPinIndex(nearestPlateIndex(plates, valueKg ?? 0));
     }
   }
-
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   const selectedKg = pinIndex < 0 ? 0 : plates[pinIndex].cumulativeKg;
 
@@ -107,12 +98,11 @@ export function MachineStackPicker({
     }
   }
 
-  if (!open) return null;
-
   const pinTopPercent =
     pinIndex < 0 ? -2 : ((pinIndex + 0.5) / plates.length) * 100;
 
   return (
+    <PickerPortal open={open}>
     <div
       className="stack-picker-overlay"
       role="dialog"
@@ -235,5 +225,6 @@ export function MachineStackPicker({
         </div>
       </div>
     </div>
+    </PickerPortal>
   );
 }
