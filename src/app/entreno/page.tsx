@@ -1,9 +1,21 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { BarbellPlatePicker } from "@/components/BarbellPlatePicker";
+import { DumbbellRackPicker } from "@/components/DumbbellRackPicker";
+import { EzBarRackPicker } from "@/components/EzBarRackPicker";
+import { MachineStackPicker } from "@/components/MachineStackPicker";
+import { hasBarbellPlatePicker } from "@/lib/barbell-plates";
+import { hasDumbbellRackPicker } from "@/lib/dumbbell-rack";
+import { hasEzBarRackPicker } from "@/lib/ez-bar-rack";
 import { getLoadHint, LOAD_CONVENTION_NOTE } from "@/lib/exercises";
+import {
+  formatStackKg,
+  getMachineStack,
+  hasMachineStackPicker,
+} from "@/lib/machine-stacks";
 import {
   isValidReps,
   isValidWeight,
@@ -45,15 +57,33 @@ function ExerciseBlock({
 }) {
   const last = sets[sets.length - 1];
   const load = getLoadHint(exercise);
+  const stackConfig = getMachineStack(exercise);
+  const useStackPicker = hasMachineStackPicker(exercise);
+  const useDumbbellPicker =
+    !useStackPicker && hasDumbbellRackPicker(exercise);
+  const useBarbellPicker =
+    !useStackPicker && !useDumbbellPicker && hasBarbellPlatePicker(exercise);
+  const useEzBarPicker =
+    !useStackPicker &&
+    !useDumbbellPicker &&
+    !useBarbellPicker &&
+    hasEzBarRackPicker(exercise);
+  const useVisualPicker =
+    useStackPicker || useDumbbellPicker || useBarbellPicker || useEzBarPicker;
   const [weightKg, setWeightKg] = useState(last?.weightKg ?? "");
   const [reps, setReps] = useState(last?.reps ?? "");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [manualKg, setManualKg] = useState(false);
+  const lastKey = last?.key ?? "";
+  const [syncedKey, setSyncedKey] = useState(lastKey);
 
-  useEffect(() => {
+  if (lastKey !== syncedKey) {
+    setSyncedKey(lastKey);
     if (last) {
       setWeightKg(last.weightKg);
       setReps(last.reps);
     }
-  }, [last?.weightKg, last?.reps, last]);
+  }
 
   function add() {
     const w = parseDecimal(weightKg);
@@ -61,6 +91,12 @@ function ExerciseBlock({
     if (!isValidWeight(w) || !isValidReps(r)) return;
     onAdd(String(w), String(r));
   }
+
+  const parsedWeight = parseDecimal(weightKg);
+  const weightLabel =
+    weightKg && isValidWeight(parsedWeight)
+      ? formatStackKg(parsedWeight)
+      : "Elegir";
 
   return (
     <div className="card space-y-3 p-4">
@@ -75,13 +111,25 @@ function ExerciseBlock({
               : `${sets.length} serie${sets.length > 1 ? "s" : ""}`}
             {" · "}
             <span className="text-[var(--accent)]">{load.short}</span>
+            {useStackPicker ? (
+              <span className="text-[var(--muted)]"> · stack</span>
+            ) : null}
+            {useDumbbellPicker ? (
+              <span className="text-[var(--muted)]"> · rack</span>
+            ) : null}
+            {useBarbellPicker ? (
+              <span className="text-[var(--muted)]"> · barra</span>
+            ) : null}
+            {useEzBarPicker ? (
+              <span className="text-[var(--muted)]"> · barra Z</span>
+            ) : null}
           </p>
         </div>
       </div>
 
       {sets.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {sets.map((set, index) => (
+          {sets.map((set) => (
             <button
               key={set.key}
               type="button"
@@ -89,59 +137,161 @@ function ExerciseBlock({
               className="chip min-h-10"
               title="Toca para quitar"
             >
-              {index + 1}. {set.weightKg}×{set.reps}
+              <span className="set-bullet" aria-hidden>
+                ·
+              </span>
+              {set.weightKg}×{set.reps}
             </button>
           ))}
         </div>
       ) : null}
 
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
-        <div className="field-wrap">
-          <label className="label" title={load.detail}>
-            kg · {load.short}
-          </label>
-          <input
-            className="field text-center text-xl font-semibold tabular-nums"
-            inputMode="decimal"
-            value={weightKg}
-            onChange={(e) => setWeightKg(e.target.value)}
-            aria-description={load.detail}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                add();
-              }
-            }}
-          />
+      <div className="space-y-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+          <div className="field-wrap">
+            <label className="label text-center" title={load.detail}>
+              kg · {load.short}
+            </label>
+            {useVisualPicker && !manualKg ? (
+              <button
+                type="button"
+                className="field stack-kg-trigger"
+                onClick={() => setPickerOpen(true)}
+                aria-label={
+                  useDumbbellPicker
+                    ? "Abrir selector de mancuernas"
+                    : useBarbellPicker
+                      ? "Abrir selector de barra olímpica"
+                      : useEzBarPicker
+                        ? "Abrir selector de barra Z"
+                        : "Abrir selector de placas"
+                }
+              >
+                {weightLabel}
+              </button>
+            ) : (
+              <input
+                className="field text-center text-xl font-semibold tabular-nums"
+                inputMode="decimal"
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+                aria-description={load.detail}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    add();
+                  }
+                }}
+              />
+            )}
+          </div>
+          <div className="field-wrap">
+            <label className="label text-center">reps</label>
+            <input
+              className="field text-center text-xl font-semibold tabular-nums"
+              inputMode="numeric"
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary min-h-[var(--touch)] min-w-[3.4rem] shrink-0 self-end px-0 text-2xl"
+            onClick={add}
+            disabled={
+              !isValidWeight(parseDecimal(weightKg)) ||
+              !isValidReps(parseDecimal(reps))
+            }
+            aria-label="Añadir serie"
+          >
+            +
+          </button>
         </div>
-        <div className="field-wrap">
-          <label className="label">reps</label>
-          <input
-            className="field text-center text-xl font-semibold tabular-nums"
-            inputMode="numeric"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                add();
-              }
-            }}
-          />
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary min-w-[3.4rem] shrink-0 px-0 text-2xl"
-          onClick={add}
-          disabled={
-            !isValidWeight(parseDecimal(weightKg)) ||
-            !isValidReps(parseDecimal(reps))
-          }
-          aria-label="Añadir serie"
-        >
-          +
-        </button>
+        {useVisualPicker ? (
+          <div className="text-center">
+            <button
+              type="button"
+              className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
+              onClick={() => {
+                setManualKg((v) => !v);
+                setPickerOpen(false);
+              }}
+            >
+              {manualKg
+                ? useDumbbellPicker
+                  ? "Usar mancuernas"
+                  : useBarbellPicker
+                    ? "Usar barra"
+                    : useEzBarPicker
+                      ? "Usar barra Z"
+                      : "Usar placas"
+                : "Escribir kg"}
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {stackConfig ? (
+        <MachineStackPicker
+          open={pickerOpen}
+          config={stackConfig}
+          valueKg={isValidWeight(parsedWeight) ? parsedWeight : null}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(kg) => {
+            setWeightKg(formatStackKg(kg));
+            setPickerOpen(false);
+            setManualKg(false);
+          }}
+        />
+      ) : null}
+
+      {useDumbbellPicker ? (
+        <DumbbellRackPicker
+          open={pickerOpen}
+          exercise={exercise}
+          valueKg={isValidWeight(parsedWeight) ? parsedWeight : null}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(kg) => {
+            setWeightKg(formatStackKg(kg));
+            setPickerOpen(false);
+            setManualKg(false);
+          }}
+        />
+      ) : null}
+
+      {useBarbellPicker ? (
+        <BarbellPlatePicker
+          open={pickerOpen}
+          exercise={exercise}
+          valueKg={isValidWeight(parsedWeight) ? parsedWeight : null}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(kg) => {
+            setWeightKg(formatStackKg(kg));
+            setPickerOpen(false);
+            setManualKg(false);
+          }}
+        />
+      ) : null}
+
+      {useEzBarPicker ? (
+        <EzBarRackPicker
+          open={pickerOpen}
+          exercise={exercise}
+          valueKg={isValidWeight(parsedWeight) ? parsedWeight : null}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(kg) => {
+            setWeightKg(formatStackKg(kg));
+            setPickerOpen(false);
+            setManualKg(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

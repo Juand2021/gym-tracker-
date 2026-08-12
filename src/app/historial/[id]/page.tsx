@@ -278,13 +278,16 @@ export default function WorkoutDetailPage() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    {group.sets.map((set, index) => (
+                    {group.sets.map((set) => (
                       <div
                         key={set.key}
                         className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
                       >
-                        <span className="pb-3 text-sm font-semibold tabular-nums text-[var(--muted)]">
-                          {index + 1}.
+                        <span
+                          className="set-bullet pb-3 text-[var(--muted)]"
+                          aria-hidden
+                        >
+                          ·
                         </span>
                         <div className="field-wrap">
                           <label className="label">kg</label>
@@ -360,7 +363,10 @@ export default function WorkoutDetailPage() {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {group.sets.map((set) => (
                       <span key={set.id} className="chip">
-                        {set.setNumber}. {set.weightKg} kg × {set.reps}
+                        <span className="set-bullet" aria-hidden>
+                          ·
+                        </span>
+                        {set.weightKg}×{set.reps}
                       </span>
                     ))}
                   </div>
