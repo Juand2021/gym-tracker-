@@ -4,7 +4,7 @@ import {
   deleteBodyWeight,
   listBodyWeight,
 } from "@/lib/data";
-import type { CreateBodyWeightInput } from "@/lib/types";
+import { isValidWeight, parseDecimal } from "@/lib/numbers";
 
 export async function GET() {
   try {
@@ -18,17 +18,28 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as CreateBodyWeightInput;
-    if (!body.date || body.weightKg == null) {
+    const body = (await request.json()) as {
+      date?: string;
+      weightKg?: unknown;
+    };
+    if (!body.date || body.weightKg == null || body.weightKg === "") {
       return NextResponse.json(
         { error: "Fecha y peso son obligatorios" },
         { status: 400 },
       );
     }
 
+    const weightKg = parseDecimal(body.weightKg);
+    if (!isValidWeight(weightKg) || weightKg <= 0) {
+      return NextResponse.json(
+        { error: "Peso inválido. Usa decimales con punto o coma (ej. 72,5)." },
+        { status: 400 },
+      );
+    }
+
     const entry = await createBodyWeight({
       date: body.date,
-      weightKg: Number(body.weightKg),
+      weightKg,
     });
 
     return NextResponse.json({ entry }, { status: 201 });

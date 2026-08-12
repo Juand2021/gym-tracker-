@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createWorkout, listWorkouts } from "@/lib/data";
+import {
+  isValidReps,
+  isValidWeight,
+  parseDecimal,
+} from "@/lib/numbers";
 import type { CreateWorkoutInput } from "@/lib/types";
 
 export async function GET() {
@@ -22,22 +27,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const sets = body.sets.map((set) => {
+      const weightKg = parseDecimal(set.weightKg);
+      const reps = parseDecimal(set.reps);
+      const setNumber = parseDecimal(set.setNumber);
+      if (!set.exercise?.trim()) {
+        throw new Error("Cada serie necesita un ejercicio");
+      }
+      if (!isValidWeight(weightKg)) {
+        throw new Error(`Peso inválido en ${set.exercise.trim()}`);
+      }
+      if (!isValidReps(reps)) {
+        throw new Error(`Reps inválidas en ${set.exercise.trim()}`);
+      }
+      return {
+        exercise: set.exercise.trim(),
+        weightKg,
+        reps,
+        setNumber: Number.isFinite(setNumber) && setNumber > 0 ? setNumber : 1,
+      };
+    });
+
     const workout = await createWorkout({
       date: body.date,
       notes: body.notes ?? "",
       dayType: body.dayType ?? null,
       armFocus: body.armFocus ?? null,
-      sets: body.sets.map((set) => ({
-        exercise: set.exercise.trim(),
-        weightKg: Number(set.weightKg),
-        reps: Number(set.reps),
-        setNumber: Number(set.setNumber),
-      })),
+      sets,
     });
 
     return NextResponse.json({ workout }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al crear";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("inválid") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

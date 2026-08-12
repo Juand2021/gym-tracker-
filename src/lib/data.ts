@@ -12,12 +12,14 @@ import {
   localGetWorkout,
   localListBodyWeight,
   localListWorkouts,
+  localUpdateWorkout,
 } from "@/lib/local-store";
 import type { ArmFocus, DayType } from "@/lib/routines";
 import type {
   BodyWeightEntry,
   CreateBodyWeightInput,
   CreateWorkoutInput,
+  UpdateWorkoutInput,
   Workout,
   WorkoutSet,
 } from "@/lib/types";
@@ -147,7 +149,9 @@ export async function createWorkout(input: CreateWorkoutInput): Promise<Workout>
 }
 
 export async function deleteWorkout(id: string): Promise<void> {
-  if (id.startsWith("demo-")) return;
+  if (id.startsWith("demo-")) {
+    throw new Error("No se pueden borrar sesiones de demostración");
+  }
 
   if (!isFirebaseConfigured()) {
     localDeleteWorkout(id);
@@ -160,6 +164,62 @@ export async function deleteWorkout(id: string): Promise<void> {
   sets.docs.forEach((doc) => batch.delete(doc.ref));
   batch.delete(ref);
   await batch.commit();
+}
+
+export async function updateWorkout(
+  id: string,
+  input: UpdateWorkoutInput,
+): Promise<Workout> {
+  if (id.startsWith("demo-")) {
+    throw new Error("No se pueden editar sesiones de demostración");
+  }
+
+  if (!isFirebaseConfigured()) {
+    const updated = localUpdateWorkout(id, input);
+    if (!updated) throw new Error("No encontrado");
+    return updated;
+  }
+
+  const ref = getDb().collection("workouts").doc(id);
+  const existing = await ref.get();
+  if (!existing.exists) throw new Error("No encontrado");
+
+  const previous = existing.data()!;
+  const batch = getDb().batch();
+  batch.update(ref, {
+    date: input.date,
+    notes: input.notes ?? "",
+    dayType: input.dayType ?? null,
+    armFocus: input.armFocus ?? null,
+  });
+
+  const oldSets = await ref.collection("sets").get();
+  oldSets.docs.forEach((doc) => batch.delete(doc.ref));
+
+  input.sets.forEach((set) => {
+    const setRef = ref.collection("sets").doc();
+    batch.set(setRef, {
+      exercise: set.exercise,
+      weightKg: set.weightKg,
+      reps: set.reps,
+      setNumber: set.setNumber,
+    });
+  });
+
+  await batch.commit();
+
+  return {
+    id,
+    date: input.date,
+    notes: input.notes ?? "",
+    createdAt: String(previous.createdAt ?? ""),
+    dayType: input.dayType ?? null,
+    armFocus: input.armFocus ?? null,
+    sets: input.sets.map((set, index) => ({
+      id: `temp-${index}`,
+      ...set,
+    })),
+  };
 }
 
 export async function listBodyWeight(limit = 90): Promise<BodyWeightEntry[]> {

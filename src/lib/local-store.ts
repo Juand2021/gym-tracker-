@@ -5,6 +5,7 @@ import type {
   BodyWeightEntry,
   CreateBodyWeightInput,
   CreateWorkoutInput,
+  UpdateWorkoutInput,
   Workout,
 } from "@/lib/types";
 
@@ -70,6 +71,34 @@ export function localDeleteWorkout(id: string): void {
   const store = readStore();
   store.workouts = store.workouts.filter((w) => w.id !== id);
   writeStore(store);
+}
+
+export function localUpdateWorkout(
+  id: string,
+  input: UpdateWorkoutInput,
+): Workout | null {
+  const store = readStore();
+  const index = store.workouts.findIndex((w) => w.id === id);
+  if (index < 0) return null;
+
+  const previous = store.workouts[index];
+  const updated: Workout = {
+    ...previous,
+    date: input.date,
+    notes: input.notes ?? "",
+    dayType: input.dayType ?? null,
+    armFocus: input.armFocus ?? null,
+    sets: input.sets.map((set) => ({
+      id: randomUUID(),
+      exercise: set.exercise,
+      weightKg: set.weightKg,
+      reps: set.reps,
+      setNumber: set.setNumber,
+    })),
+  };
+  store.workouts[index] = updated;
+  writeStore(store);
+  return updated;
 }
 
 export function localListBodyWeight(limit = 90): BodyWeightEntry[] {

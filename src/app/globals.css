@@ -229,3 +229,79 @@ input[type="date"].field {
   background: #141414;
   color: var(--ink);
 }
+
+.ai-prose {
+  color: var(--ink);
+}
+
+.ai-section-title {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.ai-section-subtitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ai-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ai-list > li {
+  position: relative;
+  padding: 0.7rem 0.85rem 0.7rem 2.1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.ai-list > li::before {
+  content: "";
+  position: absolute;
+  top: 1.05rem;
+  left: 0.85rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.ai-list-ordered {
+  counter-reset: ai-item;
+}
+
+.ai-list-ordered > li {
+  padding-left: 2.55rem;
+  counter-increment: ai-item;
+}
+
+.ai-list-ordered > li::before {
+  content: counter(ai-item);
+  top: 0.72rem;
+  left: 0.7rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.35rem;
+  background: var(--accent-soft);
+  color: #ffd7c4;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { getLoadHint, LOAD_CONVENTION_NOTE } from "@/lib/exercises";
 import {
+  isValidReps,
+  isValidWeight,
+  parseDecimal,
+} from "@/lib/numbers";
+import {
   DAY_OPTIONS,
   getDayLabel,
   getExercisesForDay,
@@ -51,8 +56,10 @@ function ExerciseBlock({
   }, [last?.weightKg, last?.reps, last]);
 
   function add() {
-    if (!weightKg || !reps) return;
-    onAdd(weightKg, reps);
+    const w = parseDecimal(weightKg);
+    const r = parseDecimal(reps);
+    if (!isValidWeight(w) || !isValidReps(r)) return;
+    onAdd(String(w), String(r));
   }
 
   return (
@@ -126,7 +133,10 @@ function ExerciseBlock({
           type="button"
           className="btn btn-primary min-w-[3.4rem] px-0 text-2xl"
           onClick={add}
-          disabled={!weightKg || !reps}
+          disabled={
+            !isValidWeight(parseDecimal(weightKg)) ||
+            !isValidReps(parseDecimal(reps))
+          }
           aria-label="Añadir serie"
         >
           +
@@ -241,12 +251,19 @@ function EntrenoForm() {
 
       const byExerciseCount = new Map<string, number>();
       const payloadSets = finalSets.map((set) => {
+        const weightKg = parseDecimal(set.weightKg);
+        const reps = parseDecimal(set.reps);
+        if (!isValidWeight(weightKg) || !isValidReps(reps)) {
+          throw new Error(
+            `Serie inválida en ${set.exercise}. Usa decimales con punto o coma (ej. 4,5).`,
+          );
+        }
         const n = (byExerciseCount.get(set.exercise) ?? 0) + 1;
         byExerciseCount.set(set.exercise, n);
         return {
           exercise: set.exercise,
-          weightKg: Number(set.weightKg),
-          reps: Number(set.reps),
+          weightKg,
+          reps,
           setNumber: n,
         };
       });

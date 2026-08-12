@@ -24,17 +24,27 @@ export type BodyWeightEntry = {
   weightKg: number;
 };
 
+export type WorkoutSetInput = {
+  exercise: string;
+  weightKg: number;
+  reps: number;
+  setNumber: number;
+};
+
 export type CreateWorkoutInput = {
   date: string;
   notes?: string;
   dayType?: DayType | null;
   armFocus?: ArmFocus | null;
-  sets: Array<{
-    exercise: string;
-    weightKg: number;
-    reps: number;
-    setNumber: number;
-  }>;
+  sets: WorkoutSetInput[];
+};
+
+export type UpdateWorkoutInput = {
+  date: string;
+  notes?: string;
+  dayType?: DayType | null;
+  armFocus?: ArmFocus | null;
+  sets: WorkoutSetInput[];
 };
 
 export type CreateBodyWeightInput = {

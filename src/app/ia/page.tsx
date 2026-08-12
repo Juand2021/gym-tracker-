@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { AiAnalysis } from "@/components/AiAnalysis";
 
 const SUGGESTIONS = [
   "¿Cómo va mi progreso de fuerza?",
@@ -79,9 +80,14 @@ export default function IaPage() {
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
 
       {analysis ? (
-        <article className="card space-y-3 p-5">
-          <p className="label">Resultado</p>
-          <div className="whitespace-pre-wrap leading-relaxed">{analysis}</div>
+        <article className="card space-y-4 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="label mb-0">Resultado</p>
+            <span className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+              Coach
+            </span>
+          </div>
+          <AiAnalysis content={analysis} />
         </article>
       ) : null}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { isValidWeight, parseDecimal } from "@/lib/numbers";
 import type { BodyWeightEntry } from "@/lib/types";
 
 function todayIso() {
@@ -42,10 +43,14 @@ export default function PesoPage() {
     setSaving(true);
     setError("");
     try {
+      const parsed = parseDecimal(weightKg);
+      if (!isValidWeight(parsed) || parsed <= 0) {
+        throw new Error("Peso inválido. Usa decimales con punto o coma (ej. 72,5).");
+      }
       const res = await fetch("/api/body-weight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, weightKg: Number(weightKg) }),
+        body: JSON.stringify({ date, weightKg: parsed }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
