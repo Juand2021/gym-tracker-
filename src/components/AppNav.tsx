@@ -26,7 +26,7 @@ export function AppNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--bg)]/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+      <header className="app-topbar">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3">
           <Link
             href="/"
@@ -45,7 +45,7 @@ export function AppNav() {
         </div>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--bg-elevated)]/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+      <nav className="app-tabbar">
         <div className="mx-auto grid max-w-lg grid-cols-6 gap-0.5 px-1 py-1.5">
           {links.map((link) => {
             const active =
@@ -57,12 +57,8 @@ export function AppNav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex min-h-12 flex-col items-center justify-center rounded-md px-1 text-[0.65rem] font-bold uppercase tracking-[0.04em] transition ${
-                  active
-                    ? isEntreno
-                      ? "bg-[var(--accent)] text-[#120800]"
-                      : "bg-[var(--surface-2)] text-[var(--ink)] shadow-[inset_0_-2px_0_var(--accent)]"
-                    : "text-[var(--muted)] active:bg-[var(--surface)]"
+                className={`app-tab ${active ? "is-active" : ""} ${
+                  active && isEntreno ? "is-entreno" : ""
                 }`}
               >
                 <span className="sm:hidden">{link.short}</span>
