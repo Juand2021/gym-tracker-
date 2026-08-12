@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildAiContext } from "@/lib/data";
+import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 
 function getAiClient() {
   const azureKey = process.env.AZURE_OPENAI_API_KEY;
@@ -30,6 +31,9 @@ function getAiClient() {
 }
 
 export async function POST(request: NextRequest) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const ai = getAiClient();
     if (!ai) {
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
       body.question?.trim() ||
       "Analiza mi progreso, si estoy estancado y qué debería cambiar en mi rutina.";
 
-    const context = await buildAiContext();
+    const context = await buildAiContext(profile);
     const instructions = [
       "Eres un entrenador de fuerza práctico y claro.",
       "Hablas en español, de forma directa y útil para un principiante/intermedio.",

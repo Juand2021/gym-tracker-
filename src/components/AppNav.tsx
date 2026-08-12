@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 const links = [
@@ -15,6 +16,30 @@ const links = [
 export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pathname === "/login") return;
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as {
+          profile?: { displayName?: string };
+        };
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setDisplayName(data?.profile?.displayName ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDisplayName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   if (pathname === "/login") return null;
 
@@ -35,13 +60,20 @@ export function AppNav() {
             FUERZA
             <span className="text-[var(--accent)]">.</span>
           </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="min-h-10 px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]"
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-3">
+            {displayName ? (
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                {displayName}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={logout}
+              className="min-h-10 px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]"
+            >
+              Salir
+            </button>
+          </div>
         </div>
       </header>
 

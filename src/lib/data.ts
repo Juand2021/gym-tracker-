@@ -14,6 +14,7 @@ import {
   localListWorkouts,
   localUpdateWorkout,
 } from "@/lib/local-store";
+import type { Profile } from "@/lib/profiles";
 import {
   DAY_OPTIONS,
   getExercisesForDay,
@@ -28,6 +29,11 @@ import type {
   Workout,
   WorkoutSet,
 } from "@/lib/types";
+import type {
+  CollectionReference,
+  DocumentData,
+  Firestore,
+} from "firebase-admin/firestore";
 
 function asDayType(value: unknown): DayType | null {
   if (value === "pecho" || value === "espalda" || value === "hombro" || value === "pierna") {
@@ -55,6 +61,26 @@ function mapSet(id: string, data: Record<string, unknown>): WorkoutSet {
     setNumber: Number(data.setNumber ?? 0),
     orderIndex,
   };
+}
+
+function includeDemos(profile: Profile): boolean {
+  return profile.dataRoot === "legacy";
+}
+
+function workoutsCollection(
+  db: Firestore,
+  profile: Profile,
+): CollectionReference<DocumentData> {
+  if (profile.dataRoot === "legacy") return db.collection("workouts");
+  return db.collection("users").doc(profile.id).collection("workouts");
+}
+
+function bodyWeightCollection(
+  db: Firestore,
+  profile: Profile,
+): CollectionReference<DocumentData> {
+  if (profile.dataRoot === "legacy") return db.collection("bodyWeight");
+  return db.collection("users").doc(profile.id).collection("bodyWeight");
 }
 
 /** Orden de ejecución: orderIndex → plantilla del día → setNumber. */
@@ -92,12 +118,12 @@ export function sortSetsBySessionOrder(
 }
 
 async function loadSets(
+  profile: Profile,
   workoutId: string,
   dayType?: DayType | null,
   armFocus?: ArmFocus | null,
 ): Promise<WorkoutSet[]> {
-  const snap = await getDb()
-    .collection("workouts")
+  const snap = await workoutsCollection(getDb(), profile)
     .doc(workoutId)
     .collection("sets")
     .get();
@@ -108,13 +134,15 @@ async function loadSets(
   return sortSetsBySessionOrder(sets, dayType, armFocus);
 }
 
-export async function listWorkouts(limit = 80): Promise<Workout[]> {
+export async function listWorkouts(
+  profile: Profile,
+  limit = 80,
+): Promise<Workout[]> {
   const real = !isFirebaseConfigured()
-    ? localListWorkouts(limit)
+    ? localListWorkouts(profile.id, limit)
     : await Promise.all(
         (
-          await getDb()
-            .collection("workouts")
+          await workoutsCollection(getDb(), profile)
             .orderBy("date", "desc")
             .limit(limit)
             .get()
@@ -129,12 +157,16 @@ export async function listWorkouts(limit = 80): Promise<Workout[]> {
             createdAt: String(data.createdAt ?? ""),
             dayType,
             armFocus,
-            sets: await loadSets(doc.id, dayType, armFocus),
+            sets: await loadSets(profile, doc.id, dayType, armFocus),
           } satisfies Workout;
         }),
       );
 
-  return mergeWithDemoWorkouts(real, limit).map((workout) => ({
+  const merged = includeDemos(profile)
+    ? mergeWithDemoWorkouts(real, limit)
+    : real;
+
+  return merged.map((workout) => ({
     ...workout,
     sets: sortSetsBySessionOrder(
       workout.sets,
@@ -144,17 +176,22 @@ export async function listWorkouts(limit = 80): Promise<Workout[]> {
   }));
 }
 
-export async function getWorkout(id: string): Promise<Workout | null> {
-  const demo = getDemoWorkoutById(id);
-  if (demo) {
-    return {
-      ...demo,
-      sets: sortSetsBySessionOrder(demo.sets, demo.dayType, demo.armFocus),
-    };
+export async function getWorkout(
+  profile: Profile,
+  id: string,
+): Promise<Workout | null> {
+  if (includeDemos(profile)) {
+    const demo = getDemoWorkoutById(id);
+    if (demo) {
+      return {
+        ...demo,
+        sets: sortSetsBySessionOrder(demo.sets, demo.dayType, demo.armFocus),
+      };
+    }
   }
 
   if (!isFirebaseConfigured()) {
-    const local = localGetWorkout(id);
+    const local = localGetWorkout(profile.id, id);
     if (!local) return null;
     return {
       ...local,
@@ -162,7 +199,7 @@ export async function getWorkout(id: string): Promise<Workout | null> {
     };
   }
 
-  const doc = await getDb().collection("workouts").doc(id).get();
+  const doc = await workoutsCollection(getDb(), profile).doc(id).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
   const dayType = asDayType(data.dayType);
@@ -174,14 +211,17 @@ export async function getWorkout(id: string): Promise<Workout | null> {
     createdAt: String(data.createdAt ?? ""),
     dayType,
     armFocus,
-    sets: await loadSets(doc.id, dayType, armFocus),
+    sets: await loadSets(profile, doc.id, dayType, armFocus),
   };
 }
 
-export async function createWorkout(input: CreateWorkoutInput): Promise<Workout> {
-  if (!isFirebaseConfigured()) return localCreateWorkout(input);
+export async function createWorkout(
+  profile: Profile,
+  input: CreateWorkoutInput,
+): Promise<Workout> {
+  if (!isFirebaseConfigured()) return localCreateWorkout(profile.id, input);
 
-  const ref = getDb().collection("workouts").doc();
+  const ref = workoutsCollection(getDb(), profile).doc();
   const createdAt = new Date().toISOString();
   const payload = {
     date: input.date,
@@ -222,17 +262,20 @@ export async function createWorkout(input: CreateWorkoutInput): Promise<Workout>
   };
 }
 
-export async function deleteWorkout(id: string): Promise<void> {
+export async function deleteWorkout(
+  profile: Profile,
+  id: string,
+): Promise<void> {
   if (id.startsWith("demo-")) {
     throw new Error("No se pueden borrar sesiones de demostración");
   }
 
   if (!isFirebaseConfigured()) {
-    localDeleteWorkout(id);
+    localDeleteWorkout(profile.id, id);
     return;
   }
 
-  const ref = getDb().collection("workouts").doc(id);
+  const ref = workoutsCollection(getDb(), profile).doc(id);
   const sets = await ref.collection("sets").get();
   const batch = getDb().batch();
   sets.docs.forEach((doc) => batch.delete(doc.ref));
@@ -241,6 +284,7 @@ export async function deleteWorkout(id: string): Promise<void> {
 }
 
 export async function updateWorkout(
+  profile: Profile,
   id: string,
   input: UpdateWorkoutInput,
 ): Promise<Workout> {
@@ -249,12 +293,12 @@ export async function updateWorkout(
   }
 
   if (!isFirebaseConfigured()) {
-    const updated = localUpdateWorkout(id, input);
+    const updated = localUpdateWorkout(profile.id, id, input);
     if (!updated) throw new Error("No encontrado");
     return updated;
   }
 
-  const ref = getDb().collection("workouts").doc(id);
+  const ref = workoutsCollection(getDb(), profile).doc(id);
   const existing = await ref.get();
   if (!existing.exists) throw new Error("No encontrado");
 
@@ -298,12 +342,14 @@ export async function updateWorkout(
   };
 }
 
-export async function listBodyWeight(limit = 90): Promise<BodyWeightEntry[]> {
+export async function listBodyWeight(
+  profile: Profile,
+  limit = 90,
+): Promise<BodyWeightEntry[]> {
   const real = !isFirebaseConfigured()
-    ? localListBodyWeight(limit)
+    ? localListBodyWeight(profile.id, limit)
     : (
-        await getDb()
-          .collection("bodyWeight")
+        await bodyWeightCollection(getDb(), profile)
           .orderBy("date", "desc")
           .limit(limit)
           .get()
@@ -316,15 +362,18 @@ export async function listBodyWeight(limit = 90): Promise<BodyWeightEntry[]> {
         };
       });
 
-  return mergeWithDemoBodyWeight(real, limit);
+  return includeDemos(profile) ? mergeWithDemoBodyWeight(real, limit) : real;
 }
 
 export async function createBodyWeight(
+  profile: Profile,
   input: CreateBodyWeightInput,
 ): Promise<BodyWeightEntry> {
-  if (!isFirebaseConfigured()) return localCreateBodyWeight(input);
+  if (!isFirebaseConfigured()) {
+    return localCreateBodyWeight(profile.id, input);
+  }
 
-  const ref = getDb().collection("bodyWeight").doc();
+  const ref = bodyWeightCollection(getDb(), profile).doc();
   const payload = {
     date: input.date,
     weightKg: input.weightKg,
@@ -333,14 +382,17 @@ export async function createBodyWeight(
   return { id: ref.id, ...payload };
 }
 
-export async function deleteBodyWeight(id: string): Promise<void> {
+export async function deleteBodyWeight(
+  profile: Profile,
+  id: string,
+): Promise<void> {
   if (id.startsWith("demo-")) return;
 
   if (!isFirebaseConfigured()) {
-    localDeleteBodyWeight(id);
+    localDeleteBodyWeight(profile.id, id);
     return;
   }
-  await getDb().collection("bodyWeight").doc(id).delete();
+  await bodyWeightCollection(getDb(), profile).doc(id).delete();
 }
 
 function formatSessionForAi(workout: Workout): string {
@@ -411,16 +463,17 @@ function formatRoutineTemplates(): string {
   return blocks.join("\n");
 }
 
-export async function buildAiContext(): Promise<string> {
+export async function buildAiContext(profile: Profile): Promise<string> {
   const [workouts, bodyWeight] = await Promise.all([
-    listWorkouts(80),
-    listBodyWeight(40),
+    listWorkouts(profile, 80),
+    listBodyWeight(profile, 40),
   ]);
 
   const workoutLines = workouts.map(formatSessionForAi);
   const weightLines = bodyWeight.map((b) => `${b.date}: ${b.weightKg} kg`);
 
   return [
+    `Perfil activo: ${profile.displayName}.`,
     "Convención de pesos del usuario:",
     "- Barra: peso total (barra + discos).",
     "- Mancuernas: peso de UNA sola mancuerna (no la suma de ambas).",

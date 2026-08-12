@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import type { ProfileId } from "@/lib/profiles";
 import type {
   BodyWeightEntry,
   CreateBodyWeightInput,
@@ -15,38 +16,53 @@ type Store = {
 };
 
 const DATA_DIR = path.join(process.cwd(), ".data");
-const STORE_PATH = path.join(DATA_DIR, "store.json");
+
+function storePath(profileId: ProfileId): string {
+  // Juan reutiliza store.json (datos locales previos).
+  if (profileId === "juan") return path.join(DATA_DIR, "store.json");
+  return path.join(DATA_DIR, `store-${profileId}.json`);
+}
 
 function emptyStore(): Store {
   return { workouts: [], bodyWeight: [] };
 }
 
-function readStore(): Store {
-  if (!existsSync(STORE_PATH)) return emptyStore();
+function readStore(profileId: ProfileId): Store {
+  const file = storePath(profileId);
+  if (!existsSync(file)) return emptyStore();
   try {
-    return JSON.parse(readFileSync(STORE_PATH, "utf8")) as Store;
+    return JSON.parse(readFileSync(file, "utf8")) as Store;
   } catch {
     return emptyStore();
   }
 }
 
-function writeStore(store: Store) {
+function writeStore(profileId: ProfileId, store: Store) {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+  writeFileSync(storePath(profileId), JSON.stringify(store, null, 2), "utf8");
 }
 
-export function localListWorkouts(limit = 50): Workout[] {
-  return readStore()
+export function localListWorkouts(
+  profileId: ProfileId,
+  limit = 50,
+): Workout[] {
+  return readStore(profileId)
     .workouts.sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, limit);
 }
 
-export function localGetWorkout(id: string): Workout | null {
-  return readStore().workouts.find((w) => w.id === id) ?? null;
+export function localGetWorkout(
+  profileId: ProfileId,
+  id: string,
+): Workout | null {
+  return readStore(profileId).workouts.find((w) => w.id === id) ?? null;
 }
 
-export function localCreateWorkout(input: CreateWorkoutInput): Workout {
-  const store = readStore();
+export function localCreateWorkout(
+  profileId: ProfileId,
+  input: CreateWorkoutInput,
+): Workout {
+  const store = readStore(profileId);
   const workout: Workout = {
     id: randomUUID(),
     date: input.date,
@@ -64,21 +80,22 @@ export function localCreateWorkout(input: CreateWorkoutInput): Workout {
     })),
   };
   store.workouts.unshift(workout);
-  writeStore(store);
+  writeStore(profileId, store);
   return workout;
 }
 
-export function localDeleteWorkout(id: string): void {
-  const store = readStore();
+export function localDeleteWorkout(profileId: ProfileId, id: string): void {
+  const store = readStore(profileId);
   store.workouts = store.workouts.filter((w) => w.id !== id);
-  writeStore(store);
+  writeStore(profileId, store);
 }
 
 export function localUpdateWorkout(
+  profileId: ProfileId,
   id: string,
   input: UpdateWorkoutInput,
 ): Workout | null {
-  const store = readStore();
+  const store = readStore(profileId);
   const index = store.workouts.findIndex((w) => w.id === id);
   if (index < 0) return null;
 
@@ -99,32 +116,36 @@ export function localUpdateWorkout(
     })),
   };
   store.workouts[index] = updated;
-  writeStore(store);
+  writeStore(profileId, store);
   return updated;
 }
 
-export function localListBodyWeight(limit = 90): BodyWeightEntry[] {
-  return readStore()
+export function localListBodyWeight(
+  profileId: ProfileId,
+  limit = 90,
+): BodyWeightEntry[] {
+  return readStore(profileId)
     .bodyWeight.sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, limit);
 }
 
 export function localCreateBodyWeight(
+  profileId: ProfileId,
   input: CreateBodyWeightInput,
 ): BodyWeightEntry {
-  const store = readStore();
+  const store = readStore(profileId);
   const entry: BodyWeightEntry = {
     id: randomUUID(),
     date: input.date,
     weightKg: input.weightKg,
   };
   store.bodyWeight.unshift(entry);
-  writeStore(store);
+  writeStore(profileId, store);
   return entry;
 }
 
-export function localDeleteBodyWeight(id: string): void {
-  const store = readStore();
+export function localDeleteBodyWeight(profileId: ProfileId, id: string): void {
+  const store = readStore(profileId);
   store.bodyWeight = store.bodyWeight.filter((b) => b.id !== id);
-  writeStore(store);
+  writeStore(profileId, store);
 }

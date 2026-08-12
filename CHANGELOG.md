@@ -3,6 +3,18 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado con [SemVer](https://semver.org/lang/es/): `MAYOR.MENOR.PARCHE`.
 
+## [1.2.0] — 2026-08-12
+
+### Added
+- Perfiles por PIN: cada PIN abre su propio espacio de entrenos, peso y métricas.
+- Juan sigue con `SITE_PIN` y sus datos actuales (colecciones raíz, sin migración).
+- Laura con PIN `2026` (`SITE_PIN_LAURA`) en `users/laura/...`.
+- La nav muestra el nombre del perfil activo.
+
+### Safety
+- Sin migrar ni borrar datos de Juan.
+- Los perfiles no comparten historial ni métricas.
+
 ## [1.1.2] — 2026-08-12
 
 ### Fixed

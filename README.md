@@ -5,7 +5,7 @@ App web personal para registrar entrenos, peso corporal, ver evolución de fuerz
 - **Frontend / API:** Next.js (App Router) en **Vercel**
 - **Datos:** **Cloud Firestore** (Vercel no guarda historial; Firestore sí)
 - **IA:** OpenAI (`gpt-4o-mini`)
-- **Acceso:** PIN único (`SITE_PIN`), sin cuentas de usuario
+- **Acceso:** un PIN por persona (`SITE_PIN` Juan, `SITE_PIN_LAURA` Laura). Cada PIN abre su propio historial y métricas.
 
 ## Arranque local
 
@@ -22,7 +22,8 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 | Variable | Uso |
 |---|---|
-| `SITE_PIN` | PIN de acceso personal |
+| `SITE_PIN` | PIN de Juan (datos actuales) |
+| `SITE_PIN_LAURA` | PIN de Laura (default `2026` si no se define) |
 | `AZURE_OPENAI_ENDPOINT` | Endpoint Azure OpenAI (`.../openai/v1`) |
 | `AZURE_OPENAI_API_KEY` | API key de Azure AI Foundry |
 | `AZURE_OPENAI_DEPLOYMENT` | Nombre del deployment (ej. `gpt-5-mini`) |

@@ -37,13 +37,14 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-[78vh] flex-col justify-center">
-      <p className="page-kicker mb-2">Acceso personal</p>
+      <p className="page-kicker mb-2">Acceso por perfil</p>
       <h1 className="page-title text-5xl">
         Fuerza
         <span className="text-[var(--accent)]">.</span>
       </h1>
       <p className="mt-3 max-w-sm text-[var(--muted)]">
-        Introduce tu PIN y entra a registrar el entreno.
+        Cada PIN abre su propio espacio: entrenos, peso y métricas no se
+        mezclan entre personas.
       </p>
 
       <form onSubmit={onSubmit} className="card mt-8 space-y-4 p-5">

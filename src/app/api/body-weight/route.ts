@@ -5,10 +5,14 @@ import {
   listBodyWeight,
 } from "@/lib/data";
 import { isValidWeight, parseDecimal } from "@/lib/numbers";
+import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
-    const entries = await listBodyWeight();
+    const entries = await listBodyWeight(profile);
     return NextResponse.json({ entries });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al listar";
@@ -17,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const body = (await request.json()) as {
       date?: string;
@@ -37,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const entry = await createBodyWeight({
+    const entry = await createBodyWeight(profile, {
       date: body.date,
       weightKg,
     });
@@ -50,13 +57,16 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "id requerido" }, { status: 400 });
     }
-    await deleteBodyWeight(id);
+    await deleteBodyWeight(profile, id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al borrar";

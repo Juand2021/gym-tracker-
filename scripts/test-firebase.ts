@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { createBodyWeight, listBodyWeight, listWorkouts } from "../src/lib/data";
 import { isFirebaseConfigured } from "../src/lib/firebase";
+import { getProfileById } from "../src/lib/profiles";
 
 function loadEnvLocal() {
   const raw = readFileSync(resolve(process.cwd(), ".env.local"), "utf8");
@@ -26,18 +27,25 @@ async function main() {
     return;
   }
 
+  const juan = getProfileById("juan");
+  if (!juan) {
+    console.error("SITE_PIN no configurado (perfil Juan)");
+    process.exitCode = 1;
+    return;
+  }
+
   try {
-    const before = await listBodyWeight(5);
+    const before = await listBodyWeight(juan, 5);
     console.log("bodyWeight_count", before.length);
 
-    const entry = await createBodyWeight({
+    const entry = await createBodyWeight(juan, {
       date: "2026-08-11",
       weightKg: 73.2,
     });
     console.log("wrote_to", entry.id.startsWith("demo-") ? "demo" : "firestore");
 
-    console.log("bodyWeight_after", (await listBodyWeight(5)).length);
-    console.log("workouts_count", (await listWorkouts(10)).length);
+    console.log("bodyWeight_after", (await listBodyWeight(juan, 5)).length);
+    console.log("workouts_count", (await listWorkouts(juan, 10)).length);
     console.log("ok");
   } catch (err) {
     const e = err as { code?: number | string; message?: string };

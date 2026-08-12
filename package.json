@@ -1,13 +1,13 @@
 {
   "name": "gym-tracker",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/machine-stacks.test.ts src/lib/dumbbell-rack.test.ts src/lib/barbell-plates.test.ts src/lib/ez-bar-rack.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/machine-stacks.test.ts src/lib/dumbbell-rack.test.ts src/lib/barbell-plates.test.ts src/lib/ez-bar-rack.test.ts src/lib/profiles.test.ts",
     "playbook": "node scripts/playbook.mjs"
   },
   "dependencies": {

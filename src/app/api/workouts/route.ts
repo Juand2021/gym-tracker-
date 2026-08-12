@@ -5,11 +5,15 @@ import {
   isValidWeight,
   parseDecimal,
 } from "@/lib/numbers";
+import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 import type { CreateWorkoutInput } from "@/lib/types";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
-    const workouts = await listWorkouts();
+    const workouts = await listWorkouts(profile);
     return NextResponse.json({ workouts });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al listar";
@@ -18,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const body = (await request.json()) as CreateWorkoutInput;
     if (!body.date || !Array.isArray(body.sets) || body.sets.length === 0) {
@@ -49,7 +56,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const workout = await createWorkout({
+    const workout = await createWorkout(profile, {
       date: body.date,
       notes: body.notes ?? "",
       dayType: body.dayType ?? null,

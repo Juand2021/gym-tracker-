@@ -48,6 +48,8 @@ step("Archivos del experimento existen", () => {
     "src/lib/barbell-plates.test.ts",
     "src/lib/ez-bar-rack.ts",
     "src/lib/ez-bar-rack.test.ts",
+    "src/lib/profiles.ts",
+    "src/lib/profiles.test.ts",
     "src/components/MachineStackPicker.tsx",
     "src/components/DumbbellRackPicker.tsx",
     "src/components/BarbellPlatePicker.tsx",
@@ -71,8 +73,33 @@ step("TypeScript (tsc --noEmit)", () => {
 
 step("ESLint archivos tocados", () => {
   runShell(
-    "npx eslint src/lib/machine-stacks.ts src/lib/dumbbell-rack.ts src/lib/barbell-plates.ts src/lib/ez-bar-rack.ts src/components/MachineStackPicker.tsx src/components/DumbbellRackPicker.tsx src/components/BarbellPlatePicker.tsx src/components/EzBarRackPicker.tsx src/components/PickerPortal.tsx src/app/entreno/page.tsx src/lib/numbers.ts",
+    "npx eslint src/lib/machine-stacks.ts src/lib/dumbbell-rack.ts src/lib/barbell-plates.ts src/lib/ez-bar-rack.ts src/lib/profiles.ts src/lib/auth.ts src/lib/data.ts src/middleware.ts src/components/MachineStackPicker.tsx src/components/DumbbellRackPicker.tsx src/components/BarbellPlatePicker.tsx src/components/EzBarRackPicker.tsx src/components/PickerPortal.tsx src/app/entreno/page.tsx src/lib/numbers.ts",
   );
+});
+
+step("Perfiles multi-PIN aislan datos", () => {
+  const profiles = fs.readFileSync(
+    path.join(root, "src/lib/profiles.ts"),
+    "utf8",
+  );
+  assert.match(profiles, /SITE_PIN_LAURA/);
+  assert.match(profiles, /dataRoot:\s*"legacy"/);
+  assert.match(profiles, /dataRoot:\s*"namespaced"/);
+  assert.match(profiles, /displayName:\s*"Laura"/);
+
+  const data = fs.readFileSync(path.join(root, "src/lib/data.ts"), "utf8");
+  assert.match(data, /users.*doc\(profile\.id\)/);
+  assert.match(data, /bodyWeightCollection/);
+
+  const authLogin = fs.readFileSync(
+    path.join(root, "src/app/api/auth/login/route.ts"),
+    "utf8",
+  );
+  assert.match(authLogin, /getProfileCookieName/);
+  assert.match(authLogin, /verifyPin/);
+
+  const envExample = fs.readFileSync(path.join(root, ".env.example"), "utf8");
+  assert.match(envExample, /SITE_PIN_LAURA=2026/);
 });
 
 step("Entreno integra stack, racks, barra, portal y bullet", () => {

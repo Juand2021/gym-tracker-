@@ -5,14 +5,18 @@ import {
   isValidWeight,
   parseDecimal,
 } from "@/lib/numbers";
+import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 import type { UpdateWorkoutInput } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const { id } = await params;
-    const workout = await getWorkout(id);
+    const workout = await getWorkout(profile, id);
     if (!workout) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
@@ -24,6 +28,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const { id } = await params;
     const body = (await request.json()) as UpdateWorkoutInput;
@@ -57,7 +64,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       };
     });
 
-    const workout = await updateWorkout(id, {
+    const workout = await updateWorkout(profile, id, {
       date: body.date,
       notes: body.notes ?? "",
       dayType: body.dayType ?? null,
@@ -78,10 +85,13 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const profile = profileFromRequest(request);
+  if (!profile) return unauthorized();
+
   try {
     const { id } = await params;
-    await deleteWorkout(id);
+    await deleteWorkout(profile, id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error";
