@@ -3,6 +3,11 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado con [SemVer](https://semver.org/lang/es/): `MAYOR.MENOR.PARCHE`.
 
+## [1.1.2] — 2026-08-12
+
+### Fixed
+- Barra olímpica: el modal no usaba portal (solo mancuernas/placas). Ahora también monta en `document.body`, con scroll interno y acciones fijas abajo en iPhone.
+
 ## [1.1.1] — 2026-08-12
 
 ### Fixed

@@ -100,6 +100,16 @@ step("Entreno integra stack, racks, barra, portal y bullet", () => {
   );
   assert.match(portal, /createPortal/);
   assert.match(portal, /document\.body/);
+
+  for (const file of [
+    "src/components/BarbellPlatePicker.tsx",
+    "src/components/DumbbellRackPicker.tsx",
+    "src/components/EzBarRackPicker.tsx",
+    "src/components/MachineStackPicker.tsx",
+  ]) {
+    const src = fs.readFileSync(path.join(root, file), "utf8");
+    assert.match(src, /PickerPortal/, `${file} debe usar PickerPortal`);
+  }
 });
 
 step("Historial usa bullet de serie", () => {
