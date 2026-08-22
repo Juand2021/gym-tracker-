@@ -102,7 +102,7 @@ function espalda(week: number, date: string, id: string): Workout {
       reps: [10, 10, 8],
     },
     {
-      exercise: "Remo unilateral (agarre al tronco)",
+      exercise: "Remo unilateral con agarre de polea",
       weightKg: w(week, 20, 28),
       reps: [10, 10, 9],
     },

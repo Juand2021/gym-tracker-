@@ -1,4 +1,4 @@
-import { ALL_ROUTINE_EXERCISES } from "@/lib/routines";
+import { ALL_ROUTINE_EXERCISES } from "./routines.ts";
 
 export const DEFAULT_EXERCISES: string[] = ALL_ROUTINE_EXERCISES;
 
@@ -25,6 +25,7 @@ const LOAD_BY_EXERCISE: Record<string, LoadMode> = {
   Dominadas: "bodyweight",
   "Jalón al pecho": "machine",
   "Remo con máquina": "machine",
+  "Remo unilateral con agarre de polea": "side",
   "Remo unilateral (agarre al tronco)": "side",
   "Face pull": "machine",
   "Curl martillo": "dumbbell",
@@ -48,6 +49,12 @@ const LOAD_BY_EXERCISE: Record<string, LoadMode> = {
   "Prensa de pierna": "machine",
   "Extensión de gemelos": "machine",
   "Aducción de cadera": "machine",
+  "Crunch abdominal en polea": "machine",
+  "Elevación de piernas": "bodyweight",
+  "Rueda abdominal": "bodyweight",
+  "Plancha abdominal": "bodyweight",
+  "Crunch abdominal": "bodyweight",
+  "Oblicuos en polea": "side",
 };
 
 const LOAD_HINT: Record<LoadMode, { short: string; detail: string }> = {

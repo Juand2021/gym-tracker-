@@ -23,6 +23,10 @@ describe("machine-stacks: Jalón al pecho", () => {
     assert.equal(hasMachineStackPicker("Jalón al pecho"), true);
     assert.equal(hasMachineStackPicker("Remo con máquina"), true);
     assert.equal(
+      hasMachineStackPicker("Remo unilateral con agarre de polea"),
+      true,
+    );
+    assert.equal(
       hasMachineStackPicker("Remo unilateral (agarre al tronco)"),
       true,
     );
@@ -50,6 +54,8 @@ describe("machine-stacks: Jalón al pecho", () => {
     );
     assert.equal(hasMachineStackPicker("Extensión de cuádriceps"), true);
     assert.equal(hasMachineStackPicker("Aducción de cadera"), true);
+    assert.equal(hasMachineStackPicker("Crunch abdominal en polea"), true);
+    assert.equal(hasMachineStackPicker("Oblicuos en polea"), true);
     assert.equal(hasMachineStackPicker("Press banca"), false);
     assert.equal(hasMachineStackPicker("Pec deck"), false);
     assert.equal(hasMachineStackPicker("Encogimiento de hombros"), false);

@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { BarbellPlatePicker } from "@/components/BarbellPlatePicker";
+import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
 import { DumbbellRackPicker } from "@/components/DumbbellRackPicker";
 import { EzBarRackPicker } from "@/components/EzBarRackPicker";
 import { MachineStackPicker } from "@/components/MachineStackPicker";
@@ -17,6 +18,10 @@ import {
   hasMachineStackPicker,
 } from "@/lib/machine-stacks";
 import {
+  getLastHistoryByExercise,
+  type LastExerciseHistory,
+} from "@/lib/metrics";
+import {
   isValidReps,
   isValidWeight,
   parseDecimal,
@@ -28,13 +33,13 @@ import {
   type ArmFocus,
   type DayType,
 } from "@/lib/routines";
-
-type DraftSet = {
-  key: string;
-  exercise: string;
-  weightKg: string;
-  reps: string;
-};
+import type { Workout } from "@/lib/types";
+import {
+  clearWorkoutDraft,
+  getWorkoutDraft,
+  saveWorkoutDraft,
+  type DraftSet,
+} from "@/lib/workout-draft";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -47,13 +52,17 @@ function isDayType(value: string | null): value is DayType {
 function ExerciseBlock({
   exercise,
   sets,
+  lastHistory,
   onAdd,
   onRemove,
+  onDelete,
 }: {
   exercise: string;
   sets: DraftSet[];
+  lastHistory?: LastExerciseHistory;
   onAdd: (weightKg: string, reps: string) => void;
   onRemove: (key: string) => void;
+  onDelete?: () => void;
 }) {
   const last = sets[sets.length - 1];
   const load = getLoadHint(exercise);
@@ -101,7 +110,7 @@ function ExerciseBlock({
   return (
     <div className="card space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-lg font-semibold leading-snug tracking-wide">
             {exercise}
           </p>
@@ -124,6 +133,61 @@ function ExerciseBlock({
               <span className="text-[var(--muted)]"> · barra Z</span>
             ) : null}
           </p>
+        </div>
+
+        <div className="flex items-start gap-2 shrink-0">
+          {lastHistory && lastHistory.sets.length > 0 ? (
+            <button
+              type="button"
+              className="rounded-lg bg-[var(--surface-2)]/80 border border-[var(--glass-stroke)] px-2.5 py-1.5 text-right transition hover:border-[var(--accent)]/50 active:scale-95 text-left"
+              title="Toca para usar este peso y repeticiones"
+              onClick={() => {
+                const targetSet =
+                  lastHistory.sets[lastHistory.sets.length - 1];
+                if (targetSet) {
+                  setWeightKg(String(targetSet.weightKg));
+                  setReps(String(targetSet.reps));
+                }
+              }}
+            >
+              <p className="text-[0.62rem] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+                Último registro{" "}
+                <span className="text-[var(--ink)] font-medium">
+                  ({lastHistory.shortDate})
+                </span>
+              </p>
+              <p className="mt-0.5 text-xs font-semibold tabular-nums text-[var(--ink)] tracking-tight">
+                {lastHistory.sets.map((s, idx) => (
+                  <span key={idx}>
+                    {idx > 0 ? " · " : ""}
+                    <span className="font-bold text-[var(--accent)]">
+                      {s.weightKg}
+                    </span>
+                    <span className="text-[0.7rem] text-[var(--muted)]">×</span>
+                    {s.reps}
+                  </span>
+                ))}
+              </p>
+            </button>
+          ) : (
+            <div className="rounded-lg bg-[var(--surface-2)]/35 px-2.5 py-1 text-right">
+              <p className="text-[0.62rem] font-medium uppercase tracking-[0.08em] text-[var(--muted)]/60">
+                Sin historial
+              </p>
+            </div>
+          )}
+
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-sm text-[var(--muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--danger)]"
+              title="Quitar ejercicio de la sesión"
+              aria-label={`Quitar ${exercise}`}
+            >
+              ✕
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -175,7 +239,7 @@ function ExerciseBlock({
                 inputMode="decimal"
                 value={weightKg}
                 onChange={(e) => setWeightKg(e.target.value)}
-                aria-description={load.detail}
+                title={load.detail}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -301,20 +365,111 @@ function EntrenoForm() {
   const searchParams = useSearchParams();
   const initialDay = searchParams.get("day");
 
-  const [step, setStep] = useState<"day" | "arms" | "log">(
-    isDayType(initialDay) ? (initialDay === "hombro" ? "arms" : "log") : "day",
-  );
-  const [dayType, setDayType] = useState<DayType | null>(
-    isDayType(initialDay) ? initialDay : null,
-  );
-  const [armFocus, setArmFocus] = useState<ArmFocus | null>(null);
-  const [date, setDate] = useState(todayIso);
-  const [notes, setNotes] = useState("");
-  const [sets, setSets] = useState<DraftSet[]>([]);
-  const [extraExercises, setExtraExercises] = useState<string[]>([]);
+  const [step, setStep] = useState<"day" | "arms" | "log">(() => {
+    const draft = getWorkoutDraft();
+    if (draft?.step && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
+      return draft.step;
+    }
+    return isDayType(initialDay) ? (initialDay === "hombro" ? "arms" : "log") : "day";
+  });
+
+  const [dayType, setDayType] = useState<DayType | null>(() => {
+    const draft = getWorkoutDraft();
+    if (draft?.dayType && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
+      return draft.dayType;
+    }
+    return isDayType(initialDay) ? initialDay : null;
+  });
+
+  const [armFocus, setArmFocus] = useState<ArmFocus | null>(() => {
+    const draft = getWorkoutDraft();
+    if (draft && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
+      return draft.armFocus ?? null;
+    }
+    return null;
+  });
+
+  const [date, setDate] = useState<string>(() => {
+    const draft = getWorkoutDraft();
+    if (draft?.date && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
+      return draft.date;
+    }
+    return todayIso();
+  });
+
+  const [notes, setNotes] = useState<string>(() => {
+    const draft = getWorkoutDraft();
+    if (draft?.notes && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
+      return draft.notes;
+    }
+    return "";
+  });
+
+  const [sets, setSets] = useState<DraftSet[]>(() => {
+    const draft = getWorkoutDraft();
+    if (draft?.sets && (!initialDay || draft.dayType === initialDay || draft.sets.length > 0)) {
+      return draft.sets;
+    }
+    return [];
+  });
+
+  const [extraExercises, setExtraExercises] = useState<string[]>(() => {
+    const draft = getWorkoutDraft();
+    if (draft?.extraExercises && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
+      return draft.extraExercises;
+    }
+    return [];
+  });
+
   const [customExercise, setCustomExercise] = useState("");
+  const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
+  const [pastWorkouts, setPastWorkouts] = useState<Workout[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Cargar entrenamientos históricos para consultar sesiones anteriores de cada ejercicio
+  useEffect(() => {
+    let active = true;
+    async function loadPastWorkouts() {
+      try {
+        const res = await fetch("/api/workouts");
+        if (!res.ok) return;
+        const data = (await res.json()) as { workouts?: Workout[] };
+        if (active && Array.isArray(data.workouts)) {
+          setPastWorkouts(data.workouts);
+        }
+      } catch {
+        // Ignorar silenciosamente
+      }
+    }
+    void loadPastWorkouts();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const historyByExercise = useMemo(
+    () => getLastHistoryByExercise(pastWorkouts),
+    [pastWorkouts],
+  );
+
+  // Auto-guardar cualquier cambio en localStorage
+  useEffect(() => {
+    if (dayType || sets.length > 0 || notes.trim()) {
+      saveWorkoutDraft({
+        step,
+        dayType,
+        armFocus,
+        date,
+        notes,
+        sets,
+        extraExercises,
+        updatedAt: Date.now(),
+      });
+    } else {
+      clearWorkoutDraft();
+    }
+  }, [step, dayType, armFocus, date, notes, sets, extraExercises]);
 
   const templateExercises = useMemo(() => {
     if (!dayType) return [];
@@ -328,6 +483,12 @@ function EntrenoForm() {
   );
 
   function selectDay(day: DayType) {
+    if (dayType && dayType !== day && sets.length > 0) {
+      const confirmChange = window.confirm(
+        `Tienes ${sets.length} serie${sets.length > 1 ? "s" : ""} en curso de ${getDayLabel(dayType)}. ¿Iniciar ${getDayLabel(day)} y reiniciar las series actuales?`,
+      );
+      if (!confirmChange) return;
+    }
     setDayType(day);
     setArmFocus(null);
     setSets([]);
@@ -341,9 +502,41 @@ function EntrenoForm() {
   }
 
   function selectArms(focus: ArmFocus) {
+    if (armFocus && armFocus !== focus && sets.length > 0) {
+      const confirmChange = window.confirm(
+        `Tienes ${sets.length} serie${sets.length > 1 ? "s" : ""} en curso. ¿Deseas cambiar a ${focus === "biceps" ? "Bíceps" : "Tríceps"} y reiniciar las series?`,
+      );
+      if (!confirmChange) return;
+    }
     setArmFocus(focus);
     setSets([]);
     setStep("log");
+  }
+
+  function handleDiscard() {
+    if (sets.length > 0 || notes.trim()) {
+      const confirmDiscard = window.confirm(
+        "¿Descartar este entrenamiento y borrar las series en curso?",
+      );
+      if (!confirmDiscard) return;
+    }
+    clearWorkoutDraft();
+    setStep("day");
+    setDayType(null);
+    setArmFocus(null);
+    setSets([]);
+    setExtraExercises([]);
+    setNotes("");
+    setError("");
+    router.replace("/entreno");
+  }
+
+  function handleBackStep() {
+    if (dayType === "hombro" && step === "log") {
+      setStep("arms");
+    } else {
+      setStep("day");
+    }
   }
 
   function addSet(exercise: string, weightKg: string, reps: string) {
@@ -361,6 +554,18 @@ function EntrenoForm() {
 
   function removeSet(key: string) {
     setSets((prev) => prev.filter((s) => s.key !== key));
+  }
+
+  function removeExtraExercise(name: string) {
+    const exerciseSets = sets.filter((s) => s.exercise === name);
+    if (exerciseSets.length > 0) {
+      const confirmRemove = window.confirm(
+        `¿Quitar "${name}" y borrar sus ${exerciseSets.length} serie${exerciseSets.length > 1 ? "s" : ""}?`,
+      );
+      if (!confirmRemove) return;
+      setSets((prev) => prev.filter((s) => s.exercise !== name));
+    }
+    setExtraExercises((prev) => prev.filter((e) => e !== name));
   }
 
   function addCustomExercise() {
@@ -431,6 +636,10 @@ function EntrenoForm() {
       });
       const data = (await res.json()) as { error?: string; workout?: { id: string } };
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
+
+      // Limpiar el borrador local tras guardar exitosamente
+      clearWorkoutDraft();
+
       router.push(`/historial/${data.workout?.id ?? ""}`);
       router.refresh();
     } catch (err) {
@@ -520,16 +729,21 @@ function EntrenoForm() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <button
-            type="button"
-            className="min-h-10 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
-            onClick={() => {
-              if (dayType === "hombro") setStep("arms");
-              else setStep("day");
-            }}
-          >
-            ← Cambiar
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="min-h-10 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
+              onClick={handleBackStep}
+            >
+              ← Cambiar
+            </button>
+            {sets.length > 0 ? (
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium tracking-wide">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Guardado en el celular
+              </span>
+            ) : null}
+          </div>
           <h1 className="page-title mt-1">
             {dayType ? getDayLabel(dayType) : "Entreno"}
             {armFocus ? (
@@ -546,6 +760,17 @@ function EntrenoForm() {
             {LOAD_CONVENTION_NOTE}
           </p>
         </div>
+
+        {sets.length > 0 || dayType ? (
+          <button
+            type="button"
+            onClick={handleDiscard}
+            className="min-h-10 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--danger)] shrink-0"
+            title="Descartar borrador"
+          >
+            Descartar
+          </button>
+        ) : null}
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -578,16 +803,46 @@ function EntrenoForm() {
         </div>
 
         <div className="space-y-3">
-          {exercises.map((exercise) => (
-            <ExerciseBlock
-              key={exercise}
-              exercise={exercise}
-              sets={sets.filter((s) => s.exercise === exercise)}
-              onAdd={(weightKg, reps) => addSet(exercise, weightKg, reps)}
-              onRemove={removeSet}
-            />
-          ))}
+          {exercises.map((exercise) => {
+            const isExtra = extraExercises.includes(exercise);
+            return (
+              <ExerciseBlock
+                key={exercise}
+                exercise={exercise}
+                sets={sets.filter((s) => s.exercise === exercise)}
+                lastHistory={historyByExercise[exercise]}
+                onAdd={(weightKg, reps) => addSet(exercise, weightKg, reps)}
+                onRemove={removeSet}
+                onDelete={isExtra ? () => removeExtraExercise(exercise) : undefined}
+              />
+            );
+          })}
         </div>
+
+        <div className="card space-y-3 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-base">Añadir del catálogo</p>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">
+                Abdominales, brazos, pierna u otro ejercicio
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCatalogPickerOpen(true)}
+              className="btn btn-primary shrink-0 min-h-[2.6rem] px-4 text-xs font-bold tracking-[0.08em]"
+            >
+              + Catálogo
+            </button>
+          </div>
+        </div>
+
+        <CatalogExercisePicker
+          open={catalogPickerOpen}
+          activeExercises={exercises}
+          onSelect={(name) => setExtraExercises((prev) => [...prev, name])}
+          onClose={() => setCatalogPickerOpen(false)}
+        />
 
         <div className="card space-y-3 p-4">
           <p className="font-semibold">Otro ejercicio</p>

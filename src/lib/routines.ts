@@ -47,7 +47,7 @@ const BACK: string[] = [
   "Dominadas",
   "Jalón al pecho",
   "Remo con máquina",
-  "Remo unilateral (agarre al tronco)",
+  "Remo unilateral con agarre de polea",
   "Face pull",
 ];
 
@@ -83,6 +83,29 @@ const LEGS: string[] = [
   "Aducción de cadera",
 ];
 
+const ABS_CORE: string[] = [
+  "Crunch abdominal en polea",
+  "Elevación de piernas",
+  "Rueda abdominal",
+  "Plancha abdominal",
+  "Crunch abdominal",
+  "Oblicuos en polea",
+];
+
+export const CATALOG_EXERCISES_BY_GROUP: Array<{
+  group: string;
+  exercises: string[];
+}> = [
+  { group: "Abdomen y Core", exercises: ABS_CORE },
+  { group: "Pecho", exercises: CHEST },
+  { group: "Espalda", exercises: BACK },
+  { group: "Hombro", exercises: SHOULDERS },
+  { group: "Pierna", exercises: LEGS },
+  { group: "Bíceps", exercises: BICEPS },
+  { group: "Tríceps", exercises: TRICEPS },
+  { group: "Antebrazo", exercises: FOREARMS },
+];
+
 export function getDayLabel(day: DayType): string {
   return DAY_OPTIONS.find((d) => d.id === day)?.label ?? day;
 }
@@ -116,5 +139,6 @@ export const ALL_ROUTINE_EXERCISES: string[] = [
     ...FOREARMS,
     ...SHOULDERS,
     ...LEGS,
+    ...ABS_CORE,
   ]),
 ];

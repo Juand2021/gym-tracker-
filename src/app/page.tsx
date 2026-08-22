@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DAY_OPTIONS, getDayLabel } from "@/lib/routines";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
+import { useWorkoutDraft } from "@/lib/workout-draft";
 
 export default function HomePage() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [weights, setWeights] = useState<BodyWeightEntry[]>([]);
+  const draft = useWorkoutDraft();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     async function load() {
       try {
         const [wRes, bRes] = await Promise.all([
@@ -26,17 +29,21 @@ export default function HomePage() {
           entries?: BodyWeightEntry[];
           error?: string;
         };
+        if (!active) return;
         if (!wRes.ok) throw new Error(wData.error || "Error al cargar entrenos");
         if (!bRes.ok) throw new Error(bData.error || "Error al cargar peso");
         setWorkouts(wData.workouts ?? []);
         setWeights(bData.entries ?? []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Error");
+        if (active) setError(err instanceof Error ? err.message : "Error");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     void load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const lastWorkout = workouts[0];
@@ -57,6 +64,37 @@ export default function HomePage() {
           Elige el día, mete peso × reps entre series y sigue.
         </p>
       </section>
+
+      {draft && (draft.dayType || (draft.sets && draft.sets.length > 0)) ? (
+        <Link
+          href="/entreno"
+          className="card card-interactive block border-emerald-500/40 bg-emerald-950/20 p-4"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+              </span>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-400">
+                Entreno en curso
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-emerald-400">
+              Continuar →
+            </span>
+          </div>
+          <p className="mt-2 font-[family-name:var(--font-display)] text-2xl tracking-[0.03em]">
+            {draft.dayType ? getDayLabel(draft.dayType) : "Sesión"}
+            {draft.armFocus
+              ? ` · ${draft.armFocus === "biceps" ? "Bíceps" : "Tríceps"}`
+              : ""}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            {draft.sets?.length ?? 0} series registradas en tu borrador
+          </p>
+        </Link>
+      ) : null}
 
       <section className="grid grid-cols-2 gap-2.5">
         {DAY_OPTIONS.map((day) => (

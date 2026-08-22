@@ -26,6 +26,7 @@ const CABLE_STACK = {
 export const MACHINE_STACKS: MachineStackConfig[] = [
   { exercise: "Jalón al pecho", ...CABLE_STACK },
   { exercise: "Remo con máquina", ...CABLE_STACK },
+  { exercise: "Remo unilateral con agarre de polea", ...CABLE_STACK },
   { exercise: "Remo unilateral (agarre al tronco)", ...CABLE_STACK },
   { exercise: "Face pull", ...CABLE_STACK },
   { exercise: "Cruce de poleas alto", ...CABLE_STACK },
@@ -40,6 +41,8 @@ export const MACHINE_STACKS: MachineStackConfig[] = [
   { exercise: "Face-pull o reverse peck deck", ...CABLE_STACK },
   { exercise: "Extensión de cuádriceps", ...CABLE_STACK },
   { exercise: "Aducción de cadera", ...CABLE_STACK },
+  { exercise: "Crunch abdominal en polea", ...CABLE_STACK },
+  { exercise: "Oblicuos en polea", ...CABLE_STACK },
 ];
 
 export function getMachineStack(exercise: string): MachineStackConfig | null {
