@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatShortDate, getLastHistoryByExercise } from "./metrics.ts";
+import { formatShortDate, getLastHistoryByExercise } from "./exercise-history.ts";
 import type { Workout } from "./types.ts";
 
-test("metrics: formatShortDate formatea fechas correctamente", () => {
+test("exercise-history: formatShortDate formatea fechas correctamente", () => {
   assert.equal(formatShortDate("2026-08-18"), "18 ago");
   assert.equal(formatShortDate("2026-01-05"), "5 ene");
   assert.equal(formatShortDate("2026-12-31"), "31 dic");
 });
 
-test("metrics: getLastHistoryByExercise extrae las series de la sesión más reciente", () => {
+test("exercise-history: getLastHistoryByExercise extrae las series de la sesión más reciente", () => {
   const mockWorkouts: Workout[] = [
     {
       id: "w1",

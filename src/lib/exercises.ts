@@ -1,4 +1,4 @@
-import { ALL_ROUTINE_EXERCISES } from "./routines.ts";
+import { ALL_ROUTINE_EXERCISES } from "@/lib/routines";
 
 export const DEFAULT_EXERCISES: string[] = ALL_ROUTINE_EXERCISES;
 
