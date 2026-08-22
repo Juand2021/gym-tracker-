@@ -15,28 +15,32 @@ export default function PesoPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/body-weight");
-      const data = (await res.json()) as {
-        entries?: BodyWeightEntry[];
-        error?: string;
-      };
-      if (!res.ok) throw new Error(data.error || "Error");
-      setEntries(data.entries ?? []);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const res = await fetch("/api/body-weight");
+        const data = (await res.json()) as {
+          entries?: BodyWeightEntry[];
+          error?: string;
+        };
+        if (!active) return;
+        if (!res.ok) throw new Error(data.error || "Error");
+        setEntries(data.entries ?? []);
+        setError("");
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Error");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
     void load();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [version]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -55,7 +59,7 @@ export default function PesoPage() {
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
       setWeightKg("");
-      await load();
+      setVersion((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -69,7 +73,7 @@ export default function PesoPage() {
       const res = await fetch(`/api/body-weight?id=${id}`, { method: "DELETE" });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "No se pudo borrar");
-      await load();
+      setVersion((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     }

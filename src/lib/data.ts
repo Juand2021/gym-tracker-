@@ -47,6 +47,17 @@ function asArmFocus(value: unknown): ArmFocus | null {
   return null;
 }
 
+export function normalizeExerciseName(raw: string): string {
+  const name = raw.trim();
+  if (
+    name === "Remo unilateral (agarre al tronco)" ||
+    name === "remo unilateral (agarre al tronco)"
+  ) {
+    return "Remo unilateral con agarre de polea";
+  }
+  return name;
+}
+
 function mapSet(id: string, data: Record<string, unknown>): WorkoutSet {
   const orderRaw = data.orderIndex;
   const orderIndex =
@@ -55,7 +66,7 @@ function mapSet(id: string, data: Record<string, unknown>): WorkoutSet {
       : undefined;
   return {
     id,
-    exercise: String(data.exercise ?? ""),
+    exercise: normalizeExerciseName(String(data.exercise ?? "")),
     weightKg: Number(data.weightKg ?? 0),
     reps: Number(data.reps ?? 0),
     setNumber: Number(data.setNumber ?? 0),
@@ -169,7 +180,10 @@ export async function listWorkouts(
   return merged.map((workout) => ({
     ...workout,
     sets: sortSetsBySessionOrder(
-      workout.sets,
+      workout.sets.map((s) => ({
+        ...s,
+        exercise: normalizeExerciseName(s.exercise),
+      })),
       workout.dayType,
       workout.armFocus,
     ),
@@ -185,18 +199,33 @@ export async function getWorkout(
     if (demo) {
       return {
         ...demo,
-        sets: sortSetsBySessionOrder(demo.sets, demo.dayType, demo.armFocus),
+        sets: sortSetsBySessionOrder(
+          demo.sets.map((s) => ({
+            ...s,
+            exercise: normalizeExerciseName(s.exercise),
+          })),
+          demo.dayType,
+          demo.armFocus,
+        ),
       };
     }
   }
 
   if (!isFirebaseConfigured()) {
     const local = localGetWorkout(profile.id, id);
-    if (!local) return null;
-    return {
-      ...local,
-      sets: sortSetsBySessionOrder(local.sets, local.dayType, local.armFocus),
-    };
+    return local
+      ? {
+          ...local,
+          sets: sortSetsBySessionOrder(
+            local.sets.map((s) => ({
+              ...s,
+              exercise: normalizeExerciseName(s.exercise),
+            })),
+            local.dayType,
+            local.armFocus,
+          ),
+        }
+      : null;
   }
 
   const doc = await workoutsCollection(getDb(), profile).doc(id).get();

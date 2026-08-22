@@ -1,5 +1,6 @@
 import { epleyOneRm, getLoadMode } from "@/lib/exercises";
 import type { BodyWeightEntry, Workout, WorkoutSet } from "@/lib/types";
+export * from "@/lib/exercise-history";
 
 export function nearestBodyWeight(
   date: string,

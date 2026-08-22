@@ -12,6 +12,7 @@ export const EXERCISE_IMAGES: Record<string, string> = {
   Dominadas: "/exercises/dominadas.png",
   "Jalón al pecho": "/exercises/jalon-pecho.png",
   "Remo con máquina": "/exercises/remo-maquina.png",
+  "Remo unilateral con agarre de polea": "/exercises/remo-unilateral.png",
   "Remo unilateral (agarre al tronco)": "/exercises/remo-unilateral.png",
   "Face pull": "/exercises/face-pull.png",
   "Curl martillo": "/exercises/curl-martillo.png",
