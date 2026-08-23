@@ -1,6 +1,6 @@
 /**
  * Sintetizador de audio Web Audio API para el cronómetro de descanso.
- * Sonido limpio, nítido y profesional sin ruidos acústicos de baja frecuencia.
+ * Sonido potente, brillante y nítido optimizado para altavoces de móvil.
  */
 
 let audioCtx: AudioContext | null = null;
@@ -54,7 +54,7 @@ export function playTickSound() {
     osc.frequency.setValueAtTime(1200, now);
     osc.frequency.exponentialRampToValueAtTime(500, now + 0.018);
 
-    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.setValueAtTime(0.06, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
 
     osc.connect(gain);
@@ -67,7 +67,7 @@ export function playTickSound() {
   }
 }
 
-/** Alarma enérgica y nítida de finalización de descanso */
+/** Alarma enérgica, potente y nítida de finalización de descanso */
 export function playAlarmSound() {
   try {
     const ctx = getAudioContext();
@@ -79,37 +79,47 @@ export function playAlarmSound() {
 
     const now = ctx.currentTime;
 
-    // Secuencia melódica limpia y brillante de aviso (campanas de gym)
+    // Compresor de dinámica para maximizar volumen y presencia sin saturar
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-10, now);
+    compressor.knee.setValueAtTime(4, now);
+    compressor.ratio.setValueAtTime(6, now);
+    compressor.attack.setValueAtTime(0.003, now);
+    compressor.release.setValueAtTime(0.12, now);
+    compressor.connect(ctx.destination);
+
+    // Secuencia melódica potente y brillante (onda triangle con armónicos ricos)
     const notes = [
-      { freq: 880, start: 0, duration: 0.12 },
-      { freq: 1174.66, start: 0.14, duration: 0.12 },
-      { freq: 1760, start: 0.28, duration: 0.35 },
+      { freq: 880, start: 0, duration: 0.13 }, // A5
+      { freq: 1174.66, start: 0.15, duration: 0.13 }, // D6
+      { freq: 1760, start: 0.3, duration: 0.38 }, // A6
       // Segunda ráfaga
-      { freq: 880, start: 0.75, duration: 0.12 },
-      { freq: 1174.66, start: 0.89, duration: 0.12 },
-      { freq: 1760, start: 1.03, duration: 0.4 },
+      { freq: 880, start: 0.75, duration: 0.13 },
+      { freq: 1174.66, start: 0.9, duration: 0.13 },
+      { freq: 1760, start: 1.05, duration: 0.42 },
       // Tercera ráfaga
-      { freq: 1046.5, start: 1.55, duration: 0.12 },
-      { freq: 1318.51, start: 1.69, duration: 0.12 },
-      { freq: 2093, start: 1.83, duration: 0.55 },
+      { freq: 1046.5, start: 1.55, duration: 0.13 }, // C6
+      { freq: 1318.51, start: 1.7, duration: 0.13 }, // E6
+      { freq: 2093, start: 1.85, duration: 0.6 }, // C7
     ];
 
     for (const note of notes) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = "sine";
+      // Forma de onda triangle: genera armónicos claros y audibles en altavoces de celular
+      osc.type = "triangle";
       osc.frequency.setValueAtTime(note.freq, now + note.start);
 
       gain.gain.setValueAtTime(0, now + note.start);
-      gain.gain.linearRampToValueAtTime(0.28, now + note.start + 0.015);
+      gain.gain.linearRampToValueAtTime(0.65, now + note.start + 0.015);
       gain.gain.exponentialRampToValueAtTime(
         0.001,
         now + note.start + note.duration,
       );
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(compressor);
 
       osc.start(now + note.start);
       osc.stop(now + note.start + note.duration);
