@@ -901,18 +901,20 @@ function EntrenoForm() {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5">
           {DAY_OPTIONS.map((opt) => (
             <button
               key={opt.id}
               type="button"
               onClick={() => selectDay(opt.id)}
-              className="card flex flex-col items-start p-5 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
+              className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
             >
-              <span className="font-semibold text-lg">{opt.label}</span>
-              <span className="mt-1 text-xs text-[var(--muted)]">
+              <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
+                {opt.label}
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
                 {opt.subtitle}
-              </span>
+              </p>
             </button>
           ))}
         </div>
@@ -938,27 +940,31 @@ function EntrenoForm() {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => selectArms("biceps")}
-            className="card flex flex-col items-start p-5 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
+            className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
           >
-            <span className="font-semibold text-lg">Bíceps</span>
-            <span className="mt-1 text-xs text-[var(--muted)]">
+            <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
+              Bíceps
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
               Curls y antebrazo
-            </span>
+            </p>
           </button>
 
           <button
             type="button"
             onClick={() => selectArms("triceps")}
-            className="card flex flex-col items-start p-5 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
+            className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
           >
-            <span className="font-semibold text-lg">Tríceps</span>
-            <span className="mt-1 text-xs text-[var(--muted)]">
+            <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
+              Tríceps
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
               Fondos y extensiones
-            </span>
+            </p>
           </button>
         </div>
       </div>
