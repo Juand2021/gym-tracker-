@@ -11,6 +11,7 @@
     "playbook": "node scripts/playbook.mjs"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "date-fns": "^4.4.0",
     "firebase-admin": "^14.2.0",
     "next": "16.3.0",

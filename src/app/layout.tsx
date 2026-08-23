@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow, Bebas_Neue } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppNav } from "@/components/AppNav";
 import { ClientProviders } from "@/components/ClientProviders";
 import "./globals.css";
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
         </ClientProviders>
+        <SpeedInsights />
       </body>
     </html>
   );
