@@ -203,10 +203,12 @@ export function getExerciseMuscleGroup(exercise: string): string {
   if (
     name.includes("abdomen") ||
     name.includes("crunch") ||
+    name.includes("dragon") ||
     name.includes("plancha") ||
     name.includes("core") ||
     name.includes("oblicuos") ||
     name.includes("elevación de piernas") ||
+    name.includes("elevacion de piernas") ||
     name.includes("rueda")
   ) {
     return "Abdomen y Core";

@@ -9,12 +9,12 @@ export const DAY_OPTIONS: Array<{
   {
     id: "pecho",
     label: "Pecho",
-    subtitle: "Tríceps obligatorio",
+    subtitle: "Tríceps y abdomen",
   },
   {
     id: "espalda",
     label: "Espalda",
-    subtitle: "Bíceps obligatorio",
+    subtitle: "Bíceps y abdomen",
   },
   {
     id: "hombro",
@@ -43,6 +43,10 @@ const TRICEPS: string[] = [
   "Extensión de tríceps unilateral",
 ];
 
+const CHEST_CORE: string[] = [
+  "Dragon Fly en el piso",
+];
+
 const BACK: string[] = [
   "Dominadas",
   "Jalón al pecho",
@@ -62,6 +66,10 @@ const BICEPS: string[] = [
 const FOREARMS: string[] = [
   "Curl de antebrazo con mancuernas",
   "Curl inverso de antebrazo con mancuernas",
+];
+
+const BACK_CORE: string[] = [
+  "Crunch de polea alta",
 ];
 
 const SHOULDERS: string[] = [
@@ -84,6 +92,8 @@ const LEGS: string[] = [
 ];
 
 const ABS_CORE: string[] = [
+  "Dragon Fly en el piso",
+  "Crunch de polea alta",
   "Crunch abdominal en polea",
   "Elevación de piernas",
   "Rueda abdominal",
@@ -116,9 +126,9 @@ export function getExercisesForDay(
 ): string[] {
   switch (day) {
     case "pecho":
-      return [...CHEST, ...TRICEPS];
+      return [...CHEST, ...TRICEPS, ...CHEST_CORE];
     case "espalda":
-      return [...BACK, ...BICEPS, ...FOREARMS];
+      return [...BACK, ...BICEPS, ...FOREARMS, ...BACK_CORE];
     case "hombro":
       if (armFocus === "triceps") return [...SHOULDERS, ...TRICEPS];
       if (armFocus === "biceps") return [...SHOULDERS, ...BICEPS, ...FOREARMS];
@@ -134,9 +144,11 @@ export const ALL_ROUTINE_EXERCISES: string[] = [
   ...new Set([
     ...CHEST,
     ...TRICEPS,
+    ...CHEST_CORE,
     ...BACK,
     ...BICEPS,
     ...FOREARMS,
+    ...BACK_CORE,
     ...SHOULDERS,
     ...LEGS,
     ...ABS_CORE,

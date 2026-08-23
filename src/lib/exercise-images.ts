@@ -51,6 +51,10 @@ export const EXERCISE_IMAGES: Record<string, string> = {
   "Prensa de pierna": "/exercises/prensa-pierna.png",
   "Extensión de gemelos": "/exercises/extension-gemelos.png",
   "Aducción de cadera": "/exercises/aduccion-cadera.png",
+  "Dragon Fly en el piso": "/exercises/dragon-fly.png",
+  "Dragon fly en el piso": "/exercises/dragon-fly.png",
+  "Crunch de polea alta": "/exercises/crunch-polea-alta.png",
+  "Crunch en polea alta": "/exercises/crunch-polea-alta.png",
 };
 
 function normalizeExerciseKey(value: string): string {
@@ -84,6 +88,17 @@ const IMAGE_ALIASES: Record<string, string> = {
   "curl inverso de antebrazo": "/exercises/curl-inverso-antebrazo-mancuernas.png",
   "curl inverso de antebrazo con mancuernas":
     "/exercises/curl-inverso-antebrazo-mancuernas.png",
+  "dragon fly en el piso": "/exercises/dragon-fly.png",
+  "dragon fly piso": "/exercises/dragon-fly.png",
+  "dragon fly": "/exercises/dragon-fly.png",
+  "dragonfly en el piso": "/exercises/dragon-fly.png",
+  "dragonfly": "/exercises/dragon-fly.png",
+  "dragon flag en el piso": "/exercises/dragon-fly.png",
+  "dragon flag": "/exercises/dragon-fly.png",
+  "crunch de polea alta": "/exercises/crunch-polea-alta.png",
+  "crunch en polea alta": "/exercises/crunch-polea-alta.png",
+  "crunch polea alta": "/exercises/crunch-polea-alta.png",
+  "crunch polea": "/exercises/crunch-polea-alta.png",
 };
 
 export function getExerciseImage(exercise: string): string | null {

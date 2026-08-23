@@ -53,6 +53,10 @@ const LOAD_BY_EXERCISE: Record<string, LoadMode> = {
   "Prensa de pierna": "machine",
   "Extensión de gemelos": "machine",
   "Aducción de cadera": "machine",
+  "Dragon Fly en el piso": "bodyweight",
+  "Dragon fly en el piso": "bodyweight",
+  "Crunch de polea alta": "machine",
+  "Crunch en polea alta": "machine",
   "Crunch abdominal en polea": "machine",
   "Elevación de piernas": "bodyweight",
   "Rueda abdominal": "bodyweight",
@@ -91,7 +95,12 @@ function inferLoadMode(exercise: string): LoadMode {
   if (
     name.includes("dominada") ||
     name.includes("fondo") ||
-    name.includes("fondos")
+    name.includes("fondos") ||
+    name.includes("dragon") ||
+    name.includes("plancha") ||
+    name.includes("elevación de piernas") ||
+    name.includes("elevacion de piernas") ||
+    name.includes("rueda")
   ) {
     return "bodyweight";
   }
@@ -105,8 +114,10 @@ function inferLoadMode(exercise: string): LoadMode {
   }
   if (
     name.includes("máquina") ||
+    name.includes("maquina") ||
     name.includes("polea") ||
     name.includes("jalón") ||
+    name.includes("jalon") ||
     name.includes("prensa") ||
     name.includes("peck") ||
     name.includes("deck") ||

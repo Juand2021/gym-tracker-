@@ -42,12 +42,28 @@ export const MACHINE_STACKS: MachineStackConfig[] = [
   { exercise: "Face-pull o reverse peck deck", ...CABLE_STACK },
   { exercise: "Extensión de cuádriceps", ...CABLE_STACK },
   { exercise: "Aducción de cadera", ...CABLE_STACK },
+  { exercise: "Crunch de polea alta", ...CABLE_STACK },
+  { exercise: "Crunch en polea alta", ...CABLE_STACK },
   { exercise: "Crunch abdominal en polea", ...CABLE_STACK },
   { exercise: "Oblicuos en polea", ...CABLE_STACK },
 ];
 
+function normalizeStackKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
 export function getMachineStack(exercise: string): MachineStackConfig | null {
-  return MACHINE_STACKS.find((s) => s.exercise === exercise) ?? null;
+  if (!exercise) return null;
+  const direct = MACHINE_STACKS.find((s) => s.exercise === exercise);
+  if (direct) return direct;
+  const key = normalizeStackKey(exercise);
+  return (
+    MACHINE_STACKS.find((s) => normalizeStackKey(s.exercise) === key) ?? null
+  );
 }
 
 export function hasMachineStackPicker(exercise: string): boolean {

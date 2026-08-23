@@ -69,6 +69,8 @@ describe("Analytics: getIntensityZone & MuscleGroups", () => {
     assert.equal(getExerciseMuscleGroup("Press militar con mancuernas"), "Hombro");
     assert.equal(getExerciseMuscleGroup("Curl martillo"), "Bíceps");
     assert.equal(getExerciseMuscleGroup("Press francés con barra Z"), "Tríceps");
+    assert.equal(getExerciseMuscleGroup("Dragon Fly en el piso"), "Abdomen y Core");
+    assert.equal(getExerciseMuscleGroup("Crunch de polea alta"), "Abdomen y Core");
   });
 });
 

@@ -63,8 +63,10 @@ describe("machine-stacks: Jalón al pecho", () => {
     );
     assert.equal(hasMachineStackPicker("Extensión de cuádriceps"), true);
     assert.equal(hasMachineStackPicker("Aducción de cadera"), true);
+    assert.equal(hasMachineStackPicker("Crunch de polea alta"), true);
     assert.equal(hasMachineStackPicker("Crunch abdominal en polea"), true);
     assert.equal(hasMachineStackPicker("Oblicuos en polea"), true);
+    assert.equal(hasMachineStackPicker("Dragon Fly en el piso"), false);
     assert.equal(hasMachineStackPicker("Press banca"), false);
     assert.equal(hasMachineStackPicker("Pec deck"), false);
     assert.equal(hasMachineStackPicker("Encogimiento de hombros"), false);
