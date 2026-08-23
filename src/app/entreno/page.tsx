@@ -60,7 +60,9 @@ function ExerciseBlock({
   onDelete,
   onMoveUp,
   onMoveDown,
-  onTouchStartDrag,
+  onPointerDownDrag,
+  onPointerMoveDrag,
+  onPointerUpDrag,
   isDragging,
   isDropTarget,
 }: {
@@ -74,7 +76,9 @@ function ExerciseBlock({
   onDelete?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
-  onTouchStartDrag?: (e: React.TouchEvent) => void;
+  onPointerDownDrag?: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerMoveDrag?: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerUpDrag?: (e: React.PointerEvent<HTMLButtonElement>) => void;
   isDragging?: boolean;
   isDropTarget?: boolean;
 }) {
@@ -126,20 +130,23 @@ function ExerciseBlock({
       data-exercise-card
       className={`card space-y-3 p-4 transition-all duration-150 ${
         isDragging
-          ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/40 bg-[#1a1a1a] shadow-2xl scale-[1.01] z-20"
+          ? "border-2 border-dashed border-[var(--accent)]/50 bg-[var(--accent)]/5 opacity-40 scale-[0.98]"
           : isDropTarget
-            ? "border-[var(--accent)]/60 bg-[var(--accent)]/5"
+            ? "border-2 border-[var(--accent)] bg-[var(--accent)]/10 shadow-lg"
             : ""
       }`}
     >
       <div className="flex items-start justify-between gap-2.5">
-        {/* Controles de secuencia, arrastre y flechas */}
+        {/* Controles de secuencia, arrastre táctil y flechas */}
         <div className="flex items-center gap-1.5 shrink-0 self-start mt-0.5">
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-[#141414] text-[var(--muted)] hover:text-white active:bg-[var(--accent)]/20 active:text-[var(--accent)] cursor-grab active:cursor-grabbing touch-none select-none"
-            title="Mantén presionado para arrastrar y cambiar orden"
-            onTouchStart={onTouchStartDrag}
+            title="Arrastra para reordenar"
+            onPointerDown={onPointerDownDrag}
+            onPointerMove={onPointerMoveDrag}
+            onPointerUp={onPointerUpDrag}
+            onPointerCancel={onPointerUpDrag}
           >
             <span className="text-sm font-mono tracking-tighter">⠿</span>
           </button>
@@ -504,9 +511,19 @@ function EntrenoForm() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Estados de arrastre táctil
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  // Estados de arrastre táctil profesional (Pointer Drag & Drop con auto-scroll)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
+  const [dragCardRect, setDragCardRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [dragCurrentY, setDragCurrentY] = useState<number>(0);
+  const dragStartY = useRef<number>(0);
+  const pointerOffsetInCard = useRef<number>(0);
+  const autoScrollRaf = useRef<number | null>(null);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
 
   // Cargar entrenamientos históricos para consultar sesiones anteriores de cada ejercicio
@@ -572,6 +589,111 @@ function EntrenoForm() {
       clearWorkoutDraft();
     }
   }, [step, dayType, armFocus, date, notes, sets, extraExercises, activeExercises]);
+
+  // Auto-scroll loop mientras se arrastra cerca de los bordes de la pantalla
+  const startAutoScroll = () => {
+    if (autoScrollRaf.current !== null) return;
+    const scrollStep = () => {
+      if (dragStartY.current === 0) {
+        autoScrollRaf.current = null;
+        return;
+      }
+      const y = dragCurrentY;
+      const topThreshold = 140;
+      const bottomThreshold = window.innerHeight - 140;
+
+      if (y > 0 && y < topThreshold) {
+        const speed = Math.min(16, Math.max(3, (topThreshold - y) * 0.15));
+        window.scrollBy({ top: -speed, behavior: "auto" });
+      } else if (y > bottomThreshold && y < window.innerHeight) {
+        const speed = Math.min(16, Math.max(3, (y - bottomThreshold) * 0.15));
+        window.scrollBy({ top: speed, behavior: "auto" });
+      }
+
+      autoScrollRaf.current = requestAnimationFrame(scrollStep);
+    };
+    autoScrollRaf.current = requestAnimationFrame(scrollStep);
+  };
+
+  const stopAutoScroll = () => {
+    if (autoScrollRaf.current !== null) {
+      cancelAnimationFrame(autoScrollRaf.current);
+      autoScrollRaf.current = null;
+    }
+  };
+
+  function handlePointerDownDrag(e: React.PointerEvent<HTMLButtonElement>, index: number) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const btn = e.currentTarget;
+    try {
+      btn.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignorar si no soporta
+    }
+
+    const card = btn.closest("[data-exercise-card]") as HTMLElement | null;
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      setDragCardRect({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+      pointerOffsetInCard.current = e.clientY - rect.top;
+    }
+
+    dragStartY.current = e.clientY;
+    setDragCurrentY(e.clientY);
+    setDraggingIndex(index);
+    setTargetIndex(index);
+    startAutoScroll();
+  }
+
+  function handlePointerMoveDrag(e: React.PointerEvent<HTMLButtonElement>) {
+    if (draggingIndex === null || !cardsContainerRef.current) return;
+    setDragCurrentY(e.clientY);
+
+    const cards = Array.from(
+      cardsContainerRef.current.querySelectorAll<HTMLElement>("[data-exercise-card]"),
+    );
+
+    let foundTarget = draggingIndex;
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      if (e.clientY <= midpoint) {
+        foundTarget = i;
+        break;
+      }
+      foundTarget = i;
+    }
+
+    if (foundTarget !== targetIndex) {
+      setTargetIndex(foundTarget);
+    }
+  }
+
+  function handlePointerUpDrag(e: React.PointerEvent<HTMLButtonElement>) {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignorar
+    }
+    stopAutoScroll();
+
+    if (draggingIndex !== null && targetIndex !== null && draggingIndex !== targetIndex) {
+      moveExercise(draggingIndex, targetIndex);
+    }
+
+    dragStartY.current = 0;
+    setDraggingIndex(null);
+    setTargetIndex(null);
+    setDragCardRect(null);
+  }
 
   function selectDay(day: DayType) {
     if (dayType && dayType !== day && sets.length > 0) {
@@ -686,38 +808,6 @@ function EntrenoForm() {
     setExtraExercises((prev) => [...prev, name]);
     setExerciseOrder((prev) => [...prev, name]);
     setCustomExercise("");
-  }
-
-  // Handlers para arrastrar y soltar con el dedo (Touch Drag & Drop)
-  function handleTouchStartDrag(e: React.TouchEvent, index: number) {
-    setDraggedIndex(index);
-    setDropTargetIndex(index);
-  }
-
-  function handleTouchMoveDrag(e: React.TouchEvent) {
-    if (draggedIndex === null || !cardsContainerRef.current) return;
-    const clientY = e.touches[0].clientY;
-    const cards = Array.from(
-      cardsContainerRef.current.querySelectorAll<HTMLElement>("[data-exercise-card]"),
-    );
-
-    for (let i = 0; i < cards.length; i++) {
-      const rect = cards[i].getBoundingClientRect();
-      if (clientY >= rect.top && clientY <= rect.bottom) {
-        if (dropTargetIndex !== i) {
-          setDropTargetIndex(i);
-        }
-        break;
-      }
-    }
-  }
-
-  function handleTouchEndDrag() {
-    if (draggedIndex !== null && dropTargetIndex !== null && draggedIndex !== dropTargetIndex) {
-      moveExercise(draggedIndex, dropTargetIndex);
-    }
-    setDraggedIndex(null);
-    setDropTargetIndex(null);
   }
 
   async function onSubmit(event: FormEvent) {
@@ -888,7 +978,7 @@ function EntrenoForm() {
             ) : null}
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Toca + en cada ejercicio. Puedes reordenar con ⠿ o ▲/▼ según el orden real en que entrenes.
+            Toca + en cada ejercicio. Arrastra desde ⠿ para reordenar según cómo entrenes hoy.
           </p>
           <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">
             {LOAD_CONVENTION_NOTE}
@@ -939,14 +1029,12 @@ function EntrenoForm() {
         {/* Lista de ejercicios con reordenamiento dinámico y soporte táctil */}
         <div
           ref={cardsContainerRef}
-          onTouchMove={handleTouchMoveDrag}
-          onTouchEnd={handleTouchEndDrag}
-          className="space-y-3"
+          className="space-y-3 relative"
         >
           {activeExercises.map((exercise, index) => {
             const isExtra = extraExercises.includes(exercise);
-            const isDragging = draggedIndex === index;
-            const isDropTarget = dropTargetIndex === index && draggedIndex !== index;
+            const isDragging = draggingIndex === index;
+            const isDropTarget = targetIndex === index && draggingIndex !== index;
 
             return (
               <ExerciseBlock
@@ -961,12 +1049,44 @@ function EntrenoForm() {
                 onDelete={isExtra ? () => removeExtraExercise(exercise) : undefined}
                 onMoveUp={() => moveExercise(index, index - 1)}
                 onMoveDown={() => moveExercise(index, index + 1)}
-                onTouchStartDrag={(e) => handleTouchStartDrag(e, index)}
+                onPointerDownDrag={(e) => handlePointerDownDrag(e, index)}
+                onPointerMoveDrag={handlePointerMoveDrag}
+                onPointerUpDrag={handlePointerUpDrag}
                 isDragging={isDragging}
                 isDropTarget={isDropTarget}
               />
             );
           })}
+
+          {/* Tarjeta flotante visual que sigue el dedo en tiempo real */}
+          {draggingIndex !== null && dragCardRect !== null ? (
+            <div
+              className="fixed pointer-events-none z-50 transition-none"
+              style={{
+                top: Math.max(10, Math.min(window.innerHeight - 90, dragCurrentY - pointerOffsetInCard.current)),
+                left: dragCardRect.left,
+                width: dragCardRect.width,
+                transform: "scale(0.97)",
+                opacity: 0.88,
+              }}
+            >
+              <div className="card border-2 border-[var(--accent)] bg-[#181818] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.95)] ring-4 ring-[var(--accent)]/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 min-w-[2rem] px-1.5 items-center justify-center rounded bg-[var(--accent)] text-black font-bold text-xs">
+                      #{(targetIndex ?? draggingIndex) + 1}
+                    </span>
+                    <p className="font-bold text-white text-base truncate max-w-[200px] sm:max-w-[280px]">
+                      {activeExercises[draggingIndex]}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[var(--muted)]">
+                    {sets.filter((s) => s.exercise === activeExercises[draggingIndex]).length} series
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="card space-y-3 p-4">
