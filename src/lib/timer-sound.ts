@@ -1,6 +1,6 @@
 /**
- * Sintetizador de audio Web Audio API y motor de vibración (háptico + acústico)
- * Diseñado para funcionar al 100% en iPhone (iOS Safari) y Android.
+ * Sintetizador de audio Web Audio API para el cronómetro de descanso.
+ * Sonido limpio, nítido y profesional sin ruidos acústicos de baja frecuencia.
  */
 
 let audioCtx: AudioContext | null = null;
@@ -22,7 +22,7 @@ export function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
-/** Desbloquear el contexto de audio en el primer toque del usuario (crítico para iOS Safari) */
+/** Desbloquear el contexto de audio en el primer toque del usuario (para iOS Safari) */
 export function unlockAudioContext() {
   try {
     const ctx = getAudioContext();
@@ -30,7 +30,6 @@ export function unlockAudioContext() {
     if (ctx.state === "suspended") {
       void ctx.resume();
     }
-    // Reproducir un buffer de silencio para desbloquear el motor de audio en iOS
     const buffer = ctx.createBuffer(1, 1, 22050);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -41,46 +40,7 @@ export function unlockAudioContext() {
   }
 }
 
-/**
- * Pulso de vibración acústica de baja frecuencia (55-80 Hz).
- * Utiliza los altavoces estéreo y el motor magnético del iPhone para crear
- * una vibración física real y perceptible en la mano.
- */
-function playAcousticVibrationPulse(
-  ctx: AudioContext,
-  startTime: number,
-  duration: number,
-) {
-  try {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    // Frecuencia resonante sub-grave
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(58, startTime);
-    osc.frequency.linearRampToValueAtTime(74, startTime + duration);
-
-    gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(0.85, startTime + 0.04);
-    gain.gain.setValueAtTime(0.8, startTime + duration - 0.04);
-    gain.gain.linearRampToValueAtTime(0.001, startTime + duration);
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(110, startTime);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(startTime);
-    osc.stop(startTime + duration);
-  } catch {
-    // Ignorar
-  }
-}
-
-/** Tono breve de click / tick háptico al girar la rueda */
+/** Tono breve de click / tick al girar la rueda */
 export function playTickSound() {
   try {
     const ctx = getAudioContext();
@@ -92,22 +52,22 @@ export function playTickSound() {
 
     osc.type = "sine";
     osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(400, now + 0.02);
+    osc.frequency.exponentialRampToValueAtTime(500, now + 0.018);
 
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.02);
+    osc.stop(now + 0.018);
   } catch {
     // Ignorar
   }
 }
 
-/** Alarma enérgica de finalización con sirena y vibración táctil física */
+/** Alarma enérgica y nítida de finalización de descanso */
 export function playAlarmSound() {
   try {
     const ctx = getAudioContext();
@@ -119,12 +79,7 @@ export function playAlarmSound() {
 
     const now = ctx.currentTime;
 
-    // Ráfagas de vibración acústica sub-grave en iPhone y móviles
-    playAcousticVibrationPulse(ctx, now, 0.4);
-    playAcousticVibrationPulse(ctx, now + 0.75, 0.45);
-    playAcousticVibrationPulse(ctx, now + 1.55, 0.65);
-
-    // Secuencia melódica de campana de gimnasio (tonos claros)
+    // Secuencia melódica limpia y brillante de aviso (campanas de gym)
     const notes = [
       { freq: 880, start: 0, duration: 0.12 },
       { freq: 1174.66, start: 0.14, duration: 0.12 },
@@ -136,18 +91,18 @@ export function playAlarmSound() {
       // Tercera ráfaga
       { freq: 1046.5, start: 1.55, duration: 0.12 },
       { freq: 1318.51, start: 1.69, duration: 0.12 },
-      { freq: 2093, start: 1.83, duration: 0.6 },
+      { freq: 2093, start: 1.83, duration: 0.55 },
     ];
 
     for (const note of notes) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = "triangle";
+      osc.type = "sine";
       osc.frequency.setValueAtTime(note.freq, now + note.start);
 
       gain.gain.setValueAtTime(0, now + note.start);
-      gain.gain.linearRampToValueAtTime(0.3, now + note.start + 0.02);
+      gain.gain.linearRampToValueAtTime(0.28, now + note.start + 0.015);
       gain.gain.exponentialRampToValueAtTime(
         0.001,
         now + note.start + note.duration,
@@ -164,7 +119,7 @@ export function playAlarmSound() {
   }
 }
 
-/** Vibración háptica en dispositivos móviles con Vibration API (Android y navegadores compatibles) */
+/** Vibración háptica en dispositivos móviles con Vibration API (Android y compatibles) */
 export function triggerHapticAlarm() {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
     try {
