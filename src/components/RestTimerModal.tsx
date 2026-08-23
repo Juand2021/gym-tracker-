@@ -206,11 +206,11 @@ export function RestTimerModal() {
           {/* Banner de alarma de descanso terminado */}
           {isAlarmActive && (
             <div className="relative z-10 animate-bounce bg-gradient-to-r from-red-600 via-amber-500 to-orange-500 px-4 py-2.5 text-center text-white shadow-lg">
-              <p className="text-xs font-black uppercase tracking-[0.15em] drop-shadow-md">
-                ⚡️ ¡TIEMPO CUMPLIDO! ⚡️
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] drop-shadow-md">
+                TIEMPO CUMPLIDO
               </p>
               <p className="text-sm font-extrabold tracking-wide drop-shadow">
-                ¡A DARLE A LA SIGUIENTE SERIE! 💪🔥
+                INICIAR SIGUIENTE SERIE
               </p>
             </div>
           )}
@@ -434,9 +434,9 @@ export function RestTimerModal() {
               <button
                 type="button"
                 onClick={dismissAlarm}
-                className="btn btn-primary w-full min-h-[3.2rem] text-base font-black tracking-[0.08em] shadow-[0_0_24px_rgba(255,77,26,0.7)] animate-pulse"
+                className="btn w-full min-h-[3.4rem] bg-red-600 hover:bg-red-500 text-white text-sm font-black uppercase tracking-[0.1em] border border-red-400 shadow-[0_0_24px_rgba(255,50,50,0.85)] animate-pulse active:scale-[0.98]"
               >
-                💪 ¡LISTO PARA LA SIGUIENTE SERIE!
+                DETENER ALARMA Y CONTINUAR
               </button>
             ) : status === "running" ? (
               <div className="grid grid-cols-2 gap-2">

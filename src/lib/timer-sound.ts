@@ -1,5 +1,5 @@
 /**
- * Sintetizador de audio Web Audio API para el cronómetro de descanso.
+ * Sintetizador de audio Web Audio API y vibración para el cronómetro de descanso.
  * Cero dependencias externas ni archivos de audio pesados.
  */
 
@@ -95,13 +95,25 @@ export function playAlarmSound() {
   }
 }
 
-/** Vibración háptica en dispositivos móviles compatibles */
+/** Vibración háptica intensa en dispositivos móviles compatibles */
 export function triggerHapticAlarm() {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
     try {
-      navigator.vibrate([250, 100, 250, 100, 400, 150, 500]);
+      // Patrón de ráfagas intensas para notificación de fin de descanso
+      navigator.vibrate([300, 100, 300, 100, 500, 150, 600]);
     } catch {
       // Ignorar si no está permitido
+    }
+  }
+}
+
+/** Detener cualquier vibración activa */
+export function stopHapticAlarm() {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    try {
+      navigator.vibrate(0);
+    } catch {
+      // Ignorar
     }
   }
 }
@@ -109,7 +121,7 @@ export function triggerHapticAlarm() {
 export function triggerHapticTick() {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
     try {
-      navigator.vibrate(8);
+      navigator.vibrate(10);
     } catch {
       // Ignorar
     }

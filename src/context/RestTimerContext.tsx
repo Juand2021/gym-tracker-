@@ -12,6 +12,7 @@ import {
 import {
   playAlarmSound,
   playTickSound,
+  stopHapticAlarm,
   triggerHapticAlarm,
   triggerHapticTick,
 } from "@/lib/timer-sound";
@@ -53,6 +54,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const remainingAtPauseRef = useRef<number>(90);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wakeLockRef = useRef<any>(null);
 
   // Cargar duración preferida guardada
   useEffect(() => {
@@ -71,6 +74,58 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Control de Screen Wake Lock para mantener la pantalla encendida mientras corre el descanso
+  const requestWakeLock = useCallback(async () => {
+    if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
+      try {
+        if (!wakeLockRef.current || wakeLockRef.current.released) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          wakeLockRef.current = await (navigator as any).wakeLock.request(
+            "screen",
+          );
+        }
+      } catch {
+        // Ignorar si el navegador rechaza o suspende el lock
+      }
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLockRef.current && !wakeLockRef.current.released) {
+      try {
+        await wakeLockRef.current.release();
+      } catch {
+        // Ignorar
+      }
+      wakeLockRef.current = null;
+    }
+  }, []);
+
+  // Activar o desactivar Wake Lock según estado
+  useEffect(() => {
+    if (status === "running" || isAlarmActive) {
+      void requestWakeLock();
+    } else {
+      void releaseWakeLock();
+    }
+  }, [status, isAlarmActive, requestWakeLock, releaseWakeLock]);
+
+  // Si la pestaña vuelve a ser visible en el celular y el temporizador sigue corriendo, re-adquirir Wake Lock
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === "visible" &&
+        (status === "running" || isAlarmActive)
+      ) {
+        void requestWakeLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [status, isAlarmActive, requestWakeLock]);
+
   const clearTimerInterval = useCallback(() => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -80,6 +135,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const stopAlarm = useCallback(() => {
     setIsAlarmActive(false);
+    stopHapticAlarm();
     if (alarmIntervalRef.current) {
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
@@ -96,12 +152,12 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     playAlarmSound();
     triggerHapticAlarm();
 
-    // Ráfagas repetidas cada 2.5s mientras la alarma esté activa (máx 10 seg)
+    // Ráfagas repetidas cada 2.4s mientras la alarma esté activa (máx 10 seg)
     let repeats = 0;
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
     alarmIntervalRef.current = setInterval(() => {
       repeats++;
-      if (repeats >= 3) {
+      if (repeats >= 4) {
         if (alarmIntervalRef.current) {
           clearInterval(alarmIntervalRef.current);
           alarmIntervalRef.current = null;
@@ -181,7 +237,10 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const setDuration = useCallback(
     (seconds: number, silent = false) => {
-      const clamped = Math.min(MAX_TIMER_SECONDS, Math.max(0, Math.round(seconds)));
+      const clamped = Math.min(
+        MAX_TIMER_SECONDS,
+        Math.max(0, Math.round(seconds)),
+      );
       setTargetSecondsState(clamped);
       try {
         localStorage.setItem(STORAGE_DURATION_KEY, String(clamped));
@@ -237,13 +296,15 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setIsOpen(false);
   }, []);
 
-  // Limpiar timers al desmontar
+  // Limpiar timers y wake lock al desmontar
   useEffect(() => {
     return () => {
       clearTimerInterval();
+      stopHapticAlarm();
       if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+      void releaseWakeLock();
     };
-  }, [clearTimerInterval]);
+  }, [clearTimerInterval, releaseWakeLock]);
 
   return (
     <RestTimerContext.Provider

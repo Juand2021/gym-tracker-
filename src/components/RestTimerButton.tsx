@@ -95,7 +95,7 @@ export function RestTimerFloatingWidget() {
         <div className="flex flex-col text-left">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] leading-none">
             {isAlarmActive
-              ? "¡TIEMPO CUMPLIDO!"
+              ? "TIEMPO CUMPLIDO"
               : status === "running"
               ? "DESCANSO"
               : "PAUSADO"}
