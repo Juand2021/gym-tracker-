@@ -18,23 +18,19 @@ export function RestTimerButton() {
     <button
       type="button"
       onClick={openModal}
-      className={`group relative flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-all active:scale-95 ${
+      className={`card-interactive group relative flex items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 sm:min-h-10 text-xs font-bold uppercase tracking-[0.08em] transition-all active:scale-95 shadow-sm ${
         isAlarmActive
           ? "bg-red-600 text-white animate-bounce shadow-[0_0_16px_rgba(255,50,50,0.8)] border border-red-400"
           : isRunning
-          ? "bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/50 shadow-[0_0_12px_rgba(255,77,26,0.35)]"
+          ? "bg-[var(--surface-2)] text-[var(--accent)] border border-[var(--accent)]/60 shadow-[0_0_12px_rgba(255,77,26,0.35)]"
           : isPaused
-          ? "bg-amber-500/20 text-amber-400 border border-amber-500/50"
-          : "bg-[var(--surface-2)] text-[var(--ink)] hover:border-[var(--accent)]/40 border border-transparent"
+          ? "bg-[var(--surface-2)] text-amber-400 border border-amber-500/60"
+          : "bg-[var(--surface-2)]/90 text-[var(--ink)] border border-[var(--glass-stroke)] hover:border-[var(--accent)]/50 hover:text-white"
       }`}
       aria-label="Temporizador de descanso"
       title="Temporizador de descanso entre series"
     >
-      <span
-        className={`text-sm leading-none ${
-          isRunning ? "animate-pulse" : ""
-        }`}
-      >
+      <span className="text-sm leading-none text-white">
         ⏱
       </span>
 
@@ -44,7 +40,7 @@ export function RestTimerButton() {
           {formatTime(remainingSeconds)}
         </span>
       ) : (
-        <span className="hidden sm:inline text-xs font-semibold text-[var(--muted)] group-hover:text-white">
+        <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--ink)] group-hover:text-white">
           Descanso
         </span>
       )}

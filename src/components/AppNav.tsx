@@ -58,22 +58,22 @@ export function AppNav() {
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3">
           <Link
             href="/"
-            className="font-[family-name:var(--font-display)] text-2xl tracking-[0.08em] text-[var(--ink)]"
+            className="font-[family-name:var(--font-display)] text-3xl tracking-[0.08em] text-white hover:opacity-90 transition-opacity flex items-center leading-none"
           >
             FUERZA
             <span className="text-[var(--accent)]">.</span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <RestTimerButton />
             {displayName ? (
               <button
                 type="button"
                 onClick={() => setIsProfileOpen(true)}
-                className="card-interactive flex items-center gap-1.5 rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-10 text-xs font-bold uppercase tracking-[0.1em] text-[var(--ink)] hover:border-[var(--accent)]/60 hover:text-white transition-all active:scale-95 shadow-sm"
+                className="card-interactive flex items-center gap-1.5 rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-9 sm:min-h-10 text-xs font-bold uppercase tracking-[0.08em] text-[var(--ink)] hover:border-[var(--accent)]/50 hover:text-white transition-all active:scale-95 shadow-sm"
                 aria-label="Abrir perfil de usuario y ajustes"
                 title="Ver perfil, racha y configuraciones"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)]/20 text-[11px] text-[var(--accent)]">
+                <span className="text-sm leading-none text-white">
                   👤
                 </span>
                 <span>{displayName}</span>
@@ -82,8 +82,9 @@ export function AppNav() {
             <button
               type="button"
               onClick={logout}
-              className="min-h-10 px-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] hover:text-white transition-colors"
+              className="card-interactive flex items-center justify-center rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-9 sm:min-h-10 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)] hover:text-white hover:border-[var(--accent)]/50 transition-all active:scale-95 shadow-sm"
               aria-label="Cerrar sesión"
+              title="Cerrar sesión"
             >
               Salir
             </button>

@@ -115,8 +115,8 @@ export function UserProfileDrawer({
       >
         {/* Header del Panel */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--glass-stroke)] bg-[var(--surface)]/95 px-5 py-4 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-sm shadow-[0_0_12px_rgba(255,77,26,0.35)]">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white text-sm border border-white/20 shadow-sm">
               👤
             </span>
             <div>
@@ -142,7 +142,7 @@ export function UserProfileDrawer({
           {/* Tarjeta de Identidad y Datos Generales */}
           <div className="card card-glow relative overflow-hidden p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-[#ff8c42] text-2xl font-black text-white shadow-[0_0_20px_rgba(255,77,26,0.45)]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-[#ff7b39] text-2xl font-black text-white shadow-[0_0_20px_rgba(255,77,26,0.45)] border border-white/20">
                 {displayName ? displayName.charAt(0).toUpperCase() : "U"}
               </div>
               <div className="flex-1 min-w-0">
