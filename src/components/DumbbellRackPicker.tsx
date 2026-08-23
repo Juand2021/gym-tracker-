@@ -70,7 +70,10 @@ export function DumbbellRackPicker({
             </button>
           </div>
 
-          <div className="db-picker-weight" aria-live="polite">
+          <div
+            className={`db-picker-weight ${pulse ? "is-pulse" : ""}`}
+            aria-live="polite"
+          >
             <span className="db-picker-weight-value">
               {selectedLbs == null ? "—" : formatDumbbellLbs(selectedLbs)}
             </span>

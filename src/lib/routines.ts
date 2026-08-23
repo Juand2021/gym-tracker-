@@ -46,7 +46,7 @@ const TRICEPS: string[] = [
 const BACK: string[] = [
   "Dominadas",
   "Jalón al pecho",
-  "Remo con máquina",
+  "Remo en máquina con discos",
   "Remo unilateral con agarre de polea",
   "Face pull",
 ];

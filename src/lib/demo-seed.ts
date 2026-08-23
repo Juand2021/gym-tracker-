@@ -97,7 +97,7 @@ function espalda(week: number, date: string, id: string): Workout {
     { exercise: "Dominadas", weightKg: 0, reps: [5 + week, 5, 4] },
     { exercise: "Jalón al pecho", weightKg: w(week, 45, 55), reps: [10, 9, 8] },
     {
-      exercise: "Remo con máquina",
+      exercise: "Remo en máquina con discos",
       weightKg: w(week, 50, 60),
       reps: [10, 10, 8],
     },

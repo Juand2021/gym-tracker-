@@ -8,7 +8,10 @@ import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
 import { DumbbellRackPicker } from "@/components/DumbbellRackPicker";
 import { EzBarRackPicker } from "@/components/EzBarRackPicker";
 import { MachineStackPicker } from "@/components/MachineStackPicker";
-import { hasBarbellPlatePicker } from "@/lib/barbell-plates";
+import {
+  hasBarbellPlatePicker,
+  isPlateMachineExercise,
+} from "@/lib/barbell-plates";
 import { hasDumbbellRackPicker } from "@/lib/dumbbell-rack";
 import { hasEzBarRackPicker } from "@/lib/ez-bar-rack";
 import { getLoadHint, LOAD_CONVENTION_NOTE } from "@/lib/exercises";
@@ -150,7 +153,10 @@ function ExerciseBlock({
               <span className="text-[var(--muted)]"> · rack</span>
             ) : null}
             {useBarbellPicker ? (
-              <span className="text-[var(--muted)]"> · barra</span>
+              <span className="text-[var(--muted)]">
+                {" "}
+                · {isPlateMachineExercise(exercise) ? "discos" : "barra"}
+              </span>
             ) : null}
             {useEzBarPicker ? (
               <span className="text-[var(--muted)]"> · barra Z</span>
@@ -248,7 +254,9 @@ function ExerciseBlock({
                   useDumbbellPicker
                     ? "Abrir selector de mancuernas"
                     : useBarbellPicker
-                      ? "Abrir selector de barra olímpica"
+                      ? isPlateMachineExercise(exercise)
+                        ? "Abrir selector de discos"
+                        : "Abrir selector de barra olímpica"
                       : useEzBarPicker
                         ? "Abrir selector de barra Z"
                         : "Abrir selector de placas"
@@ -314,7 +322,9 @@ function ExerciseBlock({
                 ? useDumbbellPicker
                   ? "Usar mancuernas"
                   : useBarbellPicker
-                    ? "Usar barra"
+                    ? isPlateMachineExercise(exercise)
+                      ? "Usar discos"
+                      : "Usar barra"
                     : useEzBarPicker
                       ? "Usar barra Z"
                       : "Usar placas"

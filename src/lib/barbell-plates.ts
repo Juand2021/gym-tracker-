@@ -14,6 +14,13 @@ const BARBELL_EXERCISES = new Set([
   "Peso muerto rumano",
 ]);
 
+const PLATE_MACHINE_EXERCISES = new Set([
+  "Remo en máquina con discos",
+  "Remo con máquina de discos",
+  "Remo en máquina (discos)",
+  "Remo con máquina",
+]);
+
 export type BarbellLoad = {
   barLbs: number;
   /** Discos de un lado, de dentro (cerca del collar) hacia fuera. */
@@ -21,6 +28,20 @@ export type BarbellLoad = {
   totalLbs: number;
   totalKg: number;
 };
+
+export function isPlateMachineExercise(exercise: string): boolean {
+  if (PLATE_MACHINE_EXERCISES.has(exercise)) return true;
+  const key = exercise
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return (
+    key.includes("remo en maquina") ||
+    key.includes("remo con maquina") ||
+    key.includes("maquina con discos") ||
+    key.includes("maquina de discos")
+  );
+}
 
 export function lbsToKg(lbs: number): number {
   return Math.round(lbs * LB_TO_KG * 10) / 10;
@@ -39,7 +60,11 @@ export function formatBarbellTriggerKg(kg: number): string {
 }
 
 export function hasBarbellPlatePicker(exercise: string): boolean {
-  return BARBELL_EXERCISES.has(exercise);
+  return BARBELL_EXERCISES.has(exercise) || isPlateMachineExercise(exercise);
+}
+
+export function getBaseEquipmentLbs(exercise: string): number {
+  return isPlateMachineExercise(exercise) ? 0 : OLYMPIC_BAR_LBS;
 }
 
 export function platesPerSideSum(platesPerSide: number[]): number {
@@ -54,20 +79,22 @@ export function totalKg(barLbs: number, platesPerSide: number[]): number {
   return lbsToKg(totalLbs(barLbs, platesPerSide));
 }
 
-export function emptyBarbellLoad(): BarbellLoad {
+export function emptyBarbellLoad(baseLbs: number = OLYMPIC_BAR_LBS): BarbellLoad {
   return {
-    barLbs: OLYMPIC_BAR_LBS,
+    barLbs: baseLbs,
     platesPerSide: [],
-    totalLbs: OLYMPIC_BAR_LBS,
-    totalKg: lbsToKg(OLYMPIC_BAR_LBS),
+    totalLbs: baseLbs,
+    totalKg: lbsToKg(baseLbs),
   };
 }
 
-export function buildBarbellLoad(platesPerSide: number[]): BarbellLoad {
-  const barLbs = OLYMPIC_BAR_LBS;
-  const lbs = totalLbs(barLbs, platesPerSide);
+export function buildBarbellLoad(
+  platesPerSide: number[],
+  baseLbs: number = OLYMPIC_BAR_LBS,
+): BarbellLoad {
+  const lbs = totalLbs(baseLbs, platesPerSide);
   return {
-    barLbs,
+    barLbs: baseLbs,
     platesPerSide: [...platesPerSide],
     totalLbs: lbs,
     totalKg: lbsToKg(lbs),
@@ -84,24 +111,27 @@ export function plateSizeClass(lbs: number): string {
 }
 
 /**
- * Descompone un peso en kg a la carga más cercana con barra + discos
+ * Descompone un peso en kg a la carga más cercana con barra/máquina + discos
  * (greedy por lado, disco más grande primero).
  */
-export function nearestPlateLoad(weightKg: number): BarbellLoad {
-  if (!Number.isFinite(weightKg) || weightKg <= 0) {
-    return emptyBarbellLoad();
+export function nearestPlateLoad(
+  weightKg: number,
+  baseLbs: number = OLYMPIC_BAR_LBS,
+): BarbellLoad {
+  if (!Number.isFinite(weightKg) || weightKg < 0) {
+    return emptyBarbellLoad(baseLbs);
   }
 
-  // Totales posibles son múltiplos de 5 lb (barra 45 + pares de 2.5).
+  // Totales posibles son múltiplos de 5 lb (base + pares de 2.5).
   const rawLbs = weightKg * KG_TO_LB;
   const targetLbs = Math.round(rawLbs / 5) * 5;
-  const sideTarget = Math.max(0, (targetLbs - OLYMPIC_BAR_LBS) / 2);
+  const sideTarget = Math.max(0, (targetLbs - baseLbs) / 2);
 
   const candidates = [
-    emptyBarbellLoad(),
-    buildBarbellLoad(greedyPlates(sideTarget)),
-    buildBarbellLoad(greedyPlates(Math.max(0, sideTarget - 2.5))),
-    buildBarbellLoad(greedyPlates(sideTarget + 2.5)),
+    emptyBarbellLoad(baseLbs),
+    buildBarbellLoad(greedyPlates(sideTarget), baseLbs),
+    buildBarbellLoad(greedyPlates(Math.max(0, sideTarget - 2.5)), baseLbs),
+    buildBarbellLoad(greedyPlates(sideTarget + 2.5), baseLbs),
   ];
 
   let best = candidates[0];
@@ -121,7 +151,6 @@ function greedyPlates(sideLbs: number): number[] {
   const result: number[] = [];
   let remaining = sideLbs;
 
-  // Tolerancia pequeña por flotantes.
   for (const plate of platesDesc) {
     while (remaining + 1e-9 >= plate) {
       result.push(plate);
@@ -129,8 +158,6 @@ function greedyPlates(sideLbs: number): number[] {
     }
   }
 
-  // Orden visual: grande primero cerca del collar suele verse bien;
-  // mantenemos el orden de colocación greedy (grandes adentro).
   return result;
 }
 

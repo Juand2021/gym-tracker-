@@ -19,13 +19,12 @@ const CABLE_STACK = {
   smallKg: 2.5,
   smallCount: 5,
   largeKg: 5,
-  largeCount: 10,
+  largeCount: 8,
 } as const;
 
 /** Stacks con selector visual. Whitelist por ejercicio. */
 export const MACHINE_STACKS: MachineStackConfig[] = [
   { exercise: "Jalón al pecho", ...CABLE_STACK },
-  { exercise: "Remo con máquina", ...CABLE_STACK },
   { exercise: "Remo unilateral con agarre de polea", ...CABLE_STACK },
   { exercise: "Remo unilateral (agarre al tronco)", ...CABLE_STACK },
   { exercise: "Face pull", ...CABLE_STACK },
