@@ -15,6 +15,7 @@ import {
   stopHapticAlarm,
   triggerHapticAlarm,
   triggerHapticTick,
+  unlockAudioContext,
 } from "@/lib/timer-sound";
 import { MAX_TIMER_SECONDS } from "@/lib/rest-timer";
 
@@ -171,6 +172,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(
     (seconds?: number) => {
+      unlockAudioContext();
       stopAlarm();
       clearTimerInterval();
 
@@ -210,6 +212,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const resume = useCallback(() => {
     if (status !== "paused" || remainingAtPauseRef.current <= 0) return;
+    unlockAudioContext();
     setStatus("running");
     const now = Date.now();
     endTimeRef.current = now + remainingAtPauseRef.current * 1000;
@@ -237,6 +240,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const setDuration = useCallback(
     (seconds: number, silent = false) => {
+      unlockAudioContext();
       const clamped = Math.min(
         MAX_TIMER_SECONDS,
         Math.max(0, Math.round(seconds)),
@@ -289,6 +293,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   }, [stopAlarm, reset]);
 
   const openModal = useCallback(() => {
+    unlockAudioContext();
     setIsOpen(true);
   }, []);
 
