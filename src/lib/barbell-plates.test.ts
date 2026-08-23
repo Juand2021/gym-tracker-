@@ -20,11 +20,12 @@ describe("barbell-plates", () => {
     assert.deepEqual(PLATE_LBS, [2.5, 5, 10, 25, 45]);
   });
 
-  it("activa Press banca, encogimientos y pierna con barra", () => {
+  it("activa Press banca, encogimientos, pierna y Remo en máquina con discos", () => {
     assert.equal(hasBarbellPlatePicker("Press banca"), true);
     assert.equal(hasBarbellPlatePicker("Encogimiento de hombros"), true);
     assert.equal(hasBarbellPlatePicker("Sentadilla libre"), true);
     assert.equal(hasBarbellPlatePicker("Peso muerto rumano"), true);
+    assert.equal(hasBarbellPlatePicker("Remo en máquina con discos"), true);
     assert.equal(hasBarbellPlatePicker("Press francés con barra Z"), false);
     assert.equal(hasBarbellPlatePicker("Jalón al pecho"), false);
   });

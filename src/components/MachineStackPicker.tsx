@@ -129,7 +129,10 @@ export function MachineStackPicker({
           </button>
         </div>
 
-        <div className="stack-picker-weight" aria-live="polite">
+        <div
+          className={`stack-picker-weight ${pinPulse ? "is-pulse" : ""}`}
+          aria-live="polite"
+        >
           <span className="stack-picker-weight-value">
             {formatStackKg(selectedKg)}
           </span>
@@ -155,7 +158,7 @@ export function MachineStackPicker({
 
           <div
             ref={stackRef}
-            className="stack-frame"
+            className={`stack-frame ${pinPulse ? "is-pulse" : ""}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}

@@ -21,7 +21,8 @@ describe("machine-stacks: Jalón al pecho", () => {
   it("tiene config en las máquinas de cable/polea con el mismo stack", () => {
     assert.ok(config);
     assert.equal(hasMachineStackPicker("Jalón al pecho"), true);
-    assert.equal(hasMachineStackPicker("Remo con máquina"), true);
+    assert.equal(hasMachineStackPicker("Remo con máquina"), false);
+    assert.equal(hasMachineStackPicker("Remo en máquina con discos"), false);
     assert.equal(
       hasMachineStackPicker("Remo unilateral con agarre de polea"),
       true,
@@ -70,16 +71,16 @@ describe("machine-stacks: Jalón al pecho", () => {
     assert.equal(hasMachineStackPicker("Sentadilla libre"), false);
     assert.equal(hasMachineStackPicker(""), false);
 
-    const remo = getMachineStack("Remo con máquina");
+    const bicepsPolea = getMachineStack("Curl de bíceps con polea");
     const face = getMachineStack("Face pull");
     const cruce = getMachineStack("Cruce de poleas alto");
     const cuerda = getMachineStack("Extensión de tríceps con cuerda");
     assert.deepEqual(
       {
-        smallKg: remo?.smallKg,
-        smallCount: remo?.smallCount,
-        largeKg: remo?.largeKg,
-        largeCount: remo?.largeCount,
+        smallKg: bicepsPolea?.smallKg,
+        smallCount: bicepsPolea?.smallCount,
+        largeKg: bicepsPolea?.largeKg,
+        largeCount: bicepsPolea?.largeCount,
       },
       {
         smallKg: config!.smallKg,
@@ -132,28 +133,27 @@ describe("machine-stacks: Jalón al pecho", () => {
     );
   });
 
-  it("usa 5 placas pequeñas de 2.5 y 10 grandes de 5", () => {
+  it("usa 5 placas pequeñas de 2.5 y 8 grandes de 5", () => {
     assert.equal(config!.smallCount, 5);
     assert.equal(config!.smallKg, 2.5);
-    assert.equal(config!.largeCount, 10);
+    assert.equal(config!.largeCount, 8);
     assert.equal(config!.largeKg, 5);
   });
 
-  it("genera 15 placas con pesos acumulados correctos", () => {
+  it("genera 13 placas con pesos acumulados correctos", () => {
     const plates = buildStackPlates(config!);
-    assert.equal(plates.length, 15);
+    assert.equal(plates.length, 13);
     assert.deepEqual(
       plates.map((p) => p.cumulativeKg),
       [
         2.5, 5, 7.5, 10, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5, 52.5,
-        57.5, 62.5,
       ],
     );
     assert.equal(plates[0].size, "small");
     assert.equal(plates[4].size, "small");
     assert.equal(plates[5].size, "large");
-    assert.equal(plates[14].size, "large");
-    assert.equal(plates[14].cumulativeKg, 62.5);
+    assert.equal(plates[12].size, "large");
+    assert.equal(plates[12].cumulativeKg, 52.5);
   });
 
   it("nearestPlateIndex resuelve 0, exactos y cercanos al historial", () => {
@@ -163,7 +163,7 @@ describe("machine-stacks: Jalón al pecho", () => {
     assert.equal(nearestPlateIndex(plates, 37.5), 9);
     assert.equal(plates[nearestPlateIndex(plates, 38)].cumulativeKg, 37.5);
     assert.equal(plates[nearestPlateIndex(plates, 33)].cumulativeKg, 32.5);
-    assert.equal(plates[nearestPlateIndex(plates, 62.5)].cumulativeKg, 62.5);
+    assert.equal(plates[nearestPlateIndex(plates, 52.5)].cumulativeKg, 52.5);
   });
 
   it("formatStackKg no deja ceros raros", () => {
