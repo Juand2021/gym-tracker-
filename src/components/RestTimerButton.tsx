@@ -18,7 +18,7 @@ export function RestTimerButton() {
     <button
       type="button"
       onClick={openModal}
-      className={`card-interactive group relative flex items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 sm:min-h-10 text-xs font-bold uppercase tracking-[0.08em] transition-all active:scale-95 shadow-sm ${
+      className={`card-interactive group relative flex items-center gap-1.5 rounded-full px-3 py-1.5 min-h-[2.35rem] transition-all active:scale-95 shadow-sm ${
         isAlarmActive
           ? "bg-red-600 text-white animate-bounce shadow-[0_0_16px_rgba(255,50,50,0.8)] border border-red-400"
           : isRunning
@@ -30,20 +30,28 @@ export function RestTimerButton() {
       aria-label="Temporizador de descanso"
       title="Temporizador de descanso entre series"
     >
-      <span className="text-sm leading-none text-white">
-        ⏱
-      </span>
+      {/* Icono de cronómetro en vector blanco puro */}
+      <svg
+        className="h-3.5 w-3.5 text-white flex-shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="13" r="8" />
+        <path d="M12 9v4l2 2" />
+        <path d="M10 2h4" />
+      </svg>
 
-      {/* Tiempo visible si está corriendo, pausado o en alarma */}
-      {isRunning || isPaused || isAlarmActive ? (
-        <span className="font-[family-name:var(--font-display)] text-sm tracking-wider font-bold">
-          {formatTime(remainingSeconds)}
-        </span>
-      ) : (
-        <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--ink)] group-hover:text-white">
-          Descanso
-        </span>
-      )}
+      {/* Texto con tipografía unificada Bebas Neue */}
+      <span className="font-[family-name:var(--font-display)] text-base tracking-[0.06em] leading-none pt-0.5">
+        {isRunning || isPaused || isAlarmActive
+          ? formatTime(remainingSeconds)
+          : "Descanso"}
+      </span>
 
       {/* Punto pulsante en estado activo */}
       {isRunning && (
@@ -85,8 +93,20 @@ export function RestTimerFloatingWidget() {
             : "bg-black/85 border-amber-500/60 text-amber-300"
         }`}
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)]/20 text-base">
-          ⏱
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)]/20 text-white">
+          <svg
+            className="h-4 w-4 text-white"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l2 2" />
+            <path d="M10 2h4" />
+          </svg>
         </span>
         <div className="flex flex-col text-left">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] leading-none">

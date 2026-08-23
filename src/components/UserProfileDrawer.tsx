@@ -116,8 +116,19 @@ export function UserProfileDrawer({
         {/* Header del Panel */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--glass-stroke)] bg-[var(--surface)]/95 px-5 py-4 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white text-sm border border-white/20 shadow-sm">
-              👤
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white border border-white/20 shadow-sm">
+              <svg
+                className="h-4 w-4 text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
             </span>
             <div>
               <p className="label mb-0 text-[10px] font-bold tracking-[0.14em] text-[var(--accent)]">

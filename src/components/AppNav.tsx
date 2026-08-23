@@ -69,24 +69,54 @@ export function AppNav() {
               <button
                 type="button"
                 onClick={() => setIsProfileOpen(true)}
-                className="card-interactive flex items-center gap-1.5 rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-9 sm:min-h-10 text-xs font-bold uppercase tracking-[0.08em] text-[var(--ink)] hover:border-[var(--accent)]/50 hover:text-white transition-all active:scale-95 shadow-sm"
+                className="card-interactive flex items-center gap-1.5 rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-[2.35rem] text-[var(--ink)] hover:border-[var(--accent)]/50 hover:text-white transition-all active:scale-95 shadow-sm"
                 aria-label="Abrir perfil de usuario y ajustes"
                 title="Ver perfil, racha y configuraciones"
               >
-                <span className="text-sm leading-none text-white">
-                  👤
+                {/* Icono de usuario vectorial blanco puro (sin emoji iOS) */}
+                <svg
+                  className="h-3.5 w-3.5 text-white flex-shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span className="font-[family-name:var(--font-display)] text-base tracking-[0.06em] leading-none pt-0.5">
+                  {displayName}
                 </span>
-                <span>{displayName}</span>
               </button>
             ) : null}
             <button
               type="button"
               onClick={logout}
-              className="card-interactive flex items-center justify-center rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-9 sm:min-h-10 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)] hover:text-white hover:border-[var(--accent)]/50 transition-all active:scale-95 shadow-sm"
+              className="card-interactive flex items-center gap-1.5 justify-center rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-[2.35rem] text-[var(--muted)] hover:text-white hover:border-[var(--accent)]/50 transition-all active:scale-95 shadow-sm"
               aria-label="Cerrar sesión"
               title="Cerrar sesión"
             >
-              Salir
+              {/* Icono de salida vectorial blanco puro */}
+              <svg
+                className="h-3.5 w-3.5 text-white/80 flex-shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span className="font-[family-name:var(--font-display)] text-base tracking-[0.06em] leading-none pt-0.5">
+                Salir
+              </span>
             </button>
           </div>
         </div>
