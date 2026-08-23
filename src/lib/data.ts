@@ -5,12 +5,17 @@ import {
 } from "@/lib/demo-seed";
 import { isFirebaseConfigured, getDb } from "@/lib/firebase";
 import {
+  localAppendChatMessage,
   localCreateBodyWeight,
+  localCreateChatThread,
   localCreateWorkout,
   localDeleteBodyWeight,
+  localDeleteChatThread,
   localDeleteWorkout,
+  localGetChatThread,
   localGetWorkout,
   localListBodyWeight,
+  localListChatThreads,
   localListWorkouts,
   localUpdateWorkout,
 } from "@/lib/local-store";
@@ -23,12 +28,17 @@ import {
 } from "@/lib/routines";
 import type {
   BodyWeightEntry,
+  ChatMessage,
+  ChatMessageRole,
+  ChatThread,
+  ChatThreadSummary,
   CreateBodyWeightInput,
   CreateWorkoutInput,
   UpdateWorkoutInput,
   Workout,
   WorkoutSet,
 } from "@/lib/types";
+import { WorkoutAnalyticsService } from "@/lib/analytics";
 import type {
   CollectionReference,
   DocumentData,
@@ -92,6 +102,14 @@ function bodyWeightCollection(
 ): CollectionReference<DocumentData> {
   if (profile.dataRoot === "legacy") return db.collection("bodyWeight");
   return db.collection("users").doc(profile.id).collection("bodyWeight");
+}
+
+function chatThreadsCollection(
+  db: Firestore,
+  profile: Profile,
+): CollectionReference<DocumentData> {
+  if (profile.dataRoot === "legacy") return db.collection("chatThreads");
+  return db.collection("users").doc(profile.id).collection("chatThreads");
 }
 
 /** Orden de ejecución: orderIndex → plantilla del día → setNumber. */
@@ -492,6 +510,186 @@ function formatRoutineTemplates(): string {
   return blocks.join("\n");
 }
 
+// -------------------------------------------------------------
+// AI Chat Threads (Firestore & Local)
+// -------------------------------------------------------------
+
+export async function listChatThreads(
+  profile: Profile,
+): Promise<ChatThreadSummary[]> {
+  if (!isFirebaseConfigured()) {
+    return localListChatThreads(profile.id);
+  }
+
+  try {
+    const db = getDb();
+    const snapshot = await chatThreadsCollection(db, profile)
+      .orderBy("updatedAt", "desc")
+      .limit(50)
+      .get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      const messages = (data.messages ?? []) as ChatMessage[];
+      const lastMsg = messages[messages.length - 1];
+      return {
+        id: doc.id,
+        title: String(data.title ?? "Conversación"),
+        createdAt: String(data.createdAt ?? new Date().toISOString()),
+        updatedAt: String(data.updatedAt ?? new Date().toISOString()),
+        messageCount: messages.length,
+        lastMessageSnippet: lastMsg ? lastMsg.content.slice(0, 90) : undefined,
+      };
+    });
+  } catch (error) {
+    console.error("Error reading chat threads from Firestore, fallback to local:", error);
+    return localListChatThreads(profile.id);
+  }
+}
+
+export async function getChatThread(
+  profile: Profile,
+  threadId: string,
+): Promise<ChatThread | null> {
+  if (!isFirebaseConfigured()) {
+    return localGetChatThread(profile.id, threadId);
+  }
+
+  try {
+    const db = getDb();
+    const doc = await chatThreadsCollection(db, profile).doc(threadId).get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      title: String(data.title ?? "Conversación"),
+      createdAt: String(data.createdAt ?? new Date().toISOString()),
+      updatedAt: String(data.updatedAt ?? new Date().toISOString()),
+      messages: (data.messages ?? []) as ChatMessage[],
+    };
+  } catch (error) {
+    console.error("Error getting chat thread from Firestore, fallback to local:", error);
+    return localGetChatThread(profile.id, threadId);
+  }
+}
+
+export async function createChatThread(
+  profile: Profile,
+  title?: string,
+  initialMessage?: { role: ChatMessageRole; content: string },
+): Promise<ChatThread> {
+  if (!isFirebaseConfigured()) {
+    return localCreateChatThread(profile.id, title, initialMessage);
+  }
+
+  try {
+    const db = getDb();
+    const now = new Date().toISOString();
+    const docRef = chatThreadsCollection(db, profile).doc();
+    const messages: ChatMessage[] = [];
+
+    if (initialMessage) {
+      messages.push({
+        id: db.collection("_").doc().id,
+        role: initialMessage.role,
+        content: initialMessage.content,
+        createdAt: now,
+      });
+    }
+
+    const thread: ChatThread = {
+      id: docRef.id,
+      title: title?.trim() || "Nueva conversación",
+      createdAt: now,
+      updatedAt: now,
+      messages,
+    };
+
+    await docRef.set({
+      title: thread.title,
+      createdAt: thread.createdAt,
+      updatedAt: thread.updatedAt,
+      messages: thread.messages,
+    });
+
+    return thread;
+  } catch (error) {
+    console.error("Error creating chat thread in Firestore, fallback to local:", error);
+    return localCreateChatThread(profile.id, title, initialMessage);
+  }
+}
+
+export async function appendChatMessage(
+  profile: Profile,
+  threadId: string,
+  message: { role: ChatMessageRole; content: string },
+  newTitle?: string,
+): Promise<{ thread: ChatThread; message: ChatMessage } | null> {
+  if (!isFirebaseConfigured()) {
+    return localAppendChatMessage(profile.id, threadId, message, newTitle);
+  }
+
+  try {
+    const db = getDb();
+    const docRef = chatThreadsCollection(db, profile).doc(threadId);
+    const doc = await docRef.get();
+    if (!doc.exists) return null;
+
+    const data = doc.data()!;
+    const messages = (data.messages ?? []) as ChatMessage[];
+    const now = new Date().toISOString();
+    const newMsg: ChatMessage = {
+      id: db.collection("_").doc().id,
+      role: message.role,
+      content: message.content,
+      createdAt: now,
+    };
+
+    messages.push(newMsg);
+    const updatedTitle =
+      newTitle && (!data.title || data.title === "Nueva conversación")
+        ? newTitle
+        : data.title;
+
+    await docRef.update({
+      messages,
+      updatedAt: now,
+      title: updatedTitle,
+    });
+
+    return {
+      thread: {
+        id: docRef.id,
+        title: updatedTitle,
+        createdAt: data.createdAt,
+        updatedAt: now,
+        messages,
+      },
+      message: newMsg,
+    };
+  } catch (error) {
+    console.error("Error appending chat message to Firestore, fallback to local:", error);
+    return localAppendChatMessage(profile.id, threadId, message, newTitle);
+  }
+}
+
+export async function deleteChatThread(
+  profile: Profile,
+  threadId: string,
+): Promise<void> {
+  if (!isFirebaseConfigured()) {
+    return localDeleteChatThread(profile.id, threadId);
+  }
+
+  try {
+    const db = getDb();
+    await chatThreadsCollection(db, profile).doc(threadId).delete();
+  } catch (error) {
+    console.error("Error deleting chat thread from Firestore, fallback to local:", error);
+    return localDeleteChatThread(profile.id, threadId);
+  }
+}
+
 export async function buildAiContext(profile: Profile): Promise<string> {
   const [workouts, bodyWeight] = await Promise.all([
     listWorkouts(profile, 80),
@@ -500,6 +698,18 @@ export async function buildAiContext(profile: Profile): Promise<string> {
 
   const workoutLines = workouts.map(formatSessionForAi);
   const weightLines = bodyWeight.map((b) => `${b.date}: ${b.weightKg} kg`);
+
+  // Extraer KPIs analíticos del WorkoutAnalyticsService
+  const distinctExercises = Array.from(
+    new Set(workouts.flatMap((w) => w.sets.map((s) => s.exercise))),
+  );
+  const topExerciseKpis = distinctExercises.slice(0, 8).map((ex: string) => {
+    const kpi = WorkoutAnalyticsService.getKpiSummary(workouts, bodyWeight, ex);
+    const prSet = kpi.allTimeMaxSet
+      ? `${kpi.allTimeMaxSet.weightKg}kg x ${kpi.allTimeMaxSet.reps}`
+      : "—";
+    return `- ${ex}: 1RM Actual = ${kpi.current1rm ?? "—"}kg | 1RM Récord = ${kpi.allTimeMax1rm ?? "—"}kg (${prSet}) | Progresión = ${kpi.progressionPct != null ? `${kpi.progressionPct > 0 ? "+" : ""}${kpi.progressionPct}%` : "—"}`;
+  });
 
   return [
     `Perfil activo: ${profile.displayName}.`,
@@ -518,6 +728,9 @@ export async function buildAiContext(profile: Profile): Promise<string> {
     "Plantillas de rutina (orden previsto por día):",
     formatRoutineTemplates(),
     "",
+    "Resumen de Métricas Clave y Récords (1RM por ejercicio):",
+    topExerciseKpis.join("\n") || "(sin métricas calculadas)",
+    "",
     "Historial de entrenamientos (sesiones más recientes primero; dentro de cada sesión, orden de ejecución real):",
     workoutLines.join("\n\n") || "(sin entrenamientos)",
     "",
@@ -525,3 +738,4 @@ export async function buildAiContext(profile: Profile): Promise<string> {
     weightLines.join("\n") || "(sin registros)",
   ].join("\n");
 }
+

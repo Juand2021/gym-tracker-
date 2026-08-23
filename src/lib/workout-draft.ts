@@ -16,6 +16,7 @@ export type WorkoutDraft = {
   notes: string;
   sets: DraftSet[];
   extraExercises: string[];
+  exerciseOrder?: string[];
   updatedAt: number;
 };
 

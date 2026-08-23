@@ -54,3 +54,30 @@ export type CreateBodyWeightInput = {
   date: string;
   weightKg: number;
 };
+
+export type ChatMessageRole = "user" | "assistant" | "system";
+
+export type ChatMessage = {
+  id: string;
+  role: ChatMessageRole;
+  content: string;
+  createdAt: string;
+};
+
+export type ChatThread = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+};
+
+export type ChatThreadSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastMessageSnippet?: string;
+};
+
