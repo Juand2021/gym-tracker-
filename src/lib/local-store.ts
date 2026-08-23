@@ -4,6 +4,10 @@ import path from "path";
 import type { ProfileId } from "@/lib/profiles";
 import type {
   BodyWeightEntry,
+  ChatMessage,
+  ChatMessageRole,
+  ChatThread,
+  ChatThreadSummary,
   CreateBodyWeightInput,
   CreateWorkoutInput,
   UpdateWorkoutInput,
@@ -13,6 +17,7 @@ import type {
 type Store = {
   workouts: Workout[];
   bodyWeight: BodyWeightEntry[];
+  chatThreads?: ChatThread[];
 };
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -24,14 +29,16 @@ function storePath(profileId: ProfileId): string {
 }
 
 function emptyStore(): Store {
-  return { workouts: [], bodyWeight: [] };
+  return { workouts: [], bodyWeight: [], chatThreads: [] };
 }
 
 function readStore(profileId: ProfileId): Store {
   const file = storePath(profileId);
   if (!existsSync(file)) return emptyStore();
   try {
-    return JSON.parse(readFileSync(file, "utf8")) as Store;
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as Store;
+    if (!parsed.chatThreads) parsed.chatThreads = [];
+    return parsed;
   } catch {
     return emptyStore();
   }
@@ -149,3 +156,106 @@ export function localDeleteBodyWeight(profileId: ProfileId, id: string): void {
   store.bodyWeight = store.bodyWeight.filter((b) => b.id !== id);
   writeStore(profileId, store);
 }
+
+// -------------------------------------------------------------
+// AI Chat Threads Storage
+// -------------------------------------------------------------
+
+export function localListChatThreads(profileId: ProfileId): ChatThreadSummary[] {
+  const store = readStore(profileId);
+  const threads = store.chatThreads ?? [];
+  return threads
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map((t) => {
+      const lastMsg = t.messages[t.messages.length - 1];
+      return {
+        id: t.id,
+        title: t.title || "Conversación",
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        messageCount: t.messages.length,
+        lastMessageSnippet: lastMsg ? lastMsg.content.slice(0, 90) : undefined,
+      };
+    });
+}
+
+export function localGetChatThread(
+  profileId: ProfileId,
+  threadId: string,
+): ChatThread | null {
+  const store = readStore(profileId);
+  const threads = store.chatThreads ?? [];
+  return threads.find((t) => t.id === threadId) ?? null;
+}
+
+export function localCreateChatThread(
+  profileId: ProfileId,
+  title?: string,
+  initialMessage?: { role: ChatMessageRole; content: string },
+): ChatThread {
+  const store = readStore(profileId);
+  if (!store.chatThreads) store.chatThreads = [];
+
+  const now = new Date().toISOString();
+  const threadId = randomUUID();
+  const messages: ChatMessage[] = [];
+
+  if (initialMessage) {
+    messages.push({
+      id: randomUUID(),
+      role: initialMessage.role,
+      content: initialMessage.content,
+      createdAt: now,
+    });
+  }
+
+  const thread: ChatThread = {
+    id: threadId,
+    title: title?.trim() || "Nueva conversación",
+    createdAt: now,
+    updatedAt: now,
+    messages,
+  };
+
+  store.chatThreads.unshift(thread);
+  writeStore(profileId, store);
+  return thread;
+}
+
+export function localAppendChatMessage(
+  profileId: ProfileId,
+  threadId: string,
+  message: { role: ChatMessageRole; content: string },
+  newTitle?: string,
+): { thread: ChatThread; message: ChatMessage } | null {
+  const store = readStore(profileId);
+  if (!store.chatThreads) store.chatThreads = [];
+
+  const thread = store.chatThreads.find((t) => t.id === threadId);
+  if (!thread) return null;
+
+  const now = new Date().toISOString();
+  const newMsg: ChatMessage = {
+    id: randomUUID(),
+    role: message.role,
+    content: message.content,
+    createdAt: now,
+  };
+
+  thread.messages.push(newMsg);
+  thread.updatedAt = now;
+  if (newTitle && (!thread.title || thread.title === "Nueva conversación")) {
+    thread.title = newTitle;
+  }
+
+  writeStore(profileId, store);
+  return { thread, message: newMsg };
+}
+
+export function localDeleteChatThread(profileId: ProfileId, threadId: string): void {
+  const store = readStore(profileId);
+  if (!store.chatThreads) return;
+  store.chatThreads = store.chatThreads.filter((t) => t.id !== threadId);
+  writeStore(profileId, store);
+}
+

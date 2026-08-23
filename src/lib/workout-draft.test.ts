@@ -41,6 +41,7 @@ test("workout-draft: guarda, recupera y limpia borradores", () => {
       { key: "2", exercise: "Press inclinado", weightKg: "50", reps: "8" },
     ],
     extraExercises: ["Aperturas en polea"],
+    exerciseOrder: ["Aperturas en polea", "Press de banca", "Press inclinado"],
     updatedAt: Date.now(),
   };
 
@@ -52,6 +53,11 @@ test("workout-draft: guarda, recupera y limpia borradores", () => {
   assert.equal(recovered?.dayType, "pecho");
   assert.equal(recovered?.sets.length, 2);
   assert.equal(recovered?.notes, "Buena energía");
+  assert.deepEqual(recovered?.exerciseOrder, [
+    "Aperturas en polea",
+    "Press de banca",
+    "Press inclinado",
+  ]);
 
   clearWorkoutDraft();
   assert.equal(getWorkoutDraft(), null);

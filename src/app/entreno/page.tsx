@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { BarbellPlatePicker } from "@/components/BarbellPlatePicker";
@@ -52,17 +52,31 @@ function isDayType(value: string | null): value is DayType {
 function ExerciseBlock({
   exercise,
   sets,
+  orderNumber,
+  totalExercises,
   lastHistory,
   onAdd,
   onRemove,
   onDelete,
+  onMoveUp,
+  onMoveDown,
+  onTouchStartDrag,
+  isDragging,
+  isDropTarget,
 }: {
   exercise: string;
   sets: DraftSet[];
+  orderNumber: number;
+  totalExercises: number;
   lastHistory?: LastExerciseHistory;
   onAdd: (weightKg: string, reps: string) => void;
   onRemove: (key: string) => void;
   onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onTouchStartDrag?: (e: React.TouchEvent) => void;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
 }) {
   const last = sets[sets.length - 1];
   const load = getLoadHint(exercise);
@@ -108,8 +122,56 @@ function ExerciseBlock({
       : "Elegir";
 
   return (
-    <div className="card space-y-3 p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div
+      data-exercise-card
+      className={`card space-y-3 p-4 transition-all duration-150 ${
+        isDragging
+          ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/40 bg-[#1a1a1a] shadow-2xl scale-[1.01] z-20"
+          : isDropTarget
+            ? "border-[var(--accent)]/60 bg-[var(--accent)]/5"
+            : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2.5">
+        {/* Controles de secuencia, arrastre y flechas */}
+        <div className="flex items-center gap-1.5 shrink-0 self-start mt-0.5">
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-[#141414] text-[var(--muted)] hover:text-white active:bg-[var(--accent)]/20 active:text-[var(--accent)] cursor-grab active:cursor-grabbing touch-none select-none"
+            title="Mantén presionado para arrastrar y cambiar orden"
+            onTouchStart={onTouchStartDrag}
+          >
+            <span className="text-sm font-mono tracking-tighter">⠿</span>
+          </button>
+
+          <div className="flex flex-col gap-0.5">
+            <button
+              type="button"
+              disabled={orderNumber <= 1}
+              onClick={onMoveUp}
+              className="flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all"
+              title="Mover arriba"
+              aria-label={`Mover ${exercise} arriba`}
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              disabled={orderNumber >= totalExercises}
+              onClick={onMoveDown}
+              className="flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all"
+              title="Mover abajo"
+              aria-label={`Mover ${exercise} abajo`}
+            >
+              ▼
+            </button>
+          </div>
+
+          <span className="inline-flex h-6 min-w-[1.6rem] items-center justify-center rounded-md bg-white/5 px-1 text-[11px] font-bold tabular-nums text-[var(--muted)] border border-white/10">
+            #{orderNumber}
+          </span>
+        </div>
+
         <div className="min-w-0 flex-1">
           <p className="text-lg font-semibold leading-snug tracking-wide">
             {exercise}
@@ -421,11 +483,31 @@ function EntrenoForm() {
     return [];
   });
 
+  const [exerciseOrder, setExerciseOrder] = useState<string[]>(() => {
+    const draft = getWorkoutDraft();
+    if (
+      draft?.exerciseOrder &&
+      draft.exerciseOrder.length > 0 &&
+      (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))
+    ) {
+      return draft.exerciseOrder;
+    }
+    if (initialDay && isDayType(initialDay)) {
+      return getExercisesForDay(initialDay);
+    }
+    return [];
+  });
+
   const [customExercise, setCustomExercise] = useState("");
   const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
   const [pastWorkouts, setPastWorkouts] = useState<Workout[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Estados de arrastre táctil
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
 
   // Cargar entrenamientos históricos para consultar sesiones anteriores de cada ejercicio
   useEffect(() => {
@@ -453,6 +535,25 @@ function EntrenoForm() {
     [pastWorkouts],
   );
 
+  const templateExercises = useMemo(() => {
+    if (!dayType) return [];
+    if (dayType === "hombro" && !armFocus) return getExercisesForDay("hombro");
+    return getExercisesForDay(dayType, armFocus);
+  }, [dayType, armFocus]);
+
+  // Lista unificada de ejercicios en su orden real
+  const activeExercises = useMemo(() => {
+    if (exerciseOrder.length === 0 && templateExercises.length > 0) {
+      return [...templateExercises, ...extraExercises];
+    }
+    const allExpected = [...templateExercises, ...extraExercises];
+    const missing = allExpected.filter((e) => !exerciseOrder.includes(e));
+    if (missing.length > 0) {
+      return [...exerciseOrder, ...missing];
+    }
+    return exerciseOrder;
+  }, [exerciseOrder, templateExercises, extraExercises]);
+
   // Auto-guardar cualquier cambio en localStorage
   useEffect(() => {
     if (dayType || sets.length > 0 || notes.trim()) {
@@ -464,23 +565,13 @@ function EntrenoForm() {
         notes,
         sets,
         extraExercises,
+        exerciseOrder: activeExercises,
         updatedAt: Date.now(),
       });
     } else {
       clearWorkoutDraft();
     }
-  }, [step, dayType, armFocus, date, notes, sets, extraExercises]);
-
-  const templateExercises = useMemo(() => {
-    if (!dayType) return [];
-    if (dayType === "hombro" && !armFocus) return getExercisesForDay("hombro");
-    return getExercisesForDay(dayType, armFocus);
-  }, [dayType, armFocus]);
-
-  const exercises = useMemo(
-    () => [...templateExercises, ...extraExercises],
-    [templateExercises, extraExercises],
-  );
+  }, [step, dayType, armFocus, date, notes, sets, extraExercises, activeExercises]);
 
   function selectDay(day: DayType) {
     if (dayType && dayType !== day && sets.length > 0) {
@@ -493,6 +584,8 @@ function EntrenoForm() {
     setArmFocus(null);
     setSets([]);
     setExtraExercises([]);
+    const defaultTemplate = getExercisesForDay(day);
+    setExerciseOrder(defaultTemplate);
     setError("");
     if (day === "hombro") {
       setStep("arms");
@@ -510,6 +603,8 @@ function EntrenoForm() {
     }
     setArmFocus(focus);
     setSets([]);
+    const defaultTemplate = getExercisesForDay("hombro", focus);
+    setExerciseOrder(defaultTemplate);
     setStep("log");
   }
 
@@ -526,6 +621,7 @@ function EntrenoForm() {
     setArmFocus(null);
     setSets([]);
     setExtraExercises([]);
+    setExerciseOrder([]);
     setNotes("");
     setError("");
     router.replace("/entreno");
@@ -556,6 +652,17 @@ function EntrenoForm() {
     setSets((prev) => prev.filter((s) => s.key !== key));
   }
 
+  function moveExercise(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    setExerciseOrder((prev) => {
+      const list = prev.length > 0 ? [...prev] : [...activeExercises];
+      if (toIndex >= list.length) return prev;
+      const [item] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, item);
+      return list;
+    });
+  }
+
   function removeExtraExercise(name: string) {
     const exerciseSets = sets.filter((s) => s.exercise === name);
     if (exerciseSets.length > 0) {
@@ -566,17 +673,51 @@ function EntrenoForm() {
       setSets((prev) => prev.filter((s) => s.exercise !== name));
     }
     setExtraExercises((prev) => prev.filter((e) => e !== name));
+    setExerciseOrder((prev) => prev.filter((e) => e !== name));
   }
 
   function addCustomExercise() {
     const name = customExercise.trim();
     if (!name) return;
-    if (exercises.includes(name)) {
+    if (activeExercises.includes(name)) {
       setCustomExercise("");
       return;
     }
     setExtraExercises((prev) => [...prev, name]);
+    setExerciseOrder((prev) => [...prev, name]);
     setCustomExercise("");
+  }
+
+  // Handlers para arrastrar y soltar con el dedo (Touch Drag & Drop)
+  function handleTouchStartDrag(e: React.TouchEvent, index: number) {
+    setDraggedIndex(index);
+    setDropTargetIndex(index);
+  }
+
+  function handleTouchMoveDrag(e: React.TouchEvent) {
+    if (draggedIndex === null || !cardsContainerRef.current) return;
+    const clientY = e.touches[0].clientY;
+    const cards = Array.from(
+      cardsContainerRef.current.querySelectorAll<HTMLElement>("[data-exercise-card]"),
+    );
+
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        if (dropTargetIndex !== i) {
+          setDropTargetIndex(i);
+        }
+        break;
+      }
+    }
+  }
+
+  function handleTouchEndDrag() {
+    if (draggedIndex !== null && dropTargetIndex !== null && draggedIndex !== dropTargetIndex) {
+      moveExercise(draggedIndex, dropTargetIndex);
+    }
+    setDraggedIndex(null);
+    setDropTargetIndex(null);
   }
 
   async function onSubmit(event: FormEvent) {
@@ -597,11 +738,12 @@ function EntrenoForm() {
     setSaving(true);
     setError("");
     try {
+      // Ordenar las series exactamente según el orden personalizado de activeExercises
       const ordered: DraftSet[] = [];
-      for (const exercise of exercises) {
+      for (const exercise of activeExercises) {
         ordered.push(...sets.filter((s) => s.exercise === exercise));
       }
-      const leftovers = sets.filter((s) => !exercises.includes(s.exercise));
+      const leftovers = sets.filter((s) => !activeExercises.includes(s.exercise));
       const finalSets = [...ordered, ...leftovers];
 
       const byExerciseCount = new Map<string, number>();
@@ -651,26 +793,27 @@ function EntrenoForm() {
 
   if (step === "day") {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <div>
-          <p className="page-kicker">Sesión</p>
-          <h1 className="page-title mt-1">¿Qué día?</h1>
-          <p className="mt-2 text-[var(--muted)]">
-            Elige la rutina y solo mete peso × reps.
+          <p className="page-kicker">Nuevo entreno</p>
+          <h1 className="page-title mt-1">¿Qué toca hoy?</h1>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+            Elige tu rutina para cargar los ejercicios previstos.
           </p>
         </div>
-        <div className="grid gap-2.5">
-          {DAY_OPTIONS.map((day) => (
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DAY_OPTIONS.map((opt) => (
             <button
-              key={day.id}
+              key={opt.id}
               type="button"
-              className="card card-interactive min-h-[5.25rem] p-5 text-left"
-              onClick={() => selectDay(day.id)}
+              onClick={() => selectDay(opt.id)}
+              className="card flex flex-col items-start p-5 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
             >
-              <p className="font-[family-name:var(--font-display)] text-3xl tracking-[0.04em]">
-                {day.label}
-              </p>
-              <p className="mt-1 text-sm text-[var(--muted)]">{day.subtitle}</p>
+              <span className="font-semibold text-lg">{opt.label}</span>
+              <span className="mt-1 text-xs text-[var(--muted)]">
+                {opt.subtitle}
+              </span>
             </button>
           ))}
         </div>
@@ -680,45 +823,43 @@ function EntrenoForm() {
 
   if (step === "arms") {
     return (
-      <div className="space-y-5">
-        <button
-          type="button"
-          className="min-h-10 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
-          onClick={() => setStep("day")}
-        >
-          ← Cambiar día
-        </button>
+      <div className="space-y-6">
         <div>
+          <button
+            type="button"
+            onClick={handleBackStep}
+            className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] mb-2 inline-block"
+          >
+            ← Cambiar día
+          </button>
           <p className="page-kicker">Hombro</p>
-          <h1 className="page-title mt-1">¿Brazos?</h1>
-          <p className="mt-2 text-[var(--muted)]">
-            Cierra con bíceps o con tríceps.
+          <h1 className="page-title mt-1">Enfoque de brazo</h1>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+            ¿Con qué complementas hombro hoy?
           </p>
         </div>
-        <div className="grid gap-2.5">
+
+        <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            className="card card-interactive min-h-[5.25rem] p-5 text-left"
             onClick={() => selectArms("biceps")}
+            className="card flex flex-col items-start p-5 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
           >
-            <p className="font-[family-name:var(--font-display)] text-3xl tracking-[0.04em]">
-              Bíceps
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Curl martillo, mancuernas, concentrado, barra Z
-            </p>
+            <span className="font-semibold text-lg">Bíceps</span>
+            <span className="mt-1 text-xs text-[var(--muted)]">
+              Curls y antebrazo
+            </span>
           </button>
+
           <button
             type="button"
-            className="card card-interactive min-h-[5.25rem] p-5 text-left"
             onClick={() => selectArms("triceps")}
+            className="card flex flex-col items-start p-5 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
           >
-            <p className="font-[family-name:var(--font-display)] text-3xl tracking-[0.04em]">
-              Tríceps
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Press francés, cuerda, trasnuca, unilateral
-            </p>
+            <span className="font-semibold text-lg">Tríceps</span>
+            <span className="mt-1 text-xs text-[var(--muted)]">
+              Fondos y extensiones
+            </span>
           </button>
         </div>
       </div>
@@ -726,24 +867,17 @@ function EntrenoForm() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="min-h-10 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
-              onClick={handleBackStep}
-            >
-              ← Cambiar
-            </button>
-            {sets.length > 0 ? (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium tracking-wide">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Guardado en el celular
-              </span>
-            ) : null}
-          </div>
+          <button
+            type="button"
+            onClick={handleBackStep}
+            className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] mb-2 inline-block"
+          >
+            ← Cambiar rutina
+          </button>
+          <p className="page-kicker">Registro</p>
           <h1 className="page-title mt-1">
             {dayType ? getDayLabel(dayType) : "Entreno"}
             {armFocus ? (
@@ -754,9 +888,9 @@ function EntrenoForm() {
             ) : null}
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Toca + en cada ejercicio. Peso y reps se reutilizan.
+            Toca + en cada ejercicio. Puedes reordenar con ⠿ o ▲/▼ según el orden real en que entrenes.
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+          <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">
             {LOAD_CONVENTION_NOTE}
           </p>
         </div>
@@ -802,18 +936,34 @@ function EntrenoForm() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          {exercises.map((exercise) => {
+        {/* Lista de ejercicios con reordenamiento dinámico y soporte táctil */}
+        <div
+          ref={cardsContainerRef}
+          onTouchMove={handleTouchMoveDrag}
+          onTouchEnd={handleTouchEndDrag}
+          className="space-y-3"
+        >
+          {activeExercises.map((exercise, index) => {
             const isExtra = extraExercises.includes(exercise);
+            const isDragging = draggedIndex === index;
+            const isDropTarget = dropTargetIndex === index && draggedIndex !== index;
+
             return (
               <ExerciseBlock
                 key={exercise}
                 exercise={exercise}
+                orderNumber={index + 1}
+                totalExercises={activeExercises.length}
                 sets={sets.filter((s) => s.exercise === exercise)}
                 lastHistory={historyByExercise[exercise]}
                 onAdd={(weightKg, reps) => addSet(exercise, weightKg, reps)}
                 onRemove={removeSet}
                 onDelete={isExtra ? () => removeExtraExercise(exercise) : undefined}
+                onMoveUp={() => moveExercise(index, index - 1)}
+                onMoveDown={() => moveExercise(index, index + 1)}
+                onTouchStartDrag={(e) => handleTouchStartDrag(e, index)}
+                isDragging={isDragging}
+                isDropTarget={isDropTarget}
               />
             );
           })}
@@ -839,8 +989,13 @@ function EntrenoForm() {
 
         <CatalogExercisePicker
           open={catalogPickerOpen}
-          activeExercises={exercises}
-          onSelect={(name) => setExtraExercises((prev) => [...prev, name])}
+          activeExercises={activeExercises}
+          onSelect={(name) => {
+            if (!activeExercises.includes(name)) {
+              setExtraExercises((prev) => [...prev, name]);
+              setExerciseOrder((prev) => [...prev, name]);
+            }
+          }}
           onClose={() => setCatalogPickerOpen(false)}
         />
 
