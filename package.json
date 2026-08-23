@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/machine-stacks.test.ts src/lib/dumbbell-rack.test.ts src/lib/barbell-plates.test.ts src/lib/ez-bar-rack.test.ts src/lib/profiles.test.ts src/lib/workout-draft.test.ts src/lib/exercise-history.test.ts src/lib/analytics.test.ts src/lib/chat-store.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/machine-stacks.test.ts src/lib/dumbbell-rack.test.ts src/lib/barbell-plates.test.ts src/lib/ez-bar-rack.test.ts src/lib/profiles.test.ts src/lib/workout-draft.test.ts src/lib/exercise-history.test.ts src/lib/analytics.test.ts src/lib/chat-store.test.ts src/lib/rest-timer.test.ts",
     "playbook": "node scripts/playbook.mjs"
   },
   "dependencies": {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { RestTimerButton } from "@/components/RestTimerButton";
 
 const links = [
   { href: "/", label: "Inicio", short: "Inicio" },
@@ -60,7 +61,8 @@ export function AppNav() {
             FUERZA
             <span className="text-[var(--accent)]">.</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <RestTimerButton />
             {displayName ? (
               <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
                 {displayName}
@@ -69,7 +71,7 @@ export function AppNav() {
             <button
               type="button"
               onClick={logout}
-              className="min-h-10 px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]"
+              className="min-h-10 px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] hover:text-white"
             >
               Salir
             </button>

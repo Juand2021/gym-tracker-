@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow, Bebas_Neue } from "next/font/google";
 import { AppNav } from "@/components/AppNav";
+import { ClientProviders } from "@/components/ClientProviders";
 import "./globals.css";
 
 const body = Barlow({
@@ -39,10 +40,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${body.variable} ${display.variable} h-full`}>
       <body className="min-h-full antialiased">
-        <AppNav />
-        <main className="mx-auto w-full min-w-0 max-w-lg flex-1 overflow-x-clip px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-4">
-          {children}
-        </main>
+        <ClientProviders>
+          <AppNav />
+          <main className="mx-auto w-full min-w-0 max-w-lg flex-1 overflow-x-clip px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-4">
+            {children}
+          </main>
+        </ClientProviders>
       </body>
     </html>
   );
