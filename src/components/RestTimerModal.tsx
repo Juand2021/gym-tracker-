@@ -179,9 +179,21 @@ export function RestTimerModal() {
 
           {/* Header */}
           <div className="relative z-10 flex items-center justify-between border-b border-[var(--glass-stroke)] px-5 py-3.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-lg shadow-[0_0_12px_rgba(255,77,26,0.35)]">
-                ⏱
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent)] shadow-[0_0_12px_rgba(255,77,26,0.35)]">
+                <svg
+                  className="h-4 w-4 text-[var(--accent)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2 2" />
+                  <path d="M10 2h4" />
+                </svg>
               </span>
               <div>
                 <p className="label mb-0 text-[10px] font-bold tracking-[0.14em] text-[var(--accent)]">
@@ -476,9 +488,22 @@ export function RestTimerModal() {
               <button
                 type="button"
                 onClick={() => start(targetSeconds)}
-                className="btn btn-primary w-full min-h-[3.2rem] text-base font-bold uppercase tracking-[0.1em] shadow-[0_0_18px_rgba(255,77,26,0.4)]"
+                className="btn btn-primary w-full min-h-[3.2rem] text-base font-bold uppercase tracking-[0.1em] shadow-[0_0_18px_rgba(255,77,26,0.4)] flex items-center justify-center gap-2"
               >
-                ⏱ Iniciar Descanso ({formatTime(targetSeconds)})
+                <svg
+                  className="h-4 w-4 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2 2" />
+                  <path d="M10 2h4" />
+                </svg>
+                <span>Iniciar Descanso ({formatTime(targetSeconds)})</span>
               </button>
             )}
 

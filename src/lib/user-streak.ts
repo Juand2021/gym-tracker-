@@ -1,5 +1,6 @@
 /**
  * Utilidades para el cálculo de rachas de gimnasio e insignias estilo Duolingo.
+ * Cero emojis: utiliza identificadores de iconos SVG vectoriales.
  */
 
 import type { Workout } from "@/lib/types";
@@ -13,10 +14,12 @@ export interface DayStreakInfo {
   isToday: boolean;
 }
 
+export type BadgeIconType = "bolt" | "shield" | "swords" | "crown" | "trophy";
+
 export interface BadgeInfo {
   level: number;
   title: string;
-  badgeEmoji: string;
+  iconType: BadgeIconType;
   description: string;
   minWeeks: number;
 }
@@ -35,35 +38,35 @@ export const BADGES: BadgeInfo[] = [
   {
     level: 1,
     title: "Iniciador de Hierro",
-    badgeEmoji: "⚡",
+    iconType: "bolt",
     description: "Primeros pasos en la disciplina constante",
     minWeeks: 0,
   },
   {
     level: 2,
     title: "Constancia de Acero",
-    badgeEmoji: "🛡️",
+    iconType: "shield",
     description: "2 semanas seguidas sin fallar",
     minWeeks: 2,
   },
   {
     level: 3,
     title: "Atleta Imparable",
-    badgeEmoji: "⚔️",
+    iconType: "swords",
     description: "1 mes de constancia inquebrantable",
     minWeeks: 4,
   },
   {
     level: 4,
     title: "Titán de la Fuerza",
-    badgeEmoji: "👑",
+    iconType: "crown",
     description: "2 meses de disciplina absoluta",
     minWeeks: 8,
   },
   {
     level: 5,
     title: "Leyenda del Gym",
-    badgeEmoji: "🏆",
+    iconType: "trophy",
     description: "Más de 3 meses entrenando con maestría",
     minWeeks: 12,
   },
@@ -213,7 +216,7 @@ export function getBadgeForStreak(consecutiveWeeks: number): BadgeInfo {
 }
 
 /**
- * Genera un mensaje motivador según el estado de la racha actual.
+ * Genera un mensaje motivador según el estado de la racha actual (sin emojis).
  */
 export function getMotivationalStreakMessage(
   currentWeekCount: number,
@@ -221,16 +224,16 @@ export function getMotivationalStreakMessage(
   weeklyGoal = 4,
 ): string {
   if (currentWeekCount >= weeklyGoal) {
-    return `¡Semana perfecta cumplida! ${currentWeekCount}/${weeklyGoal} entrenos completados. ¡Eres una máquina!`;
+    return `Semana cumplida con éxito: ${currentWeekCount} de ${weeklyGoal} entrenos completados con disciplina total.`;
   }
   if (currentWeekCount === 0) {
-    return `Comienza la semana con fuerza. ¡Registra tu primer entreno y mantén la racha viva!`;
+    return `Comienza tu semana de entrenamiento y mantén la racha activa.`;
   }
   const remaining = weeklyGoal - currentWeekCount;
   if (consecutiveWeeks >= 2) {
-    return `¡Llevas ${consecutiveWeeks} semanas en racha! Solo te faltan ${remaining} ${remaining === 1 ? "sesión" : "sesiones"} para completar la meta de esta semana.`;
+    return `Llevas ${consecutiveWeeks} semanas consecutivas en racha. Faltan ${remaining} ${remaining === 1 ? "sesión" : "sesiones"} para la meta semanal.`;
   }
-  return `Llevas ${currentWeekCount} de ${weeklyGoal} entrenos esta semana. ¡No te detengas!`;
+  return `Has completado ${currentWeekCount} de ${weeklyGoal} entrenos esta semana. Mantén el ritmo.`;
 }
 
 /**

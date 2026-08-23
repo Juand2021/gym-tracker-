@@ -78,6 +78,6 @@ describe("user-streak: gym streak and badges", () => {
     const summary = calculateUserStreakSummary(mockWorkouts, fixedNow, 4);
     assert.equal(summary.currentWeekCount, 4);
     assert.equal(summary.totalWorkouts, 4);
-    assert.ok(summary.motivationalMessage.includes("Semana perfecta"));
+    assert.ok(summary.motivationalMessage.includes("Semana cumplida"));
   });
 });

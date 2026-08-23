@@ -6,6 +6,7 @@ import { useAppSettings } from "@/context/AppSettingsContext";
 import {
   calculateUserStreakSummary,
   type UserStreakSummary,
+  type BadgeIconType,
 } from "@/lib/user-streak";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
 
@@ -13,6 +14,87 @@ interface UserProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   displayName: string | null;
+}
+
+/** Renderizador de insignias vectoriales SVG de alta precisión */
+function renderBadgeIcon(type: BadgeIconType) {
+  switch (type) {
+    case "bolt":
+      return (
+        <svg
+          className="h-3.5 w-3.5 text-[var(--accent)]"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          stroke="none"
+        >
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg
+          className="h-3.5 w-3.5 text-[var(--accent)]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    case "swords":
+      return (
+        <svg
+          className="h-3.5 w-3.5 text-[var(--accent)]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" />
+          <line x1="13" y1="19" x2="19" y2="13" />
+          <line x1="16" y1="16" x2="20" y2="20" />
+          <line x1="19" y1="21" x2="21" y2="19" />
+          <polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5" />
+        </svg>
+      );
+    case "crown":
+      return (
+        <svg
+          className="h-3.5 w-3.5 text-[var(--accent)]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+        </svg>
+      );
+    case "trophy":
+      return (
+        <svg
+          className="h-3.5 w-3.5 text-[var(--accent)]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.45 1-1 1H8v4h8v-4h-1c-.55 0-1-.45-1-1v-2.34" />
+          <path d="M6 4h12v7a6 6 0 0 1-12 0V4z" />
+        </svg>
+      );
+  }
 }
 
 export function UserProfileDrawer({
@@ -26,31 +108,25 @@ export function UserProfileDrawer({
     hapticsEnabled,
     wakeLockEnabled,
     userAge,
-    userHeightCm,
     defaultRestSeconds,
     toggleSound,
     toggleHaptics,
     toggleWakeLock,
     setUserAge,
-    setUserHeightCm,
     setDefaultRestSeconds,
   } = useAppSettings();
 
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [latestWeight, setLatestWeight] = useState<number | null>(null);
   const [latestWeightDate, setLatestWeightDate] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [isEditingAge, setIsEditingAge] = useState(false);
   const [tempAge, setTempAge] = useState(String(userAge));
-  const [isEditingHeight, setIsEditingHeight] = useState(false);
-  const [tempHeight, setTempHeight] = useState(String(userHeightCm));
 
   // Cargar entrenamientos y peso corporal para el cálculo de estadísticas y racha
   useEffect(() => {
     if (!isOpen) return;
 
     let active = true;
-    setLoading(true);
 
     Promise.all([
       fetch("/api/workouts")
@@ -73,9 +149,7 @@ export function UserProfileDrawer({
           setLatestWeightDate(sorted[0]?.date ?? null);
         }
       })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+      .finally(() => {});
 
     return () => {
       active = false;
@@ -223,8 +297,8 @@ export function UserProfileDrawer({
                     {userAge} <span className="text-xs font-sans text-[var(--muted)]">años</span>
                   </p>
                 )}
-                <span className="text-[9px] text-[var(--accent)] block">
-                  Editar ✎
+                <span className="text-[9px] text-[var(--accent)] block font-semibold">
+                  Editar
                 </span>
               </div>
 
@@ -247,13 +321,23 @@ export function UserProfileDrawer({
           <div className="card relative overflow-hidden border border-[var(--glass-stroke)] bg-gradient-to-b from-[var(--surface-2)]/80 to-[var(--surface)] p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-xl">⚡</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--accent)]/20 text-[var(--accent)]">
+                  <svg
+                    className="h-3.5 w-3.5 text-[var(--accent)]"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="none"
+                  >
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                </span>
                 <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent)]">
                   Racha de Gimnasio
                 </span>
               </div>
-              <span className="rounded-full bg-[var(--accent)]/15 px-2.5 py-0.5 text-[11px] font-black text-[var(--accent)] border border-[var(--accent)]/30">
-                {streakSummary.badge.badgeEmoji} {streakSummary.badge.title}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent)]/15 px-2.5 py-0.5 text-[11px] font-black text-[var(--accent)] border border-[var(--accent)]/30">
+                {renderBadgeIcon(streakSummary.badge.iconType)}
+                <span>{streakSummary.badge.title}</span>
               </span>
             </div>
 
@@ -282,7 +366,7 @@ export function UserProfileDrawer({
               </div>
             </div>
 
-            {/* Visualizador Semanal L M M J V S D estilo Duolingo */}
+            {/* Visualizador Semanal L M M J V S D */}
             <div>
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
                 Días de la semana actual
@@ -313,7 +397,7 @@ export function UserProfileDrawer({
             {/* Mensaje Motivacional */}
             <div className="rounded-xl bg-[var(--accent)]/10 p-3 border border-[var(--accent)]/20 text-center">
               <p className="text-xs font-semibold text-[var(--ink)] leading-relaxed">
-                💬 {streakSummary.motivationalMessage}
+                {streakSummary.motivationalMessage}
               </p>
             </div>
           </div>
@@ -327,13 +411,29 @@ export function UserProfileDrawer({
             <div className="divide-y divide-[var(--glass-stroke)] space-y-3">
               {/* Pantalla Encendida (Wake Lock) */}
               <div className="flex items-center justify-between pt-3 first:pt-0">
-                <div className="pr-3">
-                  <p className="text-sm font-bold text-white">
-                    💡 Mantener pantalla activa
-                  </p>
-                  <p className="text-xs text-[var(--muted)]">
-                    Evita que el celular se suspenda en descansos
-                  </p>
+                <div className="pr-3 flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white flex-shrink-0">
+                    <svg
+                      className="h-4 w-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect width="18" height="12" x="3" y="4" rx="2" />
+                      <line x1="2" x2="22" y1="20" y2="20" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      Mantener pantalla activa
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      Evita que el celular se suspenda en descansos
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -354,13 +454,30 @@ export function UserProfileDrawer({
 
               {/* Sonido de Alarma */}
               <div className="flex items-center justify-between pt-3">
-                <div className="pr-3">
-                  <p className="text-sm font-bold text-white">
-                    🔊 Sonido del cronómetro
-                  </p>
-                  <p className="text-xs text-[var(--muted)]">
-                    Alarma melódica y clics de la rueda
-                  </p>
+                <div className="pr-3 flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white flex-shrink-0">
+                    <svg
+                      className="h-4 w-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      Sonido del cronómetro
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      Alarma melódica y clics de la rueda
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -381,13 +498,31 @@ export function UserProfileDrawer({
 
               {/* Vibración Háptica */}
               <div className="flex items-center justify-between pt-3">
-                <div className="pr-3">
-                  <p className="text-sm font-bold text-white">
-                    📳 Vibración háptica
-                  </p>
-                  <p className="text-xs text-[var(--muted)]">
-                    Notificación háptica en dispositivos móviles
-                  </p>
+                <div className="pr-3 flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white flex-shrink-0">
+                    <svg
+                      className="h-4 w-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+                      <path d="M12 18h.01" />
+                      <path d="M1 9l2 3-2 3" />
+                      <path d="M23 9l-2 3 2 3" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      Vibración háptica
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      Notificación háptica en dispositivos móviles
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -408,15 +543,32 @@ export function UserProfileDrawer({
 
               {/* Descanso Predeterminado Favorito */}
               <div className="pt-3">
-                <div className="mb-2">
-                  <p className="text-sm font-bold text-white">
-                    ⏱ Descanso predeterminado
-                  </p>
-                  <p className="text-xs text-[var(--muted)]">
-                    Tiempo de descanso sugerido al iniciar
-                  </p>
+                <div className="mb-2 flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white flex-shrink-0">
+                    <svg
+                      className="h-4 w-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="13" r="8" />
+                      <path d="M12 9v4l2 2" />
+                      <path d="M10 2h4" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      Descanso predeterminado
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      Tiempo de descanso sugerido al iniciar
+                    </p>
+                  </div>
                 </div>
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-5 gap-1.5 pt-1">
                   {[45, 60, 90, 120, 180].map((sec) => (
                     <button
                       key={sec}
