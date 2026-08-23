@@ -18,6 +18,7 @@ import {
   unlockAudioContext,
 } from "@/lib/timer-sound";
 import { MAX_TIMER_SECONDS } from "@/lib/rest-timer";
+import { useAppSettings } from "@/context/AppSettingsContext";
 
 export type TimerStatus = "idle" | "running" | "paused" | "completed";
 
@@ -45,14 +46,17 @@ const STORAGE_DURATION_KEY = "fuerza_rest_timer_target_seconds";
 export { MAX_TIMER_SECONDS };
 
 export function RestTimerProvider({ children }: { children: ReactNode }) {
+  const { soundEnabled, hapticsEnabled, wakeLockEnabled, defaultRestSeconds } =
+    useAppSettings();
+
   const [isOpen, setIsOpen] = useState(false);
-  const [targetSeconds, setTargetSecondsState] = useState<number>(90); // 1:30 por defecto
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(90);
+  const [targetSeconds, setTargetSecondsState] = useState<number>(() => defaultRestSeconds || 90);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(() => defaultRestSeconds || 90);
   const [status, setStatus] = useState<TimerStatus>("idle");
   const [isAlarmActive, setIsAlarmActive] = useState(false);
 
   const endTimeRef = useRef<number | null>(null);
-  const remainingAtPauseRef = useRef<number>(90);
+  const remainingAtPauseRef = useRef<number>(defaultRestSeconds || 90);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,6 +81,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   // Control de Screen Wake Lock para mantener la pantalla encendida mientras corre el descanso
   const requestWakeLock = useCallback(async () => {
+    if (!wakeLockEnabled) return;
     if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
       try {
         if (!wakeLockRef.current || wakeLockRef.current.released) {
@@ -89,7 +94,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         // Ignorar si el navegador rechaza o suspende el lock
       }
     }
-  }, []);
+  }, [wakeLockEnabled]);
 
   const releaseWakeLock = useCallback(async () => {
     if (wakeLockRef.current && !wakeLockRef.current.released) {
@@ -102,20 +107,21 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Activar o desactivar Wake Lock según estado
+  // Activar o desactivar Wake Lock según estado y configuración
   useEffect(() => {
-    if (status === "running" || isAlarmActive) {
+    if (wakeLockEnabled && (status === "running" || isAlarmActive)) {
       void requestWakeLock();
     } else {
       void releaseWakeLock();
     }
-  }, [status, isAlarmActive, requestWakeLock, releaseWakeLock]);
+  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, releaseWakeLock]);
 
   // Si la pestaña vuelve a ser visible en el celular y el temporizador sigue corriendo, re-adquirir Wake Lock
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (
         document.visibilityState === "visible" &&
+        wakeLockEnabled &&
         (status === "running" || isAlarmActive)
       ) {
         void requestWakeLock();
@@ -125,7 +131,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [status, isAlarmActive, requestWakeLock]);
+  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock]);
 
   const clearTimerInterval = useCallback(() => {
     if (timerIntervalRef.current) {
@@ -149,9 +155,9 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setRemainingSeconds(0);
     clearTimerInterval();
 
-    // Reproducir sonido y vibración inmediatamente
-    playAlarmSound();
-    triggerHapticAlarm();
+    // Reproducir sonido y vibración si están habilitados en ajustes
+    if (soundEnabled) playAlarmSound();
+    if (hapticsEnabled) triggerHapticAlarm();
 
     // Ráfagas repetidas cada 2.4s mientras la alarma esté activa (máx 10 seg)
     let repeats = 0;
@@ -164,11 +170,11 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
           alarmIntervalRef.current = null;
         }
       } else {
-        playAlarmSound();
-        triggerHapticAlarm();
+        if (soundEnabled) playAlarmSound();
+        if (hapticsEnabled) triggerHapticAlarm();
       }
     }, 2400);
-  }, [clearTimerInterval]);
+  }, [clearTimerInterval, soundEnabled, hapticsEnabled]);
 
   const start = useCallback(
     (seconds?: number) => {
@@ -258,11 +264,11 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       }
 
       if (!silent) {
-        playTickSound();
-        triggerHapticTick();
+        if (soundEnabled) playTickSound();
+        if (hapticsEnabled) triggerHapticTick();
       }
     },
-    [status],
+    [status, soundEnabled, hapticsEnabled],
   );
 
   const addTime = useCallback(
