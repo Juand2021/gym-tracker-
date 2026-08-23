@@ -53,34 +53,20 @@ function ExerciseBlock({
   exercise,
   sets,
   orderNumber,
-  totalExercises,
   lastHistory,
   onAdd,
   onRemove,
   onDelete,
-  onMoveUp,
-  onMoveDown,
   onPointerDownDrag,
-  onPointerMoveDrag,
-  onPointerUpDrag,
-  isDragging,
-  isDropTarget,
 }: {
   exercise: string;
   sets: DraftSet[];
   orderNumber: number;
-  totalExercises: number;
   lastHistory?: LastExerciseHistory;
   onAdd: (weightKg: string, reps: string) => void;
   onRemove: (key: string) => void;
   onDelete?: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
   onPointerDownDrag?: (e: React.PointerEvent<HTMLButtonElement>) => void;
-  onPointerMoveDrag?: (e: React.PointerEvent<HTMLButtonElement>) => void;
-  onPointerUpDrag?: (e: React.PointerEvent<HTMLButtonElement>) => void;
-  isDragging?: boolean;
-  isDropTarget?: boolean;
 }) {
   const last = sets[sets.length - 1];
   const load = getLoadHint(exercise);
@@ -128,53 +114,21 @@ function ExerciseBlock({
   return (
     <div
       data-exercise-card
-      className={`card space-y-3 p-4 transition-all duration-150 ${
-        isDragging
-          ? "border-2 border-dashed border-[var(--accent)]/50 bg-[var(--accent)]/5 opacity-40 scale-[0.98]"
-          : isDropTarget
-            ? "border-2 border-[var(--accent)] bg-[var(--accent)]/10 shadow-lg"
-            : ""
-      }`}
+      className="card space-y-3 p-4 transition-all duration-150"
     >
       <div className="flex items-start justify-between gap-2.5">
-        {/* Controles de secuencia, arrastre táctil y flechas */}
-        <div className="flex items-center gap-1.5 shrink-0 self-start mt-0.5">
+        {/* Controles de secuencia y arrastre táctil */}
+        <div className="flex items-center gap-2 shrink-0 self-start mt-0.5">
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-[#141414] text-[var(--muted)] hover:text-white active:bg-[var(--accent)]/20 active:text-[var(--accent)] cursor-grab active:cursor-grabbing touch-none select-none"
             title="Arrastra para reordenar"
             onPointerDown={onPointerDownDrag}
-            onPointerMove={onPointerMoveDrag}
-            onPointerUp={onPointerUpDrag}
-            onPointerCancel={onPointerUpDrag}
           >
             <span className="text-sm font-mono tracking-tighter">⠿</span>
           </button>
 
-          <div className="flex flex-col gap-0.5">
-            <button
-              type="button"
-              disabled={orderNumber <= 1}
-              onClick={onMoveUp}
-              className="flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all"
-              title="Mover arriba"
-              aria-label={`Mover ${exercise} arriba`}
-            >
-              ▲
-            </button>
-            <button
-              type="button"
-              disabled={orderNumber >= totalExercises}
-              onClick={onMoveDown}
-              className="flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all"
-              title="Mover abajo"
-              aria-label={`Mover ${exercise} abajo`}
-            >
-              ▼
-            </button>
-          </div>
-
-          <span className="inline-flex h-6 min-w-[1.6rem] items-center justify-center rounded-md bg-white/5 px-1 text-[11px] font-bold tabular-nums text-[var(--muted)] border border-white/10">
+          <span className="inline-flex h-6 min-w-[1.6rem] items-center justify-center rounded-md bg-white/5 px-1.5 text-[11px] font-bold tabular-nums text-[var(--muted)] border border-white/10">
             #{orderNumber}
           </span>
         </div>
@@ -511,21 +465,6 @@ function EntrenoForm() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Estados de arrastre táctil profesional (Pointer Drag & Drop con auto-scroll)
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [targetIndex, setTargetIndex] = useState<number | null>(null);
-  const [dragCardRect, setDragCardRect] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
-  const [dragCurrentY, setDragCurrentY] = useState<number>(0);
-  const dragStartY = useRef<number>(0);
-  const pointerOffsetInCard = useRef<number>(0);
-  const autoScrollRaf = useRef<number | null>(null);
-  const cardsContainerRef = useRef<HTMLDivElement>(null);
-
   // Cargar entrenamientos históricos para consultar sesiones anteriores de cada ejercicio
   useEffect(() => {
     let active = true;
@@ -590,28 +529,87 @@ function EntrenoForm() {
     }
   }, [step, dayType, armFocus, date, notes, sets, extraExercises, activeExercises]);
 
-  // Auto-scroll loop mientras se arrastra cerca de los bordes de la pantalla
+  // Estados de arrastre táctil profesional (Pointer Drag & Drop con listeners globales y auto-scroll a 60fps)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
+  const [dragCardRect, setDragCardRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [dragCurrentY, setDragCurrentY] = useState<number>(0);
+
+  // Refs de estado para callbacks síncronos en animación frame y eventos globales
+  const dragClientYRef = useRef<number>(0);
+  const isDraggingActiveRef = useRef<boolean>(false);
+  const draggingIndexRef = useRef<number | null>(null);
+  const targetIndexRef = useRef<number | null>(null);
+  const pointerOffsetInCard = useRef<number>(0);
+  const autoScrollRaf = useRef<number | null>(null);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Lista simulada en tiempo real para el preview
+  const previewOrder = useMemo(() => {
+    if (draggingIndex === null || targetIndex === null || draggingIndex === targetIndex) {
+      return activeExercises;
+    }
+    const list = [...activeExercises];
+    const [moved] = list.splice(draggingIndex, 1);
+    list.splice(targetIndex, 0, moved);
+    return list;
+  }, [activeExercises, draggingIndex, targetIndex]);
+
+  // Recalcular dinámicamente sobre qué tarjeta se encuentra el puntero
+  const updateTargetSlotFromY = (clientY: number) => {
+    if (!cardsContainerRef.current) return;
+    const cards = Array.from(
+      cardsContainerRef.current.querySelectorAll<HTMLElement>("[data-exercise-card]"),
+    );
+    if (cards.length === 0) return;
+
+    let found = cards.length - 1;
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      if (clientY <= midpoint) {
+        found = i;
+        break;
+      }
+    }
+    targetIndexRef.current = found;
+    setTargetIndex(found);
+  };
+
+  // Auto-scroll loop continuo a 60fps mientras se arrastra cerca de los bordes de la pantalla
   const startAutoScroll = () => {
     if (autoScrollRaf.current !== null) return;
+
     const scrollStep = () => {
-      if (dragStartY.current === 0) {
+      if (!isDraggingActiveRef.current) {
         autoScrollRaf.current = null;
         return;
       }
-      const y = dragCurrentY;
-      const topThreshold = 140;
-      const bottomThreshold = window.innerHeight - 140;
+
+      const y = dragClientYRef.current;
+      const topThreshold = 160;
+      const bottomThreshold = window.innerHeight - 160;
 
       if (y > 0 && y < topThreshold) {
-        const speed = Math.min(16, Math.max(3, (topThreshold - y) * 0.15));
-        window.scrollBy({ top: -speed, behavior: "auto" });
-      } else if (y > bottomThreshold && y < window.innerHeight) {
-        const speed = Math.min(16, Math.max(3, (y - bottomThreshold) * 0.15));
-        window.scrollBy({ top: speed, behavior: "auto" });
+        const factor = (topThreshold - Math.max(0, y)) / topThreshold;
+        const speed = Math.max(3, Math.round(factor * 20));
+        window.scrollBy(0, -speed);
+        updateTargetSlotFromY(y);
+      } else if (y > bottomThreshold && y < window.innerHeight + 80) {
+        const factor = Math.min(1, (y - bottomThreshold) / 160);
+        const speed = Math.max(3, Math.round(factor * 20));
+        window.scrollBy(0, speed);
+        updateTargetSlotFromY(y);
       }
 
       autoScrollRaf.current = requestAnimationFrame(scrollStep);
     };
+
     autoScrollRaf.current = requestAnimationFrame(scrollStep);
   };
 
@@ -622,19 +620,43 @@ function EntrenoForm() {
     }
   };
 
+  // Handlers globales registrados en window para evitar pérdida de captura al re-renderizar
+  const onGlobalPointerMove = (e: PointerEvent) => {
+    if (!isDraggingActiveRef.current) return;
+    dragClientYRef.current = e.clientY;
+    setDragCurrentY(e.clientY);
+    updateTargetSlotFromY(e.clientY);
+  };
+
+  const onGlobalPointerUp = () => {
+    if (!isDraggingActiveRef.current) return;
+    isDraggingActiveRef.current = false;
+    stopAutoScroll();
+
+    window.removeEventListener("pointermove", onGlobalPointerMove);
+    window.removeEventListener("pointerup", onGlobalPointerUp);
+    window.removeEventListener("pointercancel", onGlobalPointerUp);
+
+    const fromIdx = draggingIndexRef.current;
+    const toIdx = targetIndexRef.current;
+
+    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
+      moveExercise(fromIdx, toIdx);
+    }
+
+    draggingIndexRef.current = null;
+    targetIndexRef.current = null;
+    setDraggingIndex(null);
+    setTargetIndex(null);
+    setDragCardRect(null);
+  };
+
   function handlePointerDownDrag(e: React.PointerEvent<HTMLButtonElement>, index: number) {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
 
-    const btn = e.currentTarget;
-    try {
-      btn.setPointerCapture(e.pointerId);
-    } catch {
-      // Ignorar si no soporta
-    }
-
-    const card = btn.closest("[data-exercise-card]") as HTMLElement | null;
+    const card = e.currentTarget.closest("[data-exercise-card]") as HTMLElement | null;
     if (card) {
       const rect = card.getBoundingClientRect();
       setDragCardRect({
@@ -646,54 +668,31 @@ function EntrenoForm() {
       pointerOffsetInCard.current = e.clientY - rect.top;
     }
 
-    dragStartY.current = e.clientY;
+    isDraggingActiveRef.current = true;
+    draggingIndexRef.current = index;
+    targetIndexRef.current = index;
+    dragClientYRef.current = e.clientY;
+
     setDragCurrentY(e.clientY);
     setDraggingIndex(index);
     setTargetIndex(index);
+
+    window.addEventListener("pointermove", onGlobalPointerMove, { passive: false });
+    window.addEventListener("pointerup", onGlobalPointerUp);
+    window.addEventListener("pointercancel", onGlobalPointerUp);
+
     startAutoScroll();
   }
 
-  function handlePointerMoveDrag(e: React.PointerEvent<HTMLButtonElement>) {
-    if (draggingIndex === null || !cardsContainerRef.current) return;
-    setDragCurrentY(e.clientY);
-
-    const cards = Array.from(
-      cardsContainerRef.current.querySelectorAll<HTMLElement>("[data-exercise-card]"),
-    );
-
-    let foundTarget = draggingIndex;
-    for (let i = 0; i < cards.length; i++) {
-      const rect = cards[i].getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      if (e.clientY <= midpoint) {
-        foundTarget = i;
-        break;
-      }
-      foundTarget = i;
-    }
-
-    if (foundTarget !== targetIndex) {
-      setTargetIndex(foundTarget);
-    }
-  }
-
-  function handlePointerUpDrag(e: React.PointerEvent<HTMLButtonElement>) {
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignorar
-    }
-    stopAutoScroll();
-
-    if (draggingIndex !== null && targetIndex !== null && draggingIndex !== targetIndex) {
-      moveExercise(draggingIndex, targetIndex);
-    }
-
-    dragStartY.current = 0;
-    setDraggingIndex(null);
-    setTargetIndex(null);
-    setDragCardRect(null);
-  }
+  // Cleanup de seguridad al desmontar
+  useEffect(() => {
+    return () => {
+      stopAutoScroll();
+      window.removeEventListener("pointermove", onGlobalPointerMove);
+      window.removeEventListener("pointerup", onGlobalPointerUp);
+      window.removeEventListener("pointercancel", onGlobalPointerUp);
+    };
+  }, []);
 
   function selectDay(day: DayType) {
     if (dayType && dayType !== day && sets.length > 0) {
@@ -1026,34 +1025,46 @@ function EntrenoForm() {
           </div>
         </div>
 
-        {/* Lista de ejercicios con reordenamiento dinámico y soporte táctil */}
+        {/* Lista de ejercicios con reordenamiento dinámico y preview interactivo */}
         <div
           ref={cardsContainerRef}
-          className="space-y-3 relative"
+          className="space-y-3 relative select-none"
         >
-          {activeExercises.map((exercise, index) => {
+          {previewOrder.map((exercise, index) => {
             const isExtra = extraExercises.includes(exercise);
-            const isDragging = draggingIndex === index;
-            const isDropTarget = targetIndex === index && draggingIndex !== index;
+            const isBeingDragged = draggingIndex !== null && exercise === activeExercises[draggingIndex];
+
+            if (isBeingDragged) {
+              return (
+                <div
+                  key={`slot-${exercise}`}
+                  data-exercise-card
+                  className="flex items-center justify-center rounded-2xl border-2 border-dashed border-[var(--accent)] bg-[var(--accent)]/10 p-5 text-center shadow-inner transition-all duration-150 animate-pulse min-h-[80px]"
+                >
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--accent)] uppercase tracking-wider">
+                    <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+                    <span>Soltar aquí · Posición #{index + 1}</span>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <ExerciseBlock
                 key={exercise}
                 exercise={exercise}
                 orderNumber={index + 1}
-                totalExercises={activeExercises.length}
                 sets={sets.filter((s) => s.exercise === exercise)}
                 lastHistory={historyByExercise[exercise]}
                 onAdd={(weightKg, reps) => addSet(exercise, weightKg, reps)}
                 onRemove={removeSet}
                 onDelete={isExtra ? () => removeExtraExercise(exercise) : undefined}
-                onMoveUp={() => moveExercise(index, index - 1)}
-                onMoveDown={() => moveExercise(index, index + 1)}
-                onPointerDownDrag={(e) => handlePointerDownDrag(e, index)}
-                onPointerMoveDrag={handlePointerMoveDrag}
-                onPointerUpDrag={handlePointerUpDrag}
-                isDragging={isDragging}
-                isDropTarget={isDropTarget}
+                onPointerDownDrag={(e) => {
+                  const originalIdx = activeExercises.indexOf(exercise);
+                  if (originalIdx !== -1) {
+                    handlePointerDownDrag(e, originalIdx);
+                  }
+                }}
               />
             );
           })}
@@ -1063,14 +1074,14 @@ function EntrenoForm() {
             <div
               className="fixed pointer-events-none z-50 transition-none"
               style={{
-                top: Math.max(10, Math.min(window.innerHeight - 90, dragCurrentY - pointerOffsetInCard.current)),
+                top: Math.max(60, Math.min(window.innerHeight - 120, dragCurrentY - pointerOffsetInCard.current)),
                 left: dragCardRect.left,
                 width: dragCardRect.width,
-                transform: "scale(0.97)",
-                opacity: 0.88,
+                transform: "scale(0.96)",
+                opacity: 0.92,
               }}
             >
-              <div className="card border-2 border-[var(--accent)] bg-[#181818] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.95)] ring-4 ring-[var(--accent)]/20">
+              <div className="card border-2 border-[var(--accent)] bg-[#181818] p-3.5 sm:p-4 shadow-[0_20px_60px_rgba(0,0,0,0.98)] ring-4 ring-[var(--accent)]/25">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex h-6 min-w-[2rem] px-1.5 items-center justify-center rounded bg-[var(--accent)] text-black font-bold text-xs">
@@ -1080,8 +1091,8 @@ function EntrenoForm() {
                       {activeExercises[draggingIndex]}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-[var(--muted)]">
-                    {sets.filter((s) => s.exercise === activeExercises[draggingIndex]).length} series
+                  <span className="text-xs font-semibold text-[var(--accent)]">
+                    Moviendo a #{(targetIndex ?? draggingIndex) + 1}
                   </span>
                 </div>
               </div>

@@ -39,6 +39,14 @@ describe("machine-stacks: Jalón al pecho", () => {
       true,
     );
     assert.equal(
+      hasMachineStackPicker("Curl de bíceps con polea"),
+      true,
+    );
+    assert.equal(
+      hasMachineStackPicker("Bíceps con polea"),
+      true,
+    );
+    assert.equal(
       hasMachineStackPicker("Elevaciones unilaterales con cable"),
       true,
     );

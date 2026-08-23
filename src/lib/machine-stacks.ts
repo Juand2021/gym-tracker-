@@ -33,6 +33,8 @@ export const MACHINE_STACKS: MachineStackConfig[] = [
   { exercise: "Extensión de tríceps con cuerda", ...CABLE_STACK },
   { exercise: "Extensión de tríceps trasnuca", ...CABLE_STACK },
   { exercise: "Extensión de tríceps unilateral", ...CABLE_STACK },
+  { exercise: "Curl de bíceps con polea", ...CABLE_STACK },
+  { exercise: "Bíceps con polea", ...CABLE_STACK },
   { exercise: "Elevaciones unilaterales con cable", ...CABLE_STACK },
   {
     exercise: "Elevaciones hacia el frente unilaterales con cable",
