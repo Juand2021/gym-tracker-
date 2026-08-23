@@ -13,9 +13,9 @@ describe("ez-bar-rack", () => {
     assert.equal(buildEzBarRack().length, 7);
   });
 
-  it("activa Press francés y Bíceps barra Z", () => {
+  it("activa Press francés con barra Z", () => {
     assert.equal(hasEzBarRackPicker("Press francés con barra Z"), true);
-    assert.equal(hasEzBarRackPicker("Bíceps barra Z"), true);
+    assert.equal(hasEzBarRackPicker("Curl de bíceps con polea"), false);
     assert.equal(hasEzBarRackPicker("Press banca"), false);
     assert.equal(hasEzBarRackPicker("Curl martillo"), false);
   });

@@ -31,6 +31,8 @@ const LOAD_BY_EXERCISE: Record<string, LoadMode> = {
   "Curl martillo": "dumbbell",
   "Bíceps con mancuernas": "dumbbell",
   "Bíceps unilateral concentrado": "dumbbell",
+  "Curl de bíceps con polea": "machine",
+  "Bíceps con polea": "machine",
   "Bíceps barra Z": "bar",
   "Curl de antebrazo con mancuernas": "dumbbell",
   "Curl inverso de antebrazo con mancuernas": "dumbbell",

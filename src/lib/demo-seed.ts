@@ -118,7 +118,7 @@ function espalda(week: number, date: string, id: string): Workout {
       weightKg: w(week, 8, 12),
       reps: [10, 10, 8],
     },
-    { exercise: "Bíceps barra Z", weightKg: w(week, 20, 25), reps: [10, 9, 8] },
+    { exercise: "Curl de bíceps con polea", weightKg: w(week, 15, 22.5), reps: [10, 9, 8] },
   ]);
 }
 
@@ -176,8 +176,8 @@ function hombro(
             reps: [10, 10, 8],
           },
           {
-            exercise: "Bíceps barra Z",
-            weightKg: w(week, 20, 25),
+            exercise: "Curl de bíceps con polea",
+            weightKg: w(week, 15, 22.5),
             reps: [10, 9, 8],
           },
         ]

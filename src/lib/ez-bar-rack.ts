@@ -3,7 +3,6 @@ export const EZ_BAR_KG: number[] = [20, 22.5, 25, 27.5, 30, 35, 40];
 
 const EZ_BAR_EXERCISES = new Set([
   "Press francés con barra Z",
-  "Bíceps barra Z",
 ]);
 
 export type EzBarOption = {

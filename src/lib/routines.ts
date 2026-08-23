@@ -55,7 +55,7 @@ const BICEPS: string[] = [
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",
-  "Bíceps barra Z",
+  "Curl de bíceps con polea",
 ];
 
 /** Antebrazo: suele ir al final del trabajo de bíceps. */
