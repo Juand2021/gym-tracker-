@@ -13,19 +13,19 @@ export function MuscleGroupIcon({
 }: MuscleGroupIconProps) {
   const normalized = group.toLowerCase();
 
-  // PECHO: Anatomía pectoral completa y definida (pectoral mayor, clavícula, esternón y corte de torso)
+  // PECHO: Anatomía pectoral completa y definida (pectoral mayor, clavículas, esternón y marco del torso)
   if (normalized === "pecho") {
     return (
       <svg
         viewBox="0 0 64 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className={`${className} text-zinc-300 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_8px_rgba(255,255,255,0.06)]`}
+        className={`${className} text-zinc-200 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_10px_rgba(255,255,255,0.08)]`}
         aria-hidden="true"
       >
         {/* Cuello y Trapecio Superior */}
         <path
-          d="M26 6L28 14H36L38 6"
+          d="M26 8L28 15H36L38 8"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
@@ -33,7 +33,7 @@ export function MuscleGroupIcon({
         />
         {/* Clavículas */}
         <path
-          d="M16 15C22 17.5 28 19.5 32 21.5C36 19.5 42 17.5 48 15"
+          d="M15 16C21 18.5 27 20.5 32 22C37 20.5 43 18.5 49 16"
           stroke="currentColor"
           strokeWidth="2.4"
           strokeLinecap="round"
@@ -41,7 +41,7 @@ export function MuscleGroupIcon({
         />
         {/* Deltoides Izquierdo de marco */}
         <path
-          d="M16 15C10 17 6 22 7 29C8 33 11 35 14 34L15 26"
+          d="M15 16C9 18 5 23 6 30C7 34 10 36 13 35L14 27"
           fill="currentColor"
           fillOpacity="0.12"
           stroke="currentColor"
@@ -51,7 +51,7 @@ export function MuscleGroupIcon({
         />
         {/* Deltoides Derecho de marco */}
         <path
-          d="M48 15C54 17 58 22 57 29C56 33 53 35 50 34L49 26"
+          d="M49 16C55 18 59 23 58 30C57 34 54 36 51 35L50 27"
           fill="currentColor"
           fillOpacity="0.12"
           stroke="currentColor"
@@ -61,32 +61,32 @@ export function MuscleGroupIcon({
         />
         {/* Pectoral Izquierdo Completo */}
         <path
-          d="M16 17C15 25.5 18 33.5 30.5 32.5C31.5 28 31.5 23 31 21C26 18 20 17 16 17Z"
+          d="M15 18C14 26 17 34 29.5 33C30.5 28.5 30.5 24 30 21.5C25 19 19 18 15 18Z"
           fill="currentColor"
-          fillOpacity="0.28"
+          fillOpacity="0.34"
           stroke="currentColor"
           strokeWidth="2.4"
           strokeLinejoin="round"
         />
         {/* Pectoral Derecho Completo */}
         <path
-          d="M48 17C49 25.5 46 33.5 33.5 32.5C32.5 28 32.5 23 33 21C38 18 44 17 48 17Z"
+          d="M49 18C50 26 47 34 34.5 33C33.5 28.5 33.5 24 34 21.5C39 19 45 18 49 18Z"
           fill="currentColor"
-          fillOpacity="0.28"
+          fillOpacity="0.34"
           stroke="currentColor"
           strokeWidth="2.4"
           strokeLinejoin="round"
         />
         {/* Líneas de Haz Superior de Pectorales */}
         <path
-          d="M19 21.5C24 23.5 28 25.5 31 25.5"
+          d="M18 22.5C23 24.5 27 26.5 30 26.5"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeOpacity="0.6"
         />
         <path
-          d="M45 21.5C40 23.5 36 25.5 33 25.5"
+          d="M46 22.5C41 24.5 37 26.5 34 26.5"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
@@ -95,9 +95,9 @@ export function MuscleGroupIcon({
         {/* Hendidura del Esternón Central */}
         <line
           x1="32"
-          y1="21.5"
+          y1="22"
           x2="32"
-          y2="41"
+          y2="42"
           stroke="currentColor"
           strokeWidth="2.2"
           strokeLinecap="round"
@@ -105,7 +105,7 @@ export function MuscleGroupIcon({
         />
         {/* Abdomen Superior / Serratos */}
         <path
-          d="M23 37.5C25 36.5 29 36.5 31 37.5V46C29 47 25 47 23 46V37.5Z"
+          d="M22 38C24 37 28 37 30 38V47C28 48 24 48 22 47V38Z"
           fill="currentColor"
           fillOpacity="0.14"
           stroke="currentColor"
@@ -114,7 +114,7 @@ export function MuscleGroupIcon({
           strokeOpacity="0.5"
         />
         <path
-          d="M41 37.5C39 36.5 35 36.5 33 37.5V46C35 47 39 47 41 46V37.5Z"
+          d="M42 38C40 37 36 37 34 38V47C36 48 40 48 42 47V38Z"
           fill="currentColor"
           fillOpacity="0.14"
           stroke="currentColor"
@@ -124,14 +124,14 @@ export function MuscleGroupIcon({
         />
         {/* Costillas / Serratos Laterales */}
         <path
-          d="M15 38.5C18 41 20.5 43.5 20.5 48"
+          d="M14 39C17 41.5 19.5 44 19.5 48.5"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeOpacity="0.45"
         />
         <path
-          d="M49 38.5C46 41 43.5 43.5 43.5 48"
+          d="M50 39C47 41.5 44.5 44 44.5 48.5"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
@@ -141,186 +141,161 @@ export function MuscleGroupIcon({
     );
   }
 
-  // ESPALDA: Anatomía dorsal completa (trapecios, deltoides posteriores, dorsales anchos en V y columna)
+  // ESPALDA: Proporción balanceada idéntica al pecho, basada en el diagrama anatómico (Trapecio, deltoides posteriores, teres, dorsales y erectores)
   if (normalized === "espalda") {
     return (
       <svg
         viewBox="0 0 64 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className={`${className} text-zinc-300 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_8px_rgba(255,255,255,0.06)]`}
+        className={`${className} text-zinc-200 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_10px_rgba(255,255,255,0.08)]`}
         aria-hidden="true"
       >
-        {/* Cuello y Trapecio Superior */}
+        {/* Cuello / Nuca */}
         <path
-          d="M25 6L32 12L39 6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeOpacity="0.6"
-        />
-        {/* Trapecio Central Romboide */}
-        <path
-          d="M32 12L43 22L32 34L21 22L32 12Z"
-          fill="currentColor"
-          fillOpacity="0.28"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* Deltoides Posteriores */}
-        <path
-          d="M21 21C14 20 8 24 9 30C10 33 13 34 16 33L21 26"
-          fill="currentColor"
-          fillOpacity="0.14"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-          strokeOpacity="0.6"
-        />
-        <path
-          d="M43 21C50 20 56 24 55 30C54 33 51 34 48 33L43 26"
-          fill="currentColor"
-          fillOpacity="0.14"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-          strokeOpacity="0.6"
-        />
-        {/* Dorsal Ancho Izquierdo (Ala) */}
-        <path
-          d="M21 26C13.5 30 12.5 41.5 24 47.5L30 40.5C28 35 25 30 21 26Z"
-          fill="currentColor"
-          fillOpacity="0.3"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* Dorsal Ancho Derecho (Ala) */}
-        <path
-          d="M43 26C50.5 30 51.5 41.5 40 47.5L34 40.5C36 35 39 30 43 26Z"
-          fill="currentColor"
-          fillOpacity="0.3"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* Columna Vertebral Central */}
-        <line
-          x1="32"
-          y1="12"
-          x2="32"
-          y2="52"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeDasharray="3 3"
-          strokeOpacity="0.8"
-        />
-        {/* Árbol de Navidad / Espalda Baja Lumbar */}
-        <path
-          d="M29 43L32 46.5L35 43"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeOpacity="0.75"
-        />
-        <path
-          d="M27 48.5L32 53L37 48.5"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeOpacity="0.75"
-        />
-      </svg>
-    );
-  }
-
-  // HOMBRO: Deltoides 3D potentes (cabeza frontal, lateral y posterior destacadas)
-  if (normalized === "hombro") {
-    return (
-      <svg
-        viewBox="0 0 64 64"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={`${className} text-zinc-300 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_8px_rgba(255,255,255,0.06)]`}
-        aria-hidden="true"
-      >
-        {/* Silueta de Cabeza y Cuello */}
-        <path
-          d="M27 8C27 13 37 13 37 8"
+          d="M28 8C28 11 30 12 32 12C34 12 36 11 36 8"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeOpacity="0.4"
         />
+
+        {/* TRAPECIO SUPERIOR Y MEDIO (Manto dorsal central) */}
         <path
-          d="M23 16C28 17.5 36 17.5 41 16"
+          d="M28 8C29 13 25 16 18 19C23 19.5 29 23.5 32 29C35 23.5 41 19.5 46 19C39 16 35 13 36 8H28Z"
+          fill="currentColor"
+          fillOpacity="0.32"
           stroke="currentColor"
           strokeWidth="2.2"
+          strokeLinejoin="round"
+        />
+        {/* Surco central del trapecio */}
+        <path
+          d="M32 12V29"
+          stroke="currentColor"
+          strokeWidth="1.8"
           strokeLinecap="round"
+          strokeOpacity="0.75"
+        />
+        {/* Estrías musculares del trapecio */}
+        <path
+          d="M26 14C28 15 30 15.5 32 15.5C34 15.5 36 15 38 14"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeOpacity="0.45"
+        />
+        <path
+          d="M23 18C26 19.5 29 20.5 32 20.5C35 20.5 38 19.5 41 18"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeOpacity="0.45"
+        />
+
+        {/* DELTOIDES POSTERIORES */}
+        <path
+          d="M18 19C13 19 9 22 8 27C9 30 12 31 15 30C17 26 18 22 18 19Z"
+          fill="currentColor"
+          fillOpacity="0.22"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M46 19C51 19 55 22 56 27C55 30 52 31 49 30C47 26 46 22 46 19Z"
+          fill="currentColor"
+          fillOpacity="0.22"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+
+        {/* TERES MAYOR Y MENOR / ESCÁPULAS */}
+        <path
+          d="M18 21L15 30C18 32 21 32.5 24 31.5L21 24C19 23 18 22 18 21Z"
+          fill="currentColor"
+          fillOpacity="0.2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M46 21L49 30C46 32 43 32.5 40 31.5L43 24C45 23 46 22 46 21Z"
+          fill="currentColor"
+          fillOpacity="0.2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+
+        {/* DORSAL ANCHO (Latissimus Dorsi / Las Alas en V) */}
+        <path
+          d="M15 30C10 33 11 41 19 45L26 39C24 35 23 32 23 32C20 33 17 32 15 30Z"
+          fill="currentColor"
+          fillOpacity="0.38"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M49 30C54 33 53 41 45 45L38 39C40 35 41 32 41 32C44 33 47 32 49 30Z"
+          fill="currentColor"
+          fillOpacity="0.38"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        {/* Estrías de las alas */}
+        <path
+          d="M16 35C18.5 36.5 21.5 38 24 39"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeOpacity="0.5"
+        />
+        <path
+          d="M48 35C45.5 36.5 42.5 38 40 39"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeOpacity="0.5"
+        />
+
+        {/* ERECTORES LUMBARES / ESPALDA BAJA */}
+        <path
+          d="M26 39L19 45C20 50 23 52 25 53C26 50 26 45 26 39Z"
+          fill="currentColor"
+          fillOpacity="0.16"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M38 39L45 45C44 50 41 52 39 53C38 50 38 45 38 39Z"
+          fill="currentColor"
+          fillOpacity="0.16"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <line
+          x1="32"
+          y1="29"
+          x2="32"
+          y2="53"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeDasharray="2.5 2.5"
           strokeOpacity="0.6"
         />
 
-        {/* DELTOIDE IZQUIERDO (Hombro Potente) */}
-        {/* Cabeza Frontal / Anterior */}
+        {/* Silueta de brazos laterales */}
         <path
-          d="M22 17C17 18 14 22.5 15 27.5C16 30.5 18 31.5 20 29.5L22 23.5Z"
-          fill="currentColor"
-          fillOpacity="0.36"
+          d="M7 27C6 34 7 42 9 49"
           stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinejoin="round"
-        />
-        {/* Cabeza Lateral / Medial (Volumen redondeado) */}
-        <path
-          d="M15 19C8.5 21 5.5 27 6.5 34C7.5 39.5 12.5 40.5 15.5 37.5C17 32 17.5 26 17.5 20"
-          fill="currentColor"
-          fillOpacity="0.28"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* Brazo / Inserción Bíceps */}
-        <path
-          d="M10.5 38.5C11.5 45.5 14.5 48.5 15.5 48.5"
-          stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="1.8"
           strokeLinecap="round"
-          strokeOpacity="0.45"
+          strokeOpacity="0.35"
         />
-
-        {/* DELTOIDE DERECHO (Hombro Potente) */}
-        {/* Cabeza Frontal / Anterior */}
         <path
-          d="M42 17C47 18 50 22.5 49 27.5C48 30.5 46 31.5 44 29.5L42 23.5Z"
-          fill="currentColor"
-          fillOpacity="0.36"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinejoin="round"
-        />
-        {/* Cabeza Lateral / Medial (Volumen redondeado) */}
-        <path
-          d="M49 19C55.5 21 58.5 27 57.5 34C56.5 39.5 51.5 40.5 48.5 37.5C47 32 46.5 26 46.5 20"
-          fill="currentColor"
-          fillOpacity="0.28"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* Brazo / Inserción Bíceps */}
-        <path
-          d="M53.5 38.5C52.5 45.5 49.5 48.5 48.5 48.5"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeOpacity="0.45"
-        />
-
-        {/* Referencia Pectoral de fondo */}
-        <path
-          d="M24 23.5C26 31.5 31 34.5 32 34.5C33 34.5 38 31.5 40 23.5"
+          d="M57 27C58 34 57 42 55 49"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
@@ -330,117 +305,243 @@ export function MuscleGroupIcon({
     );
   }
 
-  // PIERNA: Anatomía de cuádriceps, rodillas y pantorrillas musculadas
+  // HOMBRO: Brazo completo musculado con el Deltoides (Hombro) claramente resaltado y brillante
+  if (normalized === "hombro") {
+    return (
+      <svg
+        viewBox="0 0 64 64"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={`${className} text-zinc-200 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_10px_rgba(255,255,255,0.08)]`}
+        aria-hidden="true"
+      >
+        {/* Clavícula y cuello (Anclaje superior del hombro) */}
+        <path
+          d="M10 14C15 15.5 21 16.5 26 15"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeOpacity="0.5"
+        />
+        <path
+          d="M12 20C16 23 20 25 22 28"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeOpacity="0.35"
+        />
+
+        {/* DELTOIDES / HOMBRO (MÚSCULO PRINCIPAL RESALTADO) */}
+        {/* Casquete deltoideo 3D completo con alto contraste */}
+        <path
+          d="M24 14C32 12 43 16 46 24C48 30 44 36 38 38.5C32.5 40.5 28 35.5 25 30C23 26 23 18 24 14Z"
+          fill="currentColor"
+          fillOpacity="0.48"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+        />
+        {/* Separación de las 3 cabezas deltoideas: Anterior, Lateral y Posterior */}
+        <path
+          d="M32 14C31 22 30 30 33 38.5"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeOpacity="0.85"
+        />
+        <path
+          d="M39 16C41 23 42 30 39 37.5"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeOpacity="0.8"
+        />
+        {/* Estría superior de acromion */}
+        <path
+          d="M28 17C34 16 39 18 42.5 22"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeOpacity="0.7"
+        />
+
+        {/* BÍCEPS (Brazo flexionado a 90 grados) */}
+        <path
+          d="M25 30C20 34 19 40 22 46C24 49 29 49 31 46L34 38.5"
+          fill="currentColor"
+          fillOpacity="0.16"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        {/* Curva del pico del bíceps */}
+        <path
+          d="M23 37C22 41 23 44 26 46"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeOpacity="0.5"
+        />
+
+        {/* TRÍCEPS (Herradura trasera del brazo) */}
+        <path
+          d="M38 38.5C45 40.5 48 46 46 52C44 55 39 55 36 53L31 46"
+          fill="currentColor"
+          fillOpacity="0.16"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+
+        {/* CODO (Punta del olécranon) */}
+        <path
+          d="M46 52L43 56L36 58"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeOpacity="0.55"
+        />
+
+        {/* ANTEBRAZO Y PUÑO FLEXIONADO */}
+        <path
+          d="M22 46L14 49C10 50 8 47 10 44L17 40"
+          fill="currentColor"
+          fillOpacity="0.14"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeOpacity="0.6"
+        />
+        {/* Tendón del antebrazo */}
+        <line
+          x1="18"
+          y1="43"
+          x2="13"
+          y2="47"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeOpacity="0.4"
+        />
+      </svg>
+    );
+  }
+
+  // PIERNA: Diseño limpio, nítido y legible con bóxer deportivo y cuádriceps bien proporcionados sin líneas sobrepuestas
   if (normalized === "pierna") {
     return (
       <svg
         viewBox="0 0 64 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className={`${className} text-zinc-300 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_8px_rgba(255,255,255,0.06)]`}
+        className={`${className} text-zinc-200 group-hover:text-white transition-all flex-shrink-0 drop-shadow-[0_2px_8px_rgba(255,255,255,0.06)]`}
         aria-hidden="true"
       >
-        {/* Cadera / Cintura */}
+        {/* BÓXER DEPORTIVO (Limpio y bien definido) */}
+        {/* Cinturilla */}
         <path
-          d="M18 10H46"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeOpacity="0.45"
-        />
-
-        {/* PIERNA IZQUIERDA */}
-        {/* Vasto Lateral (Barrido externo del cuádriceps) */}
-        <path
-          d="M19 11C12.5 18 13.5 29.5 16.5 36.5C18 38.5 20.5 38.5 21.5 35.5C23.5 28 23.5 18 21.5 11H19Z"
-          fill="currentColor"
-          fillOpacity="0.3"
+          d="M19 12H45"
           stroke="currentColor"
           strokeWidth="2.4"
-          strokeLinejoin="round"
+          strokeLinecap="round"
         />
-        {/* Vasto Medial (Gota interna sobre la rodilla) */}
+        {/* Cuerpo del bóxer */}
         <path
-          d="M21.5 28.5C21.5 34.5 24.5 36.5 26.5 34.5C27.5 32.5 26.5 28.5 24.5 27.5L21.5 28.5Z"
+          d="M19 12L17 23C23 25 28 24.5 32 22C36 24.5 41 25 47 23L45 12H19Z"
           fill="currentColor"
-          fillOpacity="0.38"
+          fillOpacity="0.3"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinejoin="round"
         />
-        {/* Recto Femoral (Línea central) */}
-        <path
-          d="M21 15C22 22 23 29 23 35"
+        {/* Costura central */}
+        <line
+          x1="32"
+          y1="12"
+          x2="32"
+          y2="22"
           stroke="currentColor"
-          strokeWidth="1.8"
+          strokeWidth="1.6"
           strokeLinecap="round"
-          strokeOpacity="0.55"
-        />
-        {/* Rodilla / Rótula */}
-        <circle
-          cx="20.5"
-          cy="40.5"
-          r="2.2"
-          fill="currentColor"
-          fillOpacity="0.45"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        />
-        {/* Pantorrilla / Gemelo */}
-        <path
-          d="M16.5 43.5C14.5 48.5 16.5 54.5 17.5 57.5C18.5 57.5 22.5 57.5 22.5 55.5C23.5 51.5 23.5 46.5 22.5 43.5"
-          fill="currentColor"
-          fillOpacity="0.22"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinejoin="round"
+          strokeOpacity="0.5"
         />
 
-        {/* PIERNA DERECHA */}
-        {/* Vasto Lateral (Barrido externo del cuádriceps) */}
+        {/* ===== MUSLO IZQUIERDO ===== */}
+        {/* Silueta exterior y barrido del cuádriceps */}
         <path
-          d="M45 11C51.5 18 50.5 29.5 47.5 36.5C46 38.5 43.5 38.5 42.5 35.5C40.5 28 40.5 18 42.5 11H45Z"
+          d="M17 23C12 29 13 38 17 46C18.5 48.5 21 48.5 22.5 46C24 37 24 28 22 23"
           fill="currentColor"
-          fillOpacity="0.3"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* Vasto Medial (Gota interna sobre la rodilla) */}
-        <path
-          d="M42.5 28.5C42.5 34.5 39.5 36.5 37.5 34.5C36.5 32.5 37.5 28.5 39.5 27.5L42.5 28.5Z"
-          fill="currentColor"
-          fillOpacity="0.38"
+          fillOpacity="0.25"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinejoin="round"
         />
-        {/* Recto Femoral (Línea central) */}
+        {/* Músculo central (Recto femoral) */}
         <path
-          d="M43 15C42 22 41 29 41 35"
+          d="M20 25C19 32 19 39 22 45"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
-          strokeOpacity="0.55"
+          strokeOpacity="0.7"
         />
-        {/* Rodilla / Rótula */}
-        <circle
-          cx="43.5"
-          cy="40.5"
-          r="2.2"
+        {/* Gota interna (Vasto medial) */}
+        <path
+          d="M25 36C24.5 42 27 46 29 44C30 42 29 36 27 34L25 36Z"
           fill="currentColor"
           fillOpacity="0.45"
           stroke="currentColor"
           strokeWidth="1.8"
-        />
-        {/* Pantorrilla / Gemelo */}
-        <path
-          d="M47.5 43.5C49.5 48.5 47.5 54.5 46.5 57.5C45.5 57.5 41.5 57.5 41.5 55.5C40.5 51.5 40.5 46.5 41.5 43.5"
-          fill="currentColor"
-          fillOpacity="0.22"
-          stroke="currentColor"
-          strokeWidth="2.2"
           strokeLinejoin="round"
+        />
+        {/* Rodilla izquierda */}
+        <circle
+          cx="22.5"
+          cy="51"
+          r="2"
+          fill="currentColor"
+          fillOpacity="0.4"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        />
+
+        {/* ===== MUSLO DERECHO ===== */}
+        {/* Silueta exterior y barrido del cuádriceps */}
+        <path
+          d="M47 23C52 29 51 38 47 46C45.5 48.5 43 48.5 41.5 46C40 37 40 28 42 23"
+          fill="currentColor"
+          fillOpacity="0.25"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        {/* Músculo central (Recto femoral) */}
+        <path
+          d="M44 25C45 32 45 39 42 45"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          opacity="0.7"
+        />
+        {/* Gota interna (Vasto medial) */}
+        <path
+          d="M39 36C39.5 42 37 46 35 44C34 42 35 36 37 34L39 36Z"
+          fill="currentColor"
+          fillOpacity="0.45"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        {/* Rodilla derecha */}
+        <circle
+          cx="41.5"
+          cy="51"
+          r="2"
+          fill="currentColor"
+          fillOpacity="0.4"
+          stroke="currentColor"
+          strokeWidth="1.6"
         />
       </svg>
     );
