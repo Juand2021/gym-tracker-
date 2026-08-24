@@ -36,6 +36,8 @@ import {
   type ArmFocus,
   type DayType,
 } from "@/lib/routines";
+import { getExercisesForDayCustom } from "@/lib/custom-routines";
+import { RoutineCustomizer } from "@/components/RoutineCustomizer";
 import type { Workout } from "@/lib/types";
 import {
   clearWorkoutDraft,
@@ -398,7 +400,7 @@ function EntrenoForm() {
   const searchParams = useSearchParams();
   const initialDay = searchParams.get("day");
 
-  const [step, setStep] = useState<"day" | "arms" | "log">(() => {
+  const [step, setStep] = useState<"day" | "arms" | "log" | "customize">(() => {
     const draft = getWorkoutDraft();
     if (draft?.step && (!initialDay || draft.dayType === initialDay || (draft.sets && draft.sets.length > 0))) {
       return draft.step;
@@ -464,7 +466,7 @@ function EntrenoForm() {
       return draft.exerciseOrder;
     }
     if (initialDay && isDayType(initialDay)) {
-      return getExercisesForDay(initialDay);
+      return getExercisesForDayCustom(initialDay);
     }
     return [];
   });
@@ -503,8 +505,8 @@ function EntrenoForm() {
 
   const templateExercises = useMemo(() => {
     if (!dayType) return [];
-    if (dayType === "hombro" && !armFocus) return getExercisesForDay("hombro");
-    return getExercisesForDay(dayType, armFocus);
+    if (dayType === "hombro" && !armFocus) return getExercisesForDayCustom("hombro");
+    return getExercisesForDayCustom(dayType, armFocus);
   }, [dayType, armFocus]);
 
   // Lista unificada de ejercicios en su orden real
@@ -524,7 +526,7 @@ function EntrenoForm() {
   useEffect(() => {
     if (dayType || sets.length > 0 || notes.trim()) {
       saveWorkoutDraft({
-        step,
+        step: step === "customize" ? "day" : step,
         dayType,
         armFocus,
         date,
@@ -715,7 +717,7 @@ function EntrenoForm() {
     setArmFocus(null);
     setSets([]);
     setExtraExercises([]);
-    const defaultTemplate = getExercisesForDay(day);
+    const defaultTemplate = getExercisesForDayCustom(day);
     setExerciseOrder(defaultTemplate);
     setError("");
     if (day === "hombro") {
@@ -734,7 +736,7 @@ function EntrenoForm() {
     }
     setArmFocus(focus);
     setSets([]);
-    const defaultTemplate = getExercisesForDay("hombro", focus);
+    const defaultTemplate = getExercisesForDayCustom("hombro", focus);
     setExerciseOrder(defaultTemplate);
     setStep("log");
   }
@@ -890,9 +892,22 @@ function EntrenoForm() {
     }
   }
 
+  if (step === "customize") {
+    return (
+      <RoutineCustomizer
+        onBack={() => setStep("day")}
+        onSaved={() => {
+          if (dayType) {
+            setExerciseOrder(getExercisesForDayCustom(dayType, armFocus));
+          }
+        }}
+      />
+    );
+  }
+
   if (step === "day") {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <div>
           <p className="page-kicker">Nuevo entreno</p>
           <h1 className="page-title mt-1">¿Qué toca hoy?</h1>
@@ -917,6 +932,54 @@ function EntrenoForm() {
               </p>
             </button>
           ))}
+        </div>
+
+        {/* Botón destacado para Ajustar Rutinas */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setStep("customize")}
+            className="card card-interactive flex items-center justify-between p-4 border border-[var(--accent)]/30 bg-gradient-to-r from-[var(--surface-2)]/90 via-[var(--surface-2)]/60 to-[var(--accent)]/10 hover:border-[var(--accent)] transition-all active:scale-[0.99] shadow-sm w-full rounded-2xl"
+          >
+            <div className="flex items-center gap-3.5">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 shadow-sm flex-shrink-0">
+                <svg
+                  className="h-4 w-4 text-[var(--accent)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+              </span>
+              <div className="text-left">
+                <p className="font-[family-name:var(--font-display)] text-xl tracking-[0.04em] text-white">
+                  Ajustar Rutinas
+                </p>
+                <p className="text-xs text-[var(--muted)]">
+                  Personaliza y guarda los ejercicios de cada día
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 flex-shrink-0">
+              Configurar
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+          </button>
         </div>
       </div>
     );
