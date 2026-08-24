@@ -38,6 +38,7 @@ import {
 } from "@/lib/routines";
 import { getExercisesForDayCustom } from "@/lib/custom-routines";
 import { RoutineCustomizer } from "@/components/RoutineCustomizer";
+import { MuscleGroupIcon } from "@/components/MuscleGroupIcon";
 import type { Workout } from "@/lib/types";
 import {
   clearWorkoutDraft,
@@ -922,14 +923,17 @@ function EntrenoForm() {
               key={opt.id}
               type="button"
               onClick={() => selectDay(opt.id)}
-              className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
+              className="card card-interactive group flex min-h-[5.5rem] items-center justify-between p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
             >
-              <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
-                {opt.label}
-              </p>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                {opt.subtitle}
-              </p>
+              <div className="min-w-0 pr-2">
+                <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em] text-white">
+                  {opt.label}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--muted)] truncate">
+                  {opt.subtitle}
+                </p>
+              </div>
+              <MuscleGroupIcon group={opt.id} className="h-10 w-10 sm:h-11 sm:w-11" />
             </button>
           ))}
         </div>

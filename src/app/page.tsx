@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DAY_OPTIONS, getDayLabel } from "@/lib/routines";
+import { MuscleGroupIcon } from "@/components/MuscleGroupIcon";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
 import { useWorkoutDraft } from "@/lib/workout-draft";
 
@@ -101,12 +102,15 @@ export default function HomePage() {
           <Link
             key={day.id}
             href={`/entreno?day=${day.id}`}
-            className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4"
+            className="card card-interactive group flex min-h-[5.5rem] items-center justify-between p-4 transition hover:border-[var(--accent)] active:scale-[0.99]"
           >
-            <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
-              {day.label}
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">{day.subtitle}</p>
+            <div className="min-w-0 pr-2">
+              <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em] text-white">
+                {day.label}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--muted)] truncate">{day.subtitle}</p>
+            </div>
+            <MuscleGroupIcon group={day.id} className="h-10 w-10 sm:h-11 sm:w-11" />
           </Link>
         ))}
       </section>

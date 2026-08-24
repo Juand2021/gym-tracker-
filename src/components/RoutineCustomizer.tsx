@@ -9,6 +9,7 @@ import {
   resetCustomRoutines,
 } from "@/lib/custom-routines";
 import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
+import { MuscleGroupIcon } from "@/components/MuscleGroupIcon";
 import { getLoadHint } from "@/lib/exercises";
 
 interface RoutineCustomizerProps {
@@ -175,9 +176,15 @@ export function RoutineCustomizer({ onBack, onSaved }: RoutineCustomizerProps) {
       {/* Lista de Ejercicios del Día Seleccionado */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-            Ejercicios del día ({currentExercises.length})
-          </p>
+          <div className="flex items-center gap-2">
+            <MuscleGroupIcon
+              group={activeTab.startsWith("hombro") ? "hombro" : activeTab}
+              className="h-5 w-5"
+            />
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+              Ejercicios del día ({currentExercises.length})
+            </p>
+          </div>
           <span className="text-[11px] text-[var(--muted)]">
             Usa las flechas para ordenar
           </span>
