@@ -102,15 +102,18 @@ export default function HomePage() {
           <Link
             key={day.id}
             href={`/entreno?day=${day.id}`}
-            className="card card-interactive group flex min-h-[5.5rem] items-center justify-between p-4 transition hover:border-[var(--accent)] active:scale-[0.99]"
+            className="card card-interactive group relative flex min-h-[6.25rem] sm:min-h-[6.5rem] items-center justify-between p-3.5 sm:p-4 overflow-hidden transition-all hover:border-[var(--accent)] active:scale-[0.99] rounded-2xl"
           >
-            <div className="min-w-0 pr-2">
-              <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em] text-white">
+            <div className="min-w-0 pr-1.5 z-10">
+              <p className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl tracking-[0.04em] text-white leading-none">
                 {day.label}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--muted)] truncate">{day.subtitle}</p>
+              <p className="mt-1 text-xs text-[var(--muted)] truncate">{day.subtitle}</p>
             </div>
-            <MuscleGroupIcon group={day.id} className="h-10 w-10 sm:h-11 sm:w-11" />
+            <MuscleGroupIcon
+              group={day.id}
+              className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 transition-transform duration-300 group-hover:scale-105"
+            />
           </Link>
         ))}
       </section>
