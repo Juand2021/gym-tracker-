@@ -107,47 +107,6 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Activar o desactivar Wake Lock según estado y configuración
-  useEffect(() => {
-    if (wakeLockEnabled && (status === "running" || isAlarmActive)) {
-      void requestWakeLock();
-    } else {
-      void releaseWakeLock();
-    }
-  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, releaseWakeLock]);
-
-  // Si la pestaña vuelve a ser visible en el celular (o tras cambiar de app para música), re-adquirir Wake Lock, sincronizar tiempo y reanudar audio
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        unlockAudioContext();
-
-        if (wakeLockEnabled && (status === "running" || isAlarmActive)) {
-          void requestWakeLock();
-        }
-
-        // Si el temporizador estaba corriendo mientras el usuario estaba en otra app (ej. Spotify),
-        // calcular el tiempo real transcurrido mediante el timestamp final
-        if (status === "running" && endTimeRef.current) {
-          const diffMs = endTimeRef.current - Date.now();
-          const rem = Math.max(0, Math.ceil(diffMs / 1000));
-          setRemainingSeconds(rem);
-
-          if (rem <= 0) {
-            triggerAlarm();
-          }
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
-    };
-  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, triggerAlarm]);
-
   const clearTimerInterval = useCallback(() => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -191,6 +150,47 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       }
     }, 2400);
   }, [clearTimerInterval, soundEnabled, hapticsEnabled]);
+
+  // Activar o desactivar Wake Lock según estado y configuración
+  useEffect(() => {
+    if (wakeLockEnabled && (status === "running" || isAlarmActive)) {
+      void requestWakeLock();
+    } else {
+      void releaseWakeLock();
+    }
+  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, releaseWakeLock]);
+
+  // Si la pestaña vuelve a ser visible en el celular (o tras cambiar de app para música), re-adquirir Wake Lock, sincronizar tiempo y reanudar audio
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        unlockAudioContext();
+
+        if (wakeLockEnabled && (status === "running" || isAlarmActive)) {
+          void requestWakeLock();
+        }
+
+        // Si el temporizador estaba corriendo mientras el usuario estaba en otra app (ej. Spotify),
+        // calcular el tiempo real transcurrido mediante el timestamp final
+        if (status === "running" && endTimeRef.current) {
+          const diffMs = endTimeRef.current - Date.now();
+          const rem = Math.max(0, Math.ceil(diffMs / 1000));
+          setRemainingSeconds(rem);
+
+          if (rem <= 0) {
+            triggerAlarm();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+    };
+  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, triggerAlarm]);
 
   const start = useCallback(
     (seconds?: number) => {
