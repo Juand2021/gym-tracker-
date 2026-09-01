@@ -116,22 +116,37 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, releaseWakeLock]);
 
-  // Si la pestaña vuelve a ser visible en el celular y el temporizador sigue corriendo, re-adquirir Wake Lock
+  // Si la pestaña vuelve a ser visible en el celular (o tras cambiar de app para música), re-adquirir Wake Lock, sincronizar tiempo y reanudar audio
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === "visible" &&
-        wakeLockEnabled &&
-        (status === "running" || isAlarmActive)
-      ) {
-        void requestWakeLock();
+      if (document.visibilityState === "visible") {
+        unlockAudioContext();
+
+        if (wakeLockEnabled && (status === "running" || isAlarmActive)) {
+          void requestWakeLock();
+        }
+
+        // Si el temporizador estaba corriendo mientras el usuario estaba en otra app (ej. Spotify),
+        // calcular el tiempo real transcurrido mediante el timestamp final
+        if (status === "running" && endTimeRef.current) {
+          const diffMs = endTimeRef.current - Date.now();
+          const rem = Math.max(0, Math.ceil(diffMs / 1000));
+          setRemainingSeconds(rem);
+
+          if (rem <= 0) {
+            triggerAlarm();
+          }
+        }
       }
     };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
     };
-  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock]);
+  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, triggerAlarm]);
 
   const clearTimerInterval = useCallback(() => {
     if (timerIntervalRef.current) {
@@ -154,6 +169,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setIsAlarmActive(true);
     setRemainingSeconds(0);
     clearTimerInterval();
+    unlockAudioContext();
 
     // Reproducir sonido y vibración si están habilitados en ajustes
     if (soundEnabled) playAlarmSound();

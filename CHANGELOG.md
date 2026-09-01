@@ -3,6 +3,14 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado con [SemVer](https://semver.org/lang/es/): `MAYOR.MENOR.PARCHE`.
 
+## [1.4.0] — 2026-08-31
+
+### Added
+- **Edición flexible en Historial:** botón `+ Añadir serie` por ejercicio con auto-llenado inteligente de peso/reps previos, y `+ Añadir ejercicio a la sesión` mediante selector de catálogo.
+- **PWA & Modo Aplicación Nativa para iPhone:** soporte `display: standalone` en iOS Safari, Web App Manifest (`manifest.ts`) y banner interactivo de instalación `<IosInstallPrompt />`.
+- **Nuevo Ícono de Fuerza:** diseño hiperfuturista estilo Liquid Glass + Frutiger Aero oscuro (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`).
+- **Resiliencia de Audio en Temporizador de Descanso:** recuperación automática del `AudioContext` en iOS Safari al cambiar de aplicación (ej. poner música) o tras suspensión, sincronización exacta en segundo plano y botón de parada rápida.
+
 ## [1.2.0] — 2026-08-12
 
 ### Added

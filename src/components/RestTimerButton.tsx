@@ -109,21 +109,30 @@ export function RestTimerFloatingWidget() {
           </svg>
         </span>
         <div className="flex flex-col text-left">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] leading-none">
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider leading-none ${
+              isAlarmActive ? "text-white animate-pulse" : "text-[var(--accent)]"
+            }`}
+          >
             {isAlarmActive
-              ? "TIEMPO CUMPLIDO"
+              ? "TIEMPO CUMPLIDO · DETENER"
               : status === "running"
               ? "DESCANSO"
               : "PAUSADO"}
           </span>
           <span className="font-[family-name:var(--font-display)] text-lg tracking-wider leading-tight">
-            {formatTime(remainingSeconds)}
+            {isAlarmActive ? "00:00" : formatTime(remainingSeconds)}
           </span>
         </div>
-        <span className="text-xs text-[var(--muted)] pl-1">
+        <span
+          className={`text-xs pl-1 font-bold ${
+            isAlarmActive ? "text-white" : "text-[var(--muted)]"
+          }`}
+        >
           {isAlarmActive ? "✕" : "↗"}
         </span>
       </button>
     </aside>
   );
 }
+

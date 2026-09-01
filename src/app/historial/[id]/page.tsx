@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
 import { getLoadHint } from "@/lib/exercises";
 import {
   isValidReps,
@@ -37,6 +38,7 @@ export default function WorkoutDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
   const [draftSets, setDraftSets] = useState<DraftSet[]>([]);
@@ -127,6 +129,50 @@ export default function WorkoutDetailPage() {
 
   function removeSet(key: string) {
     setDraftSets((prev) => prev.filter((set) => set.key !== key));
+  }
+
+  function addSetToExercise(exerciseName: string) {
+    setDraftSets((prev) => {
+      const matchingIndices: number[] = [];
+      prev.forEach((s, idx) => {
+        if (s.exercise === exerciseName) matchingIndices.push(idx);
+      });
+
+      const lastIdx =
+        matchingIndices.length > 0
+          ? matchingIndices[matchingIndices.length - 1]
+          : -1;
+      const lastSet = lastIdx >= 0 ? prev[lastIdx] : null;
+
+      const newSet: DraftSet = {
+        key: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        exercise: exerciseName,
+        weightKg: lastSet ? lastSet.weightKg : "",
+        reps: lastSet ? lastSet.reps : "",
+      };
+
+      if (lastIdx >= 0) {
+        const next = [...prev];
+        next.splice(lastIdx + 1, 0, newSet);
+        return next;
+      }
+
+      return [...prev, newSet];
+    });
+  }
+
+  function addExerciseFromCatalog(exerciseName: string) {
+    const newSet: DraftSet = {
+      key: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      exercise: exerciseName,
+      weightKg: "",
+      reps: "",
+    };
+    setDraftSets((prev) => [...prev, newSet]);
+  }
+
+  function removeExercise(exerciseName: string) {
+    setDraftSets((prev) => prev.filter((set) => set.exercise !== exerciseName));
   }
 
   async function onSave(event: FormEvent) {
@@ -264,19 +310,30 @@ export default function WorkoutDetailPage() {
             </div>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {editGrouped.map((group) => {
               const load = getLoadHint(group.exercise);
               return (
                 <div key={group.exercise} className="card space-y-3 p-4">
-                  <div>
-                    <p className="text-lg font-semibold tracking-wide">
-                      {group.exercise}
-                    </p>
-                    <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                      kg · <span className="text-[var(--accent)]">{load.short}</span>
-                    </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-lg font-semibold tracking-wide">
+                        {group.exercise}
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                        kg · <span className="text-[var(--accent)]">{load.short}</span>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeExercise(group.exercise)}
+                      className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--danger)] hover:underline active:opacity-75 py-1 px-1.5 transition-opacity"
+                      title={`Quitar ${group.exercise}`}
+                    >
+                      Quitar ejercicio
+                    </button>
                   </div>
+
                   <div className="space-y-2">
                     {group.sets.map((set) => (
                       <div
@@ -324,9 +381,25 @@ export default function WorkoutDetailPage() {
                       </div>
                     ))}
                   </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-ghost w-full min-h-[2.5rem] border border-dashed border-[var(--line)] text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 active:scale-[0.99] transition-all"
+                    onClick={() => addSetToExercise(group.exercise)}
+                  >
+                    + Añadir serie
+                  </button>
                 </div>
               );
             })}
+
+            <button
+              type="button"
+              className="btn btn-ghost w-full min-h-[3rem] border border-dashed border-[var(--line-strong)] text-sm font-semibold tracking-wide text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+              onClick={() => setCatalogOpen(true)}
+            >
+              <span className="text-base font-bold text-[var(--accent)]">+</span> Añadir ejercicio a la sesión
+            </button>
           </div>
 
           {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
@@ -402,6 +475,14 @@ export default function WorkoutDetailPage() {
           </div>
         </>
       )}
+
+      <CatalogExercisePicker
+        open={catalogOpen}
+        activeExercises={editGrouped.map((g) => g.exercise)}
+        onSelect={addExerciseFromCatalog}
+        onClose={() => setCatalogOpen(false)}
+      />
     </div>
   );
 }
+
