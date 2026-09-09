@@ -14,6 +14,7 @@ import {
   nearestPlateIndex,
   type MachineStackConfig,
 } from "@/lib/machine-stacks";
+import { isValidWeight, parseDecimal } from "@/lib/numbers";
 
 type Props = {
   open: boolean;
@@ -21,6 +22,7 @@ type Props = {
   valueKg: number | null;
   onConfirm: (weightKg: number) => void;
   onClose: () => void;
+  onSwitchToManual?: () => void;
 };
 
 export function MachineStackPicker({
@@ -29,6 +31,7 @@ export function MachineStackPicker({
   valueKg,
   onConfirm,
   onClose,
+  onSwitchToManual,
 }: Props) {
   const plates = useMemo(() => buildStackPlates(config), [config]);
   const [pinIndex, setPinIndex] = useState(() =>
@@ -36,6 +39,8 @@ export function MachineStackPicker({
   );
   const [pinPulse, setPinPulse] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualKgInput, setManualKgInput] = useState("");
   const stackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -44,10 +49,20 @@ export function MachineStackPicker({
     setWasOpen(open);
     if (open) {
       setPinIndex(nearestPlateIndex(plates, valueKg ?? 0));
+      setManualMode(false);
+      setManualKgInput(valueKg ? formatStackKg(valueKg) : "");
     }
   }
 
   const selectedKg = pinIndex < 0 ? 0 : plates[pinIndex].cumulativeKg;
+
+  function handleManualConfirm() {
+    const val = parseDecimal(manualKgInput);
+    if (!isValidWeight(val)) return;
+    onConfirm(val);
+    onSwitchToManual?.();
+    onClose();
+  }
 
   function selectPlate(index: number) {
     setPinIndex(index);
@@ -214,9 +229,70 @@ export function MachineStackPicker({
           </div>
         </div>
 
+        {manualMode ? (
+          <div className="stack-picker-manual-panel">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                Peso manual (otra máquina)
+              </span>
+              <button
+                type="button"
+                className="text-xs text-[var(--accent)] hover:underline font-medium cursor-pointer"
+                onClick={() => setManualMode(false)}
+              >
+                Volver a placas
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoFocus
+                  placeholder="Ej. 42.5"
+                  value={manualKgInput}
+                  onChange={(e) => setManualKgInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleManualConfirm();
+                    }
+                  }}
+                  className="field text-center text-lg font-bold w-full pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--muted)]">
+                  kg
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary px-4 shrink-0 font-semibold text-xs sm:text-sm"
+                disabled={!isValidWeight(parseDecimal(manualKgInput))}
+                onClick={handleManualConfirm}
+              >
+                Usar {isValidWeight(parseDecimal(manualKgInput)) && parseDecimal(manualKgInput) > 0 ? `${parseDecimal(manualKgInput)} kg` : "peso"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="stack-picker-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancelar
+          </button>
+          <button
+            type="button"
+            className={`btn btn-ghost border-white/15 hover:border-[var(--accent)] hover:text-white ${manualMode ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/15" : "text-[var(--ink)]"}`}
+            onClick={() => {
+              if (!manualMode) {
+                setManualKgInput(selectedKg > 0 ? formatStackKg(selectedKg) : "");
+                setManualMode(true);
+              } else {
+                setManualMode(false);
+              }
+            }}
+          >
+            Peso manual
           </button>
           <button
             type="button"

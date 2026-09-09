@@ -16,6 +16,7 @@ import {
   plateSizeClass,
   removeOutermostPlate,
 } from "@/lib/barbell-plates";
+import { isValidWeight, parseDecimal } from "@/lib/numbers";
 
 type Props = {
   open: boolean;
@@ -23,7 +24,84 @@ type Props = {
   valueKg: number | null;
   onConfirm: (weightKg: number) => void;
   onClose: () => void;
+  onSwitchToManual?: () => void;
 };
+
+const getPlateSpecs = (lbs: number) => {
+  switch (lbs) {
+    case 45:
+      return {
+        w: 14,
+        h: 96,
+        fill: "url(#plateGrad45)",
+        stroke: "#555",
+        bevel: "#777",
+        text: "#ffffff",
+      };
+    case 25:
+      return {
+        w: 12,
+        h: 78,
+        fill: "url(#plateGrad25)",
+        stroke: "#3d6494",
+        bevel: "#6d9dd6",
+        text: "#ffffff",
+      };
+    case 10:
+      return {
+        w: 10,
+        h: 60,
+        fill: "url(#plateGrad10)",
+        stroke: "#437e53",
+        bevel: "#74b887",
+        text: "#ffffff",
+      };
+    case 5:
+      return {
+        w: 8,
+        h: 46,
+        fill: "url(#plateGrad5)",
+        stroke: "#9c5d26",
+        bevel: "#e0944e",
+        text: "#ffffff",
+      };
+    default: // 2.5
+      return {
+        w: 7,
+        h: 36,
+        fill: "url(#plateGrad2)",
+        stroke: "#727d91",
+        bevel: "#b7c1d1",
+        text: "#ffffff",
+      };
+  }
+};
+
+function computeRenderedPlates(platesPerSide: number[], leftOriginX: number, rightOriginX: number) {
+  let leftOffset = 0;
+  const renderedLeftPlates = [];
+  for (let i = 0; i < platesPerSide.length; i++) {
+    const lbs = platesPerSide[i];
+    const spec = getPlateSpecs(lbs);
+    leftOffset += spec.w + 2;
+    const x = leftOriginX - leftOffset;
+    const isOuter = i === platesPerSide.length - 1;
+    renderedLeftPlates.push({ lbs, i, x, isOuter, ...spec });
+  }
+
+  let rightOffset = 0;
+  const renderedRightPlates = [];
+  for (let i = 0; i < platesPerSide.length; i++) {
+    const lbs = platesPerSide[i];
+    const spec = getPlateSpecs(lbs);
+    const x = rightOriginX + rightOffset + 2;
+    rightOffset += spec.w + 2;
+    const isOuter = i === platesPerSide.length - 1;
+    renderedRightPlates.push({ lbs, i, x, isOuter, ...spec });
+  }
+
+  return { renderedLeftPlates, renderedRightPlates };
+}
 
 /** Boceto 3D interactivo para la máquina de remo con soporte en pecho y carga de discos */
 function PlateMachineStage({
@@ -35,78 +113,16 @@ function PlateMachineStage({
   onRemoveOuter: () => void;
   pulse: boolean;
 }) {
-  const getPlateSpecs = (lbs: number) => {
-    switch (lbs) {
-      case 45:
-        return {
-          w: 14,
-          h: 96,
-          fill: "url(#plateGrad45)",
-          stroke: "#555",
-          bevel: "#777",
-          text: "#ffffff",
-        };
-      case 25:
-        return {
-          w: 12,
-          h: 78,
-          fill: "url(#plateGrad25)",
-          stroke: "#3d6494",
-          bevel: "#6d9dd6",
-          text: "#ffffff",
-        };
-      case 10:
-        return {
-          w: 10,
-          h: 60,
-          fill: "url(#plateGrad10)",
-          stroke: "#437e53",
-          bevel: "#74b887",
-          text: "#ffffff",
-        };
-      case 5:
-        return {
-          w: 8,
-          h: 46,
-          fill: "url(#plateGrad5)",
-          stroke: "#9c5d26",
-          bevel: "#e0944e",
-          text: "#ffffff",
-        };
-      default: // 2.5
-        return {
-          w: 7,
-          h: 36,
-          fill: "url(#plateGrad2)",
-          stroke: "#727d91",
-          bevel: "#b7c1d1",
-          text: "#ffffff",
-        };
-    }
-  };
-
   const sleeveLength = 95;
   const leftOriginX = 142;
   const rightOriginX = 278;
   const sleeveY = 105;
 
-  let leftOffset = 0;
-  const renderedLeftPlates = platesPerSide.map((lbs, i) => {
-    const spec = getPlateSpecs(lbs);
-    leftOffset += spec.w + 2;
-    const x = leftOriginX - leftOffset;
-    const isOuter = i === platesPerSide.length - 1;
-    return { lbs, i, x, isOuter, ...spec };
-  });
-
-  let rightOffset = 0;
-  const renderedRightPlates = platesPerSide.map((lbs, i) => {
-    const spec = getPlateSpecs(lbs);
-    const x = rightOriginX + rightOffset + 2;
-    rightOffset += spec.w + 2;
-    const isOuter = i === platesPerSide.length - 1;
-    return { lbs, i, x, isOuter, ...spec };
-  });
+  const { renderedLeftPlates, renderedRightPlates } = computeRenderedPlates(
+    platesPerSide,
+    leftOriginX,
+    rightOriginX,
+  );
 
   return (
     <div className={`bb-machine-stage ${pulse ? "is-pulse" : ""}`}>
@@ -435,10 +451,13 @@ export function BarbellPlatePicker({
   valueKg,
   onConfirm,
   onClose,
+  onSwitchToManual,
 }: Props) {
   const [platesPerSide, setPlatesPerSide] = useState<number[]>([]);
   const [pulse, setPulse] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualKgInput, setManualKgInput] = useState("");
 
   const isMachine = isPlateMachineExercise(exercise);
   const baseLbs = getBaseEquipmentLbs(exercise);
@@ -451,7 +470,17 @@ export function BarbellPlatePicker({
           ? nearestPlateLoad(valueKg, baseLbs)
           : emptyBarbellLoad(baseLbs);
       setPlatesPerSide(load.platesPerSide);
+      setManualMode(false);
+      setManualKgInput(valueKg ? formatBarbellTriggerKg(valueKg) : "");
     }
+  }
+
+  function handleManualConfirm() {
+    const val = parseDecimal(manualKgInput);
+    if (!isValidWeight(val)) return;
+    onConfirm(val);
+    onSwitchToManual?.();
+    onClose();
   }
 
   const load = buildBarbellLoad(platesPerSide, baseLbs);
@@ -622,9 +651,70 @@ export function BarbellPlatePicker({
             </div>
           </div>
 
+          {manualMode ? (
+            <div className="stack-picker-manual-panel">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  {isMachine ? "Peso manual (otra máquina)" : "Peso manual (otra barra)"}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs text-[var(--accent)] hover:underline font-medium cursor-pointer"
+                  onClick={() => setManualMode(false)}
+                >
+                  {isMachine ? "Volver a discos" : "Volver a barra"}
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    autoFocus
+                    placeholder="Ej. 65"
+                    value={manualKgInput}
+                    onChange={(e) => setManualKgInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleManualConfirm();
+                      }
+                    }}
+                    className="field text-center text-lg font-bold w-full pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--muted)]">
+                    kg
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary px-4 shrink-0 font-semibold text-xs sm:text-sm"
+                  disabled={!isValidWeight(parseDecimal(manualKgInput))}
+                  onClick={handleManualConfirm}
+                >
+                  Usar {isValidWeight(parseDecimal(manualKgInput)) && parseDecimal(manualKgInput) > 0 ? `${parseDecimal(manualKgInput)} kg` : "peso"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="bb-picker-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancelar
+            </button>
+            <button
+              type="button"
+              className={`btn btn-ghost border-white/15 hover:border-[var(--accent)] hover:text-white ${manualMode ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/15" : "text-[var(--ink)]"}`}
+              onClick={() => {
+                if (!manualMode) {
+                  setManualKgInput(load.totalKg > 0 ? formatBarbellTriggerKg(load.totalKg) : "");
+                  setManualMode(true);
+                } else {
+                  setManualMode(false);
+                }
+              }}
+            >
+              Peso manual
             </button>
             <button
               type="button"

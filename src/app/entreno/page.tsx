@@ -32,7 +32,6 @@ import {
 import {
   DAY_OPTIONS,
   getDayLabel,
-  getExercisesForDay,
   type ArmFocus,
   type DayType,
 } from "@/lib/routines";
@@ -92,7 +91,6 @@ function ExerciseBlock({
   const [weightKg, setWeightKg] = useState(last?.weightKg ?? "");
   const [reps, setReps] = useState(last?.reps ?? "");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [manualKg, setManualKg] = useState(false);
   const lastKey = last?.key ?? "";
   const [syncedKey, setSyncedKey] = useState(lastKey);
 
@@ -248,7 +246,7 @@ function ExerciseBlock({
             <label className="label text-center" title={load.detail}>
               kg · {load.short}
             </label>
-            {useVisualPicker && !manualKg ? (
+            {useVisualPicker ? (
               <button
                 type="button"
                 className="field stack-kg-trigger"
@@ -311,30 +309,6 @@ function ExerciseBlock({
             +
           </button>
         </div>
-        {useVisualPicker ? (
-          <div className="text-center">
-            <button
-              type="button"
-              className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
-              onClick={() => {
-                setManualKg((v) => !v);
-                setPickerOpen(false);
-              }}
-            >
-              {manualKg
-                ? useDumbbellPicker
-                  ? "Usar mancuernas"
-                  : useBarbellPicker
-                    ? isPlateMachineExercise(exercise)
-                      ? "Usar discos"
-                      : "Usar barra"
-                    : useEzBarPicker
-                      ? "Usar barra Z"
-                      : "Usar placas"
-                : "Escribir kg"}
-            </button>
-          </div>
-        ) : null}
       </div>
 
       {stackConfig ? (
@@ -346,7 +320,6 @@ function ExerciseBlock({
           onConfirm={(kg) => {
             setWeightKg(formatStackKg(kg));
             setPickerOpen(false);
-            setManualKg(false);
           }}
         />
       ) : null}
@@ -360,7 +333,6 @@ function ExerciseBlock({
           onConfirm={(kg) => {
             setWeightKg(formatStackKg(kg));
             setPickerOpen(false);
-            setManualKg(false);
           }}
         />
       ) : null}
@@ -374,7 +346,6 @@ function ExerciseBlock({
           onConfirm={(kg) => {
             setWeightKg(formatStackKg(kg));
             setPickerOpen(false);
-            setManualKg(false);
           }}
         />
       ) : null}
@@ -388,7 +359,6 @@ function ExerciseBlock({
           onConfirm={(kg) => {
             setWeightKg(formatStackKg(kg));
             setPickerOpen(false);
-            setManualKg(false);
           }}
         />
       ) : null}
@@ -552,13 +522,13 @@ function EntrenoForm() {
     height: number;
   } | null>(null);
   const [dragCurrentY, setDragCurrentY] = useState<number>(0);
+  const [dragOffsetY, setDragOffsetY] = useState<number>(0);
 
   // Refs de estado para callbacks síncronos en animación frame y eventos globales
   const dragClientYRef = useRef<number>(0);
   const isDraggingActiveRef = useRef<boolean>(false);
   const draggingIndexRef = useRef<number | null>(null);
   const targetIndexRef = useRef<number | null>(null);
-  const pointerOffsetInCard = useRef<number>(0);
   const autoScrollRaf = useRef<number | null>(null);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -678,7 +648,7 @@ function EntrenoForm() {
         width: rect.width,
         height: rect.height,
       });
-      pointerOffsetInCard.current = e.clientY - rect.top;
+      setDragOffsetY(e.clientY - rect.top);
     }
 
     isDraggingActiveRef.current = true;
@@ -1160,7 +1130,7 @@ function EntrenoForm() {
             <div
               className="fixed pointer-events-none z-50 transition-none"
               style={{
-                top: Math.max(60, Math.min(window.innerHeight - 120, dragCurrentY - pointerOffsetInCard.current)),
+                top: Math.max(60, Math.min(window.innerHeight - 120, dragCurrentY - dragOffsetY)),
                 left: dragCardRect.left,
                 width: dragCardRect.width,
                 transform: "scale(0.96)",
