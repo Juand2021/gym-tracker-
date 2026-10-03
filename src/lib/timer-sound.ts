@@ -82,6 +82,7 @@ function attachGlobalAudioKeepAlive() {
           void audioCtx.resume();
         }
       }
+      flushPendingAlarm();
     } catch {
       // Ignorar
     }
@@ -138,69 +139,203 @@ export function playTickSound() {
   }
 }
 
-/**
- * Alarma enérgica, potente y nítida de finalización de descanso.
- * Diseñada para cortar el ruido ambiente del gimnasio y ser audible en altavoces de iPhone.
- */
-export function playAlarmSound() {
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
+/* ------------------------------------------------------------------ */
+/* Alarma de fin de descanso                                           */
+/* ------------------------------------------------------------------ */
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const state = ctx.state as any;
-    if (state === "suspended" || state === "interrupted") {
-      void ctx.resume();
+/** Secuencia de una ráfaga (segundos relativos al inicio de la ráfaga). */
+const ALARM_NOTES = [
+  { freq: 880, start: 0, duration: 0.12 }, // A5
+  { freq: 1174.66, start: 0.14, duration: 0.12 }, // D6
+  { freq: 1760, start: 0.28, duration: 0.35 }, // A6
+  { freq: 880, start: 0.68, duration: 0.12 },
+  { freq: 1174.66, start: 0.82, duration: 0.12 },
+  { freq: 1760, start: 0.96, duration: 0.38 },
+  { freq: 1046.5, start: 1.45, duration: 0.12 }, // C6
+  { freq: 1318.51, start: 1.59, duration: 0.12 }, // E6
+  { freq: 2093, start: 1.73, duration: 0.55 }, // C7
+];
+
+/** Ráfagas que suena la alarma y separación entre ellas (≈ 10 s en total). */
+export const ALARM_BURSTS = 4;
+export const ALARM_BURST_GAP_SECONDS = 2.4;
+
+/** Tolerancia para considerar que la alarma pre-programada ya está sonando a tiempo. */
+const ON_TIME_TOLERANCE_SECONDS = 0.6;
+
+type ScheduledAlarm = {
+  /** Instante en el reloj de audio (ctx.currentTime) en que arranca la alarma. */
+  at: number;
+  nodes: AudioScheduledSourceNode[];
+};
+
+let scheduledAlarm: ScheduledAlarm | null = null;
+/** La alarma debía sonar pero iOS no dejó reactivar el audio: suena en el próximo toque. */
+let pendingAlarm = false;
+/** Fin del descanso (Date.now()) para re-programar si el reloj de audio se desfasó. */
+let pendingScheduleWallMs: number | null = null;
+
+function isRunning(ctx: AudioContext): boolean {
+  return ctx.state === "running";
+}
+
+function stopNodes(nodes: AudioScheduledSourceNode[]) {
+  for (const node of nodes) {
+    try {
+      node.stop();
+    } catch {
+      // Ya detenido
     }
+    try {
+      node.disconnect();
+    } catch {
+      // Ignorar
+    }
+  }
+}
 
-    const now = ctx.currentTime;
+/** Programa las ráfagas de alarma en el reloj de audio a partir de `at`. */
+function scheduleAlarmBursts(ctx: AudioContext, at: number): ScheduledAlarm {
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.setValueAtTime(-10, at);
+  compressor.knee.setValueAtTime(4, at);
+  compressor.ratio.setValueAtTime(6, at);
+  compressor.attack.setValueAtTime(0.003, at);
+  compressor.release.setValueAtTime(0.12, at);
+  compressor.connect(ctx.destination);
 
-    // Compresor de dinámica para maximizar volumen y presencia sin saturar
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.setValueAtTime(-10, now);
-    compressor.knee.setValueAtTime(4, now);
-    compressor.ratio.setValueAtTime(6, now);
-    compressor.attack.setValueAtTime(0.003, now);
-    compressor.release.setValueAtTime(0.12, now);
-    compressor.connect(ctx.destination);
-
-    // Secuencia melódica brillante en 3 ráfagas ricas en armónicos
-    const notes = [
-      { freq: 880, start: 0, duration: 0.12 }, // A5
-      { freq: 1174.66, start: 0.14, duration: 0.12 }, // D6
-      { freq: 1760, start: 0.28, duration: 0.35 }, // A6
-      // Segunda ráfaga
-      { freq: 880, start: 0.68, duration: 0.12 },
-      { freq: 1174.66, start: 0.82, duration: 0.12 },
-      { freq: 1760, start: 0.96, duration: 0.38 },
-      // Tercera ráfaga triunfal
-      { freq: 1046.5, start: 1.45, duration: 0.12 }, // C6
-      { freq: 1318.51, start: 1.59, duration: 0.12 }, // E6
-      { freq: 2093, start: 1.73, duration: 0.55 }, // C7
-    ];
-
-    for (const note of notes) {
+  const nodes: AudioScheduledSourceNode[] = [];
+  for (let burst = 0; burst < ALARM_BURSTS; burst++) {
+    const burstAt = at + burst * ALARM_BURST_GAP_SECONDS;
+    for (const note of ALARM_NOTES) {
+      const t0 = burstAt + note.start;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(note.freq, now + note.start);
-
-      gain.gain.setValueAtTime(0, now + note.start);
-      gain.gain.linearRampToValueAtTime(0.7, now + note.start + 0.015);
-      gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        now + note.start + note.duration,
-      );
+      osc.frequency.setValueAtTime(note.freq, t0);
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.7, t0 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + note.duration);
 
       osc.connect(gain);
       gain.connect(compressor);
-
-      osc.start(now + note.start);
-      osc.stop(now + note.start + note.duration);
+      osc.start(t0);
+      osc.stop(t0 + note.duration);
+      nodes.push(osc);
     }
-  } catch {
-    // Ignorar si el navegador bloquea audio en segundo plano
+  }
+
+  // Liberar el compresor cuando termina la última nota
+  nodes[nodes.length - 1].onended = () => {
+    try {
+      compressor.disconnect();
+    } catch {
+      // Ignorar
+    }
+  };
+
+  return { at, nodes };
+}
+
+/** Cancela la alarma pre-programada (pausa, reinicio o cambio de tiempo). */
+export function cancelScheduledAlarm() {
+  pendingScheduleWallMs = null;
+  if (!scheduledAlarm) return;
+  stopNodes(scheduledAlarm.nodes);
+  scheduledAlarm = null;
+}
+
+/**
+ * Pre-programa la alarma para que suene exactamente cuando el descanso
+ * termine (`endWallMs`, en Date.now()). Al vivir en el reloj de audio, suena a
+ * tiempo aunque el navegador frene los temporizadores de JavaScript.
+ * Llamar desde un gesto del usuario (Iniciar / Reanudar / +tiempo).
+ */
+export function scheduleAlarmAt(endWallMs: number) {
+  cancelScheduledAlarm();
+  pendingScheduleWallMs = endWallMs;
+
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const schedule = () => {
+    if (pendingScheduleWallMs !== endWallMs) return; // Cancelada o reemplazada
+    const secondsLeft = (endWallMs - Date.now()) / 1000;
+    if (secondsLeft <= 0) return; // El respaldo por JS se encarga
+    scheduledAlarm = scheduleAlarmBursts(ctx, ctx.currentTime + secondsLeft);
+  };
+
+  if (isRunning(ctx)) {
+    schedule();
+  } else {
+    ctx.resume().then(schedule).catch(() => {});
+  }
+}
+
+/**
+ * Re-sincroniza la alarma pre-programada con el reloj real. Necesario al
+ * volver a la app: si iOS suspendió el audio, el reloj de audio quedó atrasado.
+ */
+export function resyncScheduledAlarm() {
+  if (pendingScheduleWallMs != null && pendingScheduleWallMs > Date.now()) {
+    scheduleAlarmAt(pendingScheduleWallMs);
+  }
+}
+
+function playAlarmNowOn(ctx: AudioContext) {
+  pendingAlarm = false;
+  if (scheduledAlarm) stopNodes(scheduledAlarm.nodes);
+  scheduledAlarm = scheduleAlarmBursts(ctx, ctx.currentTime + 0.03);
+}
+
+/**
+ * Garantiza que la alarma suene ahora. Si la versión pre-programada ya está
+ * sonando a tiempo no la duplica; si el audio está bloqueado, queda pendiente
+ * y suena con el siguiente toque en pantalla.
+ */
+export function playAlarmSound() {
+  pendingScheduleWallMs = null;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  if (isRunning(ctx)) {
+    // El reloj de audio solo avanza mientras suena: si ya pasó `at`, la alarma
+    // pre-programada sonó (o está sonando). Si quedó en el futuro, el audio
+    // estuvo suspendido (pantalla bloqueada) y hay que sonar ya.
+    if (scheduledAlarm && ctx.currentTime >= scheduledAlarm.at - ON_TIME_TOLERANCE_SECONDS) return;
+    playAlarmNowOn(ctx);
+    return;
+  }
+
+  pendingAlarm = true;
+  ctx
+    .resume()
+    .then(() => {
+      if (pendingAlarm && isRunning(ctx)) playAlarmNowOn(ctx);
+    })
+    .catch(() => {});
+}
+
+/** Detiene de inmediato cualquier alarma sonando, programada o pendiente. */
+export function stopAlarmSound() {
+  pendingAlarm = false;
+  cancelScheduledAlarm();
+}
+
+/** Usado por los listeners de toque: si la alarma quedó bloqueada, suena ahora. */
+function flushPendingAlarm() {
+  if (!pendingAlarm || !audioCtx) return;
+  const ctx = audioCtx;
+  if (isRunning(ctx)) {
+    playAlarmNowOn(ctx);
+  } else {
+    ctx
+      .resume()
+      .then(() => {
+        if (pendingAlarm && isRunning(ctx)) playAlarmNowOn(ctx);
+      })
+      .catch(() => {});
   }
 }
 

@@ -2,29 +2,69 @@
 
 import {
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { PickerPortal } from "@/components/PickerPortal";
 import { MAX_TIMER_SECONDS, useRestTimer } from "@/context/RestTimerContext";
+import { formatTimerDisplay, hueForFraction } from "@/lib/rest-timer";
 
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+/* Geometría del dial (unidades SVG) */
+const SIZE = 300;
+const C = SIZE / 2;
+const R = 112;
+const STROKE = 12;
+const CIRC = 2 * Math.PI * R;
+const LIQUID_R = R - STROKE / 2 - 9;
+/** Tono del modo "ajustar" (naranja de la marca). */
+const IDLE_HUE = 16;
+const ALARM_HUE = 2;
+const SNAP = 5;
+
+/** Desplazamiento del arco y nivel del líquido para `seconds` en la escala del dial. */
+function dialGeometry(seconds: number) {
+  const ratio = Math.min(1, Math.max(0, seconds / MAX_TIMER_SECONDS));
+  return {
+    offset: CIRC * (1 - ratio),
+    angle: ratio * 360,
+    liquidY: C + LIQUID_R - ratio * LIQUID_R * 2,
+  };
 }
 
-const PRESETS = [
-  { label: "30s", seconds: 30 },
-  { label: "45s", seconds: 45 },
-  { label: "1:00", seconds: 60 },
-  { label: "1:30", seconds: 90 },
-  { label: "2:00", seconds: 120 },
-  { label: "2:30", seconds: 150 },
-  { label: "3:00", seconds: 180 },
-];
+/** Marcas cada 5 s; mayores cada 30 s. */
+const TICKS = Array.from({ length: MAX_TIMER_SECONDS / SNAP }, (_, i) => {
+  const seconds = (i + 1) * SNAP;
+  const rad = ((seconds / MAX_TIMER_SECONDS) * 360 - 90) * (Math.PI / 180);
+  const major = seconds % 30 === 0;
+  const r1 = R + STROKE / 2 + 5;
+  const r2 = r1 + (major ? 7 : 3.5);
+  return {
+    seconds,
+    major,
+    x1: C + r1 * Math.cos(rad),
+    y1: C + r1 * Math.sin(rad),
+    x2: C + r2 * Math.cos(rad),
+    y2: C + r2 * Math.sin(rad),
+  };
+});
+
+/** Ola del líquido: dos periodos para poder desplazarla en bucle. */
+const WAVE_W = LIQUID_R * 2;
+function wavePath(amplitude: number): string {
+  const x0 = C - LIQUID_R;
+  const seg = WAVE_W / 2;
+  let d = `M ${x0 - WAVE_W} 0`;
+  for (let k = -2; k < 4; k++) {
+    const xs = x0 + k * seg;
+    d += ` Q ${xs + seg / 2} ${k % 2 === 0 ? -amplitude : amplitude} ${xs + seg} 0`;
+  }
+  return `${d} V ${LIQUID_R * 2 + 20} H ${x0 - WAVE_W} Z`;
+}
+const WAVE_A = wavePath(6);
+const WAVE_B = wavePath(4);
 
 export function RestTimerModal() {
   const {
@@ -34,6 +74,8 @@ export function RestTimerModal() {
     remainingSeconds,
     status,
     isAlarmActive,
+    endsAt,
+    runTotalSeconds,
     start,
     pause,
     resume,
@@ -44,478 +86,347 @@ export function RestTimerModal() {
   } = useRestTimer();
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const arcRef = useRef<SVGCircleElement>(null);
+  const glowRef = useRef<SVGCircleElement>(null);
+  const knobRef = useRef<SVGGElement>(null);
+  const liquidRef = useRef<SVGGElement>(null);
   const lastEmittedRef = useRef<number>(targetSeconds);
+  const [isDragging, setIsDragging] = useState(false);
+  /** Ref además del estado: los eventos llegan antes de que React re-renderice. */
+  const draggingRef = useRef(false);
 
-  // Radio y centros del dial circular
-  const size = 280;
-  const center = size / 2;
-  const radius = 108;
-  const strokeWidth = 14;
-  const circumference = 2 * Math.PI * radius;
-
-  // Valor a graficar en el dial: durante la cuenta regresiva muestra el remanente; en idle/pause muestra el target
-  const displaySeconds =
-    status === "running" || status === "completed"
+  const live = status === "running" && endsAt != null && !isAlarmActive;
+  const displaySeconds = isAlarmActive
+    ? 0
+    : status === "running" || status === "completed" || status === "paused"
       ? remainingSeconds
       : targetSeconds;
+  const isFinal = live && remainingSeconds <= 5 && remainingSeconds > 0;
 
-  const currentSecondsForDial = isAlarmActive ? 0 : displaySeconds;
-  const progressRatio = Math.min(1, Math.max(0, currentSecondsForDial / MAX_TIMER_SECONDS));
-  const strokeDashoffset = circumference - progressRatio * circumference;
+  // Valores estáticos (ajustar / pausa / alarma). Mientras corre, los escribe el bucle rAF.
+  const staticGeo = dialGeometry(displaySeconds);
+  const staticHue = isAlarmActive
+    ? ALARM_HUE
+    : status === "paused"
+      ? hueForFraction(remainingSeconds / Math.max(1, runTotalSeconds))
+      : IDLE_HUE;
 
-  // Ángulo del puntero/manecilla en grados (0° arriba a las 12)
-  const knobAngleDeg = progressRatio * 360 - 90;
-  const knobAngleRad = (knobAngleDeg * Math.PI) / 180;
-  const knobX = center + radius * Math.cos(knobAngleRad);
-  const knobY = center + radius * Math.sin(knobAngleRad);
-
-  const calculateSecondsFromPointer = useCallback(
-    (clientX: number, clientY: number): number => {
-      const svg = svgRef.current;
-      if (!svg) return targetSeconds;
-      const rect = svg.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-
-      const dx = clientX - cx;
-      const dy = clientY - cy;
-
-      let angleRad = Math.atan2(dy, dx);
-      let angleDeg = (angleRad * 180) / Math.PI + 90;
-      if (angleDeg < 0) angleDeg += 360;
-
-      // Calcular segundos redondeando a múltiplos de 5 segundos
-      const rawSec = (angleDeg / 360) * MAX_TIMER_SECONDS;
-      const snappedSec = Math.round(rawSec / 5) * 5;
-      return Math.min(MAX_TIMER_SECONDS, Math.max(5, snappedSec));
-    },
-    [targetSeconds],
-  );
-
-  const handlePointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (isAlarmActive) return;
-    setIsDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const newSec = calculateSecondsFromPointer(e.clientX, e.clientY);
-    lastEmittedRef.current = newSec;
-    setDuration(newSec, false);
-    if (status === "running") {
-      start(newSec);
-    }
-  };
-
-  const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (!isDragging || isAlarmActive) return;
-    const newSec = calculateSecondsFromPointer(e.clientX, e.clientY);
-    if (newSec !== lastEmittedRef.current) {
-      lastEmittedRef.current = newSec;
-      setDuration(newSec, false);
-      if (status === "running") {
-        start(newSec);
-      }
-    }
-  };
-
-  const handlePointerUp = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (isDragging) {
-      setIsDragging(false);
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {
-        // Ignorar
-      }
-    }
-  };
-
-  // Generar marcas radiales para el termómetro / dial (cada 15s)
-  const ticks = PRESETS.map((p) => {
-    const ratio = p.seconds / MAX_TIMER_SECONDS;
-    const deg = ratio * 360 - 90;
-    const rad = (deg * Math.PI) / 180;
-    const innerR = radius - 16;
-    const outerR = radius - 6;
-    const x1 = center + innerR * Math.cos(rad);
-    const y1 = center + innerR * Math.sin(rad);
-    const x2 = center + outerR * Math.cos(rad);
-    const y2 = center + outerR * Math.sin(rad);
-    return {
-      label: p.label,
-      seconds: p.seconds,
-      x1,
-      y1,
-      x2,
-      y2,
-      active: p.seconds <= currentSecondsForDial,
+  // Bucle de animación: actualiza arco, perilla, líquido y color a 60 fps sin re-renderizar React.
+  useLayoutEffect(() => {
+    if (!isOpen || !live || endsAt == null) return;
+    let raf = 0;
+    const frame = () => {
+      const secs = Math.max(0, (endsAt - Date.now()) / 1000);
+      const geo = dialGeometry(secs);
+      arcRef.current?.setAttribute("stroke-dashoffset", String(geo.offset));
+      glowRef.current?.setAttribute("stroke-dashoffset", String(geo.offset));
+      knobRef.current?.setAttribute("transform", `rotate(${geo.angle} ${C} ${C})`);
+      liquidRef.current?.setAttribute("transform", `translate(0 ${geo.liquidY})`);
+      sheetRef.current?.style.setProperty(
+        "--rt-hue",
+        String(hueForFraction(secs / Math.max(1, runTotalSeconds))),
+      );
+      if (secs > 0) raf = requestAnimationFrame(frame);
     };
-  });
+    frame();
+    return () => cancelAnimationFrame(raf);
+    // remainingSeconds: re-sincroniza cada segundo aunque el navegador frene rAF
+  }, [isOpen, live, endsAt, runTotalSeconds, remainingSeconds]);
+
+  const secondsFromPointer = useCallback((clientX: number, clientY: number, guardWrap: boolean): number => {
+    const svg = svgRef.current;
+    if (!svg) return lastEmittedRef.current;
+    const rect = svg.getBoundingClientRect();
+    const dx = clientX - (rect.left + rect.width / 2);
+    const dy = clientY - (rect.top + rect.height / 2);
+    let deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+    if (deg < 0) deg += 360;
+    let sec = Math.round(((deg / 360) * MAX_TIMER_SECONDS) / SNAP) * SNAP;
+
+    // Evitar el salto 3:00 → 0:05 (y viceversa) al cruzar las 12 en punto
+    if (guardWrap) {
+      const prev = lastEmittedRef.current;
+      if (prev >= MAX_TIMER_SECONDS - 30 && sec <= 30) sec = MAX_TIMER_SECONDS;
+      else if (prev <= 30 && sec >= MAX_TIMER_SECONDS - 30) sec = SNAP;
+    }
+    return Math.min(MAX_TIMER_SECONDS, Math.max(SNAP, sec));
+  }, []);
+
+  function applySeconds(sec: number) {
+    if (sec === lastEmittedRef.current) return;
+    lastEmittedRef.current = sec;
+    setDuration(sec, false);
+    if (status === "running") start(sec);
+  }
+
+  const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+    if (isAlarmActive) return;
+    draggingRef.current = true;
+    setIsDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    lastEmittedRef.current = displaySeconds;
+    // Un toque salta directo al punto tocado; el arrastre luego protege el cruce de las 12.
+    applySeconds(secondsFromPointer(e.clientX, e.clientY, false));
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    if (!draggingRef.current || isAlarmActive) return;
+    applySeconds(secondsFromPointer(e.clientX, e.clientY, true));
+  };
+
+  const onPointerUp = (e: ReactPointerEvent<SVGSVGElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setIsDragging(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const statusLabel = isAlarmActive
+    ? "¡Listo!"
+    : status === "running"
+      ? "Descanso"
+      : status === "paused"
+        ? "Pausa"
+        : "Desliza para ajustar";
+  const timeText = formatTimerDisplay(displaySeconds);
 
   return (
     <PickerPortal open={isOpen}>
       <div
-        className={`stack-picker-overlay rest-timer-overlay ${
-          isAlarmActive ? "is-alarm-strobe" : ""
-        }`}
+        className={`stack-picker-overlay rt-overlay ${isAlarmActive ? "is-alarm" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Temporizador de descanso entre series"
         onClick={closeModal}
       >
         <div
-          className={`rest-timer-sheet ${
-            isAlarmActive ? "is-alarm-active" : ""
-          } flex max-h-[92dvh] w-full max-w-sm flex-col overflow-hidden p-0`}
+          ref={sheetRef}
+          className={`rt-sheet ${isAlarmActive ? "is-alarm" : ""} ${isFinal ? "is-final" : ""} ${isDragging ? "is-dragging" : ""}`}
+          style={live ? undefined : ({ "--rt-hue": staticHue } as CSSProperties)}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Luces estrambóticas de fondo cuando termina el tiempo */}
-          {isAlarmActive && (
-            <div className="rest-timer-strobe-bg" aria-hidden="true">
-              <div className="strobe-ring strobe-ring-1" />
-              <div className="strobe-ring strobe-ring-2" />
-              <div className="strobe-ring strobe-ring-3" />
-              <div className="strobe-flash-overlay" />
-            </div>
-          )}
+          <span className="rt-aura" aria-hidden />
 
-          {/* Header */}
-          <div className="relative z-10 flex items-center justify-between border-b border-[var(--glass-stroke)] px-5 py-3.5">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent)] shadow-[0_0_12px_rgba(255,77,26,0.35)]">
-                <svg
-                  className="h-4 w-4 text-[var(--accent)]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="13" r="8" />
-                  <path d="M12 9v4l2 2" />
-                  <path d="M10 2h4" />
-                </svg>
-              </span>
-              <div>
-                <p className="label mb-0 text-[10px] font-bold tracking-[0.14em] text-[var(--accent)]">
-                  ENTRE SERIES
-                </p>
-                <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em] text-[var(--ink)]">
-                  Cronómetro
-                </h2>
-              </div>
+          {/* Encabezado */}
+          <div className="rt-head">
+            <div>
+              <p className="rt-kicker">Entre series</p>
+              <h2 className="rt-title">Cronómetro</h2>
             </div>
-
-            <button
-              type="button"
-              className="stack-picker-close flex h-8 w-8 items-center justify-center rounded-full text-sm transition-transform active:scale-95"
-              onClick={closeModal}
-              aria-label="Cerrar"
-            >
+            <button type="button" className="rt-icon-btn" onClick={closeModal} aria-label="Cerrar">
               ✕
             </button>
           </div>
 
-          {/* Banner de alarma de descanso terminado */}
-          {isAlarmActive && (
-            <div className="relative z-10 animate-bounce bg-gradient-to-r from-red-600 via-amber-500 to-orange-500 px-4 py-2.5 text-center text-white shadow-lg">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] drop-shadow-md">
-                TIEMPO CUMPLIDO
-              </p>
-              <p className="text-sm font-extrabold tracking-wide drop-shadow">
-                INICIAR SIGUIENTE SERIE
-              </p>
+          {isAlarmActive ? (
+            <div className="rt-banner" role="status">
+              <span>Tiempo cumplido</span>
+              <strong>¡A la siguiente serie!</strong>
             </div>
-          )}
+          ) : null}
 
-          {/* Contenedor central con la rueda interactiva */}
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-4">
-            <div className="relative flex items-center justify-center">
-              {/* Dial SVG interactivo */}
-              <svg
-                ref={svgRef}
-                width={size}
-                height={size}
-                viewBox={`0 0 ${size} ${size}`}
-                className="cursor-pointer touch-none select-none transition-transform active:scale-[0.99]"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                <defs>
-                  {/* Gradiente de arco activo */}
-                  <linearGradient
-                    id="timerArcGradient"
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="100%"
-                  >
-                    <stop offset="0%" stopColor="#ff7b39" />
-                    <stop offset="50%" stopColor="#ff4d1a" />
-                    <stop offset="100%" stopColor="#ff2200" />
-                  </linearGradient>
+          {/* Dial */}
+          <div className="rt-dial-wrap">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${SIZE} ${SIZE}`}
+              className="rt-dial"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              role="slider"
+              aria-label="Duración del descanso"
+              aria-valuemin={SNAP}
+              aria-valuemax={MAX_TIMER_SECONDS}
+              aria-valuenow={displaySeconds}
+              aria-valuetext={timeText}
+            >
+              <defs>
+                <linearGradient id="rt-arc" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" className="rt-stop-a" />
+                  <stop offset="100%" className="rt-stop-b" />
+                </linearGradient>
+                <radialGradient id="rt-face" cx="0.5" cy="0.3" r="0.75">
+                  <stop offset="0%" stopColor="#fff" stopOpacity="0.1" />
+                  <stop offset="60%" stopColor="#fff" stopOpacity="0.025" />
+                  <stop offset="100%" stopColor="#000" stopOpacity="0.25" />
+                </radialGradient>
+                <linearGradient id="rt-bezel" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#fff" stopOpacity="0.55" />
+                  <stop offset="35%" stopColor="#fff" stopOpacity="0.06" />
+                  <stop offset="70%" stopColor="#fff" stopOpacity="0.03" />
+                  <stop offset="100%" stopColor="#fff" stopOpacity="0.35" />
+                </linearGradient>
+                <clipPath id="rt-liquid-clip">
+                  <circle cx={C} cy={C} r={LIQUID_R} />
+                </clipPath>
+              </defs>
 
-                  {/* Gradiente de brillo del knob */}
-                  <radialGradient id="knobGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="40%" stopColor="#ff7b39" />
-                    <stop offset="100%" stopColor="#ff4d1a" />
-                  </radialGradient>
+              {/* Cara de vidrio */}
+              <circle cx={C} cy={C} r={R + STROKE / 2 + 16} fill="url(#rt-face)" />
+              <circle cx={C} cy={C} r={R + STROKE / 2 + 16} fill="none" stroke="url(#rt-bezel)" strokeWidth="1.2" />
 
-                  {/* Filtro de resplandor neón */}
-                  <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur stdDeviation="5" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-
-                {/* Círculo base de cristal */}
-                <circle
-                  cx={center}
-                  cy={center}
-                  r={radius + 18}
-                  fill="rgba(255, 255, 255, 0.02)"
-                  stroke="rgba(255, 255, 255, 0.08)"
-                  strokeWidth="1"
+              {/* Marcas cada 5 s */}
+              {TICKS.map((t) => (
+                <line
+                  key={t.seconds}
+                  x1={t.x1}
+                  y1={t.y1}
+                  x2={t.x2}
+                  y2={t.y2}
+                  className={`rt-tick ${t.major ? "is-major" : ""} ${t.seconds <= displaySeconds ? "is-on" : ""}`}
                 />
+              ))}
 
-                {/* Pista de fondo del dial */}
-                <circle
-                  cx={center}
-                  cy={center}
-                  r={radius}
-                  fill="none"
-                  stroke="rgba(255, 255, 255, 0.08)"
-                  strokeWidth={strokeWidth}
-                  strokeLinecap="round"
-                />
+              {/* Líquido que baja con el tiempo */}
+              <g clipPath="url(#rt-liquid-clip)">
+                <circle cx={C} cy={C} r={LIQUID_R} className="rt-liquid-bg" />
+                <g ref={liquidRef} className="rt-liquid" transform={live ? undefined : `translate(0 ${staticGeo.liquidY})`}>
+                  <path d={WAVE_B} className="rt-wave rt-wave-b" />
+                  <path d={WAVE_A} className="rt-wave rt-wave-a" />
+                </g>
+                <circle cx={C} cy={C} r={LIQUID_R} fill="none" stroke="#fff" strokeOpacity="0.12" strokeWidth="1" />
+              </g>
+              {/* Reflejo curvo del vidrio sobre el líquido */}
+              <path
+                d={`M ${C - LIQUID_R * 0.72} ${C - LIQUID_R * 0.45} A ${LIQUID_R * 0.85} ${LIQUID_R * 0.85} 0 0 1 ${C + LIQUID_R * 0.2} ${C - LIQUID_R * 0.83}`}
+                className="rt-glare"
+              />
 
-                {/* Marcas radiales tipo termómetro */}
-                {ticks.map((t, idx) => (
-                  <line
-                    key={idx}
-                    x1={t.x1}
-                    y1={t.y1}
-                    x2={t.x2}
-                    y2={t.y2}
-                    stroke={
-                      t.active
-                        ? "rgba(255, 77, 26, 0.85)"
-                        : "rgba(255, 255, 255, 0.18)"
-                    }
-                    strokeWidth={t.active ? 2.5 : 1.5}
-                    strokeLinecap="round"
-                  />
-                ))}
+              {/* Pista y arco */}
+              <circle cx={C} cy={C} r={R} fill="none" className="rt-track" strokeWidth={STROKE} />
+              <circle
+                ref={glowRef}
+                cx={C}
+                cy={C}
+                r={R}
+                fill="none"
+                stroke="url(#rt-arc)"
+                strokeWidth={STROKE + 12}
+                strokeLinecap="round"
+                strokeDasharray={CIRC}
+                strokeDashoffset={live ? undefined : staticGeo.offset}
+                transform={`rotate(-90 ${C} ${C})`}
+                className={live ? "rt-arc-glow" : "rt-arc-glow is-static"}
+              />
+              <circle
+                ref={arcRef}
+                cx={C}
+                cy={C}
+                r={R}
+                fill="none"
+                stroke="url(#rt-arc)"
+                strokeWidth={STROKE}
+                strokeLinecap="round"
+                strokeDasharray={CIRC}
+                strokeDashoffset={live ? undefined : staticGeo.offset}
+                transform={`rotate(-90 ${C} ${C})`}
+                className={live ? "rt-arc" : "rt-arc is-static"}
+              />
 
-                {/* Arco de progreso activo */}
-                <circle
-                  cx={center}
-                  cy={center}
-                  r={radius}
-                  fill="none"
-                  stroke="url(#timerArcGradient)"
-                  strokeWidth={strokeWidth}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  transform={`rotate(-90 ${center} ${center})`}
-                  filter="url(#neonGlow)"
-                  className="transition-[stroke-dashoffset] duration-100 ease-linear"
-                />
+              {/* Onda expansiva en los últimos segundos y en la alarma */}
+              {isFinal ? <circle key={remainingSeconds} cx={C} cy={C} r={R} className="rt-ripple" /> : null}
+              {isAlarmActive ? (
+                <>
+                  <circle cx={C} cy={C} r={R} className="rt-ripple is-loop" />
+                  <circle cx={C} cy={C} r={R} className="rt-ripple is-loop is-delay" />
+                </>
+              ) : null}
 
-                {/* Puntero / Manecilla interactiva (Knob) */}
-                {!isAlarmActive && (
-                  <g
-                    transform={`translate(${knobX}, ${knobY})`}
-                    className="transition-transform duration-75"
-                  >
-                    <circle
-                      r={strokeWidth / 2 + 5}
-                      fill="rgba(255, 77, 26, 0.35)"
-                      className="animate-ping opacity-60"
-                    />
-                    <circle
-                      r={strokeWidth / 2 + 3}
-                      fill="#121212"
-                      stroke="url(#timerArcGradient)"
-                      strokeWidth="2.5"
-                    />
-                    <circle r={strokeWidth / 2 - 2} fill="url(#knobGlow)" />
+              {/* Perilla de vidrio */}
+              {!isAlarmActive ? (
+                <g
+                  ref={knobRef}
+                  transform={live ? undefined : `rotate(${staticGeo.angle} ${C} ${C})`}
+                  className={live ? "rt-knob-rot" : "rt-knob-rot is-static"}
+                >
+                  <g className="rt-knob" style={{ transformOrigin: `${C}px ${C - R}px` }}>
+                    <circle cx={C} cy={C - R} r={15} className="rt-knob-halo" />
+                    <circle cx={C} cy={C - R} r={11} className="rt-knob-glass" />
+                    <circle cx={C} cy={C - R} r={5} className="rt-knob-core" />
+                    <ellipse cx={C - 3} cy={C - R - 4.5} rx={4.5} ry={2.2} fill="#fff" fillOpacity="0.7" />
                   </g>
-                )}
-              </svg>
+                </g>
+              ) : null}
+            </svg>
 
-              {/* Display Digital Central */}
-              <div className="pointer-events-none absolute flex flex-col items-center justify-center text-center">
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${
-                    isAlarmActive
-                      ? "bg-red-500 text-white animate-pulse"
-                      : status === "running"
-                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                      : status === "paused"
-                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                      : "bg-white/10 text-[var(--muted)]"
-                  }`}
-                >
-                  {isAlarmActive
-                    ? "¡LISTO!"
-                    : status === "running"
-                    ? "DESCANSO"
-                    : status === "paused"
-                    ? "PAUSA"
-                    : "AJUSTAR"}
-                </span>
-
-                <span
-                  className={`font-[family-name:var(--font-display)] text-5xl tracking-[0.03em] leading-none my-1.5 ${
-                    isAlarmActive
-                      ? "text-red-400 animate-pulse drop-shadow-[0_0_16px_rgba(255,50,50,0.8)]"
-                      : status === "running"
-                      ? "text-[var(--ink)] drop-shadow-[0_0_12px_rgba(255,77,26,0.5)]"
-                      : "text-[var(--ink)]"
-                  }`}
-                >
-                  {formatTime(displaySeconds)}
-                </span>
-
-                <span className="text-xs font-semibold text-[var(--muted)]">
-                  {displaySeconds} seg {displaySeconds > 0 ? `(máx 3m)` : ""}
-                </span>
-              </div>
-            </div>
-
-            {/* Ajustes rápidos de suma/resta */}
-            <div className="mt-1 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => addTime(-15)}
-                disabled={isAlarmActive || displaySeconds <= 5}
-                className="btn btn-ghost h-8 min-h-0 px-3 text-xs font-bold text-[var(--muted)] hover:text-white active:scale-95 disabled:opacity-40"
-              >
-                -15s
-              </button>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--muted)]/60">
-                Gira la rueda o pulsa
+            {/* Lectura central */}
+            <div className="rt-readout" aria-live="polite">
+              <span className="rt-status">{statusLabel}</span>
+              <span className={`rt-time ${isFinal ? "is-beat" : ""}`} key={isFinal ? remainingSeconds : "t"}>
+                {timeText.split("").map((ch, i) => (
+                  <span key={`${i}-${ch}`} className={ch === ":" ? "rt-colon" : "rt-digit"}>
+                    {ch}
+                  </span>
+                ))}
               </span>
-              <button
-                type="button"
-                onClick={() => addTime(15)}
-                disabled={isAlarmActive || displaySeconds >= MAX_TIMER_SECONDS}
-                className="btn btn-ghost h-8 min-h-0 px-3 text-xs font-bold text-[var(--accent)] hover:text-white active:scale-95 disabled:opacity-40"
-              >
-                +15s
-              </button>
-            </div>
-
-            {/* Chips de tiempos predeterminados */}
-            <div className="no-scrollbar mt-3 flex w-full max-w-xs gap-1.5 overflow-x-auto px-1 py-1">
-              {PRESETS.map((preset) => {
-                const isSelected = targetSeconds === preset.seconds;
-                return (
-                  <button
-                    key={preset.seconds}
-                    type="button"
-                    onClick={() => {
-                      setDuration(preset.seconds, false);
-                      if (status === "running") {
-                        start(preset.seconds);
-                      }
-                    }}
-                    className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold transition-all active:scale-95 ${
-                      isSelected
-                        ? "bg-[var(--accent)] text-white shadow-[0_0_10px_rgba(255,77,26,0.5)] scale-105"
-                        : "bg-[var(--surface-2)] text-[var(--muted)] hover:text-white"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
+              <span className="rt-sub">
+                {status === "idle" ? "máx 3:00" : `de ${formatTimerDisplay(status === "completed" ? targetSeconds : runTotalSeconds)}`}
+              </span>
             </div>
           </div>
 
-          {/* Botones de acción principales */}
-          <div className="border-t border-[var(--glass-stroke)] bg-[var(--surface)]/90 p-4 space-y-2">
+          {/* Ajuste fino */}
+          <div className="rt-fine">
+            <button
+              type="button"
+              className="rt-chip"
+              onClick={() => addTime(-15)}
+              disabled={isAlarmActive || displaySeconds <= SNAP}
+            >
+              −15 s
+            </button>
+            <button
+              type="button"
+              className="rt-chip"
+              onClick={() => addTime(15)}
+              disabled={isAlarmActive || displaySeconds >= MAX_TIMER_SECONDS}
+            >
+              +15 s
+            </button>
+          </div>
+
+          {/* Acciones */}
+          <div className="rt-actions">
             {isAlarmActive ? (
-              <button
-                type="button"
-                onClick={dismissAlarm}
-                className="btn w-full min-h-[3.4rem] bg-red-600 hover:bg-red-500 text-white text-sm font-black uppercase tracking-[0.1em] border border-red-400 shadow-[0_0_24px_rgba(255,50,50,0.85)] animate-pulse active:scale-[0.98]"
-              >
-                DETENER ALARMA Y CONTINUAR
+              <button type="button" onClick={dismissAlarm} className="rt-btn rt-btn-primary rt-btn-alarm">
+                Detener alarma y continuar
               </button>
             ) : status === "running" ? (
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={pause}
-                  className="btn btn-ghost w-full min-h-[3rem] text-xs font-bold uppercase tracking-[0.1em]"
-                >
+                <button type="button" onClick={pause} className="rt-btn">
                   Pausar
                 </button>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="btn btn-ghost w-full min-h-[3rem] text-xs font-bold uppercase tracking-[0.1em] text-red-400 hover:text-red-300"
-                >
+                <button type="button" onClick={reset} className="rt-btn rt-btn-danger">
                   Reiniciar
                 </button>
               </div>
             ) : status === "paused" ? (
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={resume}
-                  className="btn btn-primary w-full min-h-[3rem] text-sm font-bold uppercase tracking-[0.1em]"
-                >
+                <button type="button" onClick={resume} className="rt-btn rt-btn-primary">
                   Reanudar
                 </button>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="btn btn-ghost w-full min-h-[3rem] text-xs font-bold uppercase tracking-[0.1em]"
-                >
+                <button type="button" onClick={reset} className="rt-btn">
                   Reiniciar
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => start(targetSeconds)}
-                className="btn btn-primary w-full min-h-[3.2rem] text-base font-bold uppercase tracking-[0.1em] shadow-[0_0_18px_rgba(255,77,26,0.4)] flex items-center justify-center gap-2"
-              >
-                <svg
-                  className="h-4 w-4 text-white"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="13" r="8" />
-                  <path d="M12 9v4l2 2" />
-                  <path d="M10 2h4" />
-                </svg>
-                <span>Iniciar Descanso ({formatTime(targetSeconds)})</span>
+              <button type="button" onClick={() => start(targetSeconds)} className="rt-btn rt-btn-primary">
+                Iniciar descanso · {formatTimerDisplay(targetSeconds)}
               </button>
             )}
 
-            {!isAlarmActive && (
-              <button
-                type="button"
-                className="btn btn-ghost w-full min-h-[2.4rem] text-[11px] font-semibold text-[var(--muted)] hover:text-white"
-                onClick={closeModal}
-              >
-                {status === "running" ? "Minimizar (Sigue corriendo)" : "Cerrar"}
+            {!isAlarmActive ? (
+              <button type="button" className="rt-link" onClick={closeModal}>
+                {status === "running" ? "Minimizar (sigue corriendo)" : "Cerrar"}
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

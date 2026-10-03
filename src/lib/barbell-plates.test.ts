@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  MACHINE_SLEEVE_CAPACITY,
   OLYMPIC_BAR_LBS,
+  OLYMPIC_SLEEVE_CAPACITY,
   PLATE_LBS,
   addPlate,
   buildBarbellLoad,
   emptyBarbellLoad,
+  getSleeveCapacity,
   hasBarbellPlatePicker,
   lbsToKg,
   nearestPlateLoad,
+  plateFits,
   removeOutermostPlate,
+  sleeveUsed,
   totalKg,
   totalLbs,
 } from "./barbell-plates.ts";
@@ -76,5 +81,26 @@ describe("barbell-plates", () => {
     assert.equal(load.barLbs, 45);
     assert.deepEqual(load.platesPerSide, []);
     assert.equal(load.totalLbs, 45);
+  });
+});
+
+describe("barbell-plates: capacidad de la manga", () => {
+  it("limita discos por lado según la manga", () => {
+    let plates: number[] = [];
+    for (let i = 0; i < 12; i++) plates = addPlate(plates, 45, OLYMPIC_SLEEVE_CAPACITY);
+    assert.equal(plates.length, 7);
+    assert.ok(sleeveUsed(plates) <= OLYMPIC_SLEEVE_CAPACITY);
+    assert.equal(plateFits(plates, 2.5, OLYMPIC_SLEEVE_CAPACITY), false);
+  });
+
+  it("la máquina de remo tiene tubos más cortos", () => {
+    assert.equal(getSleeveCapacity("Remo en máquina con discos"), MACHINE_SLEEVE_CAPACITY);
+    assert.equal(getSleeveCapacity("Press banca"), OLYMPIC_SLEEVE_CAPACITY);
+    const load = nearestPlateLoad(1000, 0, MACHINE_SLEEVE_CAPACITY);
+    assert.ok(sleeveUsed(load.platesPerSide) <= MACHINE_SLEEVE_CAPACITY);
+  });
+
+  it("sin capacidad explícita mantiene el comportamiento anterior", () => {
+    assert.deepEqual(addPlate([45, 45, 45, 45, 45, 45, 45, 45], 45).length, 9);
   });
 });

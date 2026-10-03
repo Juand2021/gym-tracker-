@@ -10,8 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ALARM_BURSTS,
+  ALARM_BURST_GAP_SECONDS,
+  cancelScheduledAlarm,
   playAlarmSound,
   playTickSound,
+  resyncScheduledAlarm,
+  scheduleAlarmAt,
+  stopAlarmSound,
   stopHapticAlarm,
   triggerHapticAlarm,
   triggerHapticTick,
@@ -29,6 +35,10 @@ interface RestTimerContextType {
   remainingSeconds: number;
   status: TimerStatus;
   isAlarmActive: boolean;
+  /** Date.now() en que termina el descanso en curso (null si no corre). */
+  endsAt: number | null;
+  /** Duración total del descanso en curso (s), para la fracción restante. */
+  runTotalSeconds: number;
   start: (seconds?: number) => void;
   pause: () => void;
   resume: () => void;
@@ -54,6 +64,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(() => defaultRestSeconds || 90);
   const [status, setStatus] = useState<TimerStatus>("idle");
   const [isAlarmActive, setIsAlarmActive] = useState(false);
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [runTotalSeconds, setRunTotalSeconds] = useState<number>(() => defaultRestSeconds || 90);
 
   const endTimeRef = useRef<number | null>(null);
   const remainingAtPauseRef = useRef<number>(defaultRestSeconds || 90);
@@ -61,6 +73,27 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wakeLockRef = useRef<any>(null);
+  /** endTime para el que ya sonó la alarma: evita dispararla dos veces. */
+  const firedForEndRef = useRef<number | null>(null);
+  // Ajustes en refs: los intervalos siempre leen el valor actual.
+  const soundRef = useRef(soundEnabled);
+  const hapticsRef = useRef(hapticsEnabled);
+
+  useEffect(() => {
+    soundRef.current = soundEnabled;
+    hapticsRef.current = hapticsEnabled;
+    if (!soundEnabled) cancelScheduledAlarm();
+  }, [soundEnabled, hapticsEnabled]);
+
+  /** Pre-programa el sonido en el reloj de audio para el fin del descanso. */
+  const armAlarm = useCallback((endMs: number) => {
+    if (!soundRef.current) return;
+    try {
+      scheduleAlarmAt(endMs);
+    } catch {
+      // Si falla, el respaldo por JS hace sonar la alarma
+    }
+  }, []);
 
   // Cargar duración preferida guardada
   useEffect(() => {
@@ -116,6 +149,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const stopAlarm = useCallback(() => {
     setIsAlarmActive(false);
+    stopAlarmSound();
     stopHapticAlarm();
     if (alarmIntervalRef.current) {
       clearInterval(alarmIntervalRef.current);
@@ -124,32 +158,56 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const triggerAlarm = useCallback(() => {
+    clearTimerInterval();
+    // El intervalo, visibilitychange y focus pueden llegar a la vez: sonar una sola vez.
+    const endKey = endTimeRef.current ?? -1;
+    if (firedForEndRef.current === endKey) return;
+    firedForEndRef.current = endKey;
+
     setStatus("completed");
     setIsAlarmActive(true);
     setRemainingSeconds(0);
-    clearTimerInterval();
-    unlockAudioContext();
+    setEndsAt(null);
 
-    // Reproducir sonido y vibración si están habilitados en ajustes
-    if (soundEnabled) playAlarmSound();
-    if (hapticsEnabled) triggerHapticAlarm();
-
-    // Ráfagas repetidas cada 2.4s mientras la alarma esté activa (máx 10 seg)
-    let repeats = 0;
-    if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
-    alarmIntervalRef.current = setInterval(() => {
-      repeats++;
-      if (repeats >= 4) {
-        if (alarmIntervalRef.current) {
-          clearInterval(alarmIntervalRef.current);
-          alarmIntervalRef.current = null;
-        }
-      } else {
-        if (soundEnabled) playAlarmSound();
-        if (hapticsEnabled) triggerHapticAlarm();
+    // El sonido ya va pre-programado; esto lo garantiza si se perdió o se desfasó.
+    if (soundRef.current) {
+      try {
+        playAlarmSound();
+      } catch {
+        // Ignorar
       }
-    }, 2400);
-  }, [clearTimerInterval, soundEnabled, hapticsEnabled]);
+    }
+
+    // Vibración (solo Android: iOS Safari no la permite) en las mismas ráfagas que el sonido
+    if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+    alarmIntervalRef.current = null;
+    if (hapticsRef.current) {
+      triggerHapticAlarm();
+      let repeats = 1;
+      alarmIntervalRef.current = setInterval(() => {
+        if (repeats >= ALARM_BURSTS || !hapticsRef.current) {
+          if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+          alarmIntervalRef.current = null;
+          return;
+        }
+        repeats++;
+        triggerHapticAlarm();
+      }, ALARM_BURST_GAP_SECONDS * 1000);
+    }
+  }, [clearTimerInterval]);
+
+  /** Revisa el reloj real; dispara la alarma al llegar a cero. */
+  const tick = useCallback(() => {
+    if (!endTimeRef.current) return;
+    const rem = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+    setRemainingSeconds(rem);
+    if (rem <= 0) triggerAlarm();
+  }, [triggerAlarm]);
+
+  const startTicking = useCallback(() => {
+    clearTimerInterval();
+    timerIntervalRef.current = setInterval(tick, 200);
+  }, [clearTimerInterval, tick]);
 
   // Activar o desactivar Wake Lock según estado y configuración
   useEffect(() => {
@@ -171,15 +229,10 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         }
 
         // Si el temporizador estaba corriendo mientras el usuario estaba en otra app (ej. Spotify),
-        // calcular el tiempo real transcurrido mediante el timestamp final
+        // calcular el tiempo real transcurrido y re-sincronizar el sonido programado
         if (status === "running" && endTimeRef.current) {
-          const diffMs = endTimeRef.current - Date.now();
-          const rem = Math.max(0, Math.ceil(diffMs / 1000));
-          setRemainingSeconds(rem);
-
-          if (rem <= 0) {
-            triggerAlarm();
-          }
+          if (endTimeRef.current > Date.now() && soundRef.current) resyncScheduledAlarm();
+          tick();
         }
       }
     };
@@ -190,7 +243,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleVisibilityChange);
     };
-  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, triggerAlarm]);
+  }, [status, isAlarmActive, wakeLockEnabled, requestWakeLock, tick]);
 
   const start = useCallback(
     (seconds?: number) => {
@@ -208,27 +261,26 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       remainingAtPauseRef.current = duration;
       setStatus("running");
 
-      const now = Date.now();
-      endTimeRef.current = now + duration * 1000;
-
-      timerIntervalRef.current = setInterval(() => {
-        if (!endTimeRef.current) return;
-        const diffMs = endTimeRef.current - Date.now();
-        const rem = Math.max(0, Math.ceil(diffMs / 1000));
-        setRemainingSeconds(rem);
-
-        if (rem <= 0) {
-          triggerAlarm();
-        }
-      }, 100);
+      const endMs = Date.now() + duration * 1000;
+      endTimeRef.current = endMs;
+      firedForEndRef.current = null;
+      setEndsAt(endMs);
+      setRunTotalSeconds(duration);
+      armAlarm(endMs);
+      startTicking();
     },
-    [targetSeconds, clearTimerInterval, stopAlarm, triggerAlarm],
+    [targetSeconds, clearTimerInterval, stopAlarm, armAlarm, startTicking],
   );
 
   const pause = useCallback(() => {
     if (status !== "running") return;
     clearTimerInterval();
-    remainingAtPauseRef.current = remainingSeconds;
+    cancelScheduledAlarm();
+    setEndsAt(null);
+    remainingAtPauseRef.current = endTimeRef.current
+      ? Math.max(1, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+      : remainingSeconds;
+    setRemainingSeconds(remainingAtPauseRef.current);
     setStatus("paused");
   }, [status, remainingSeconds, clearTimerInterval]);
 
@@ -236,20 +288,13 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     if (status !== "paused" || remainingAtPauseRef.current <= 0) return;
     unlockAudioContext();
     setStatus("running");
-    const now = Date.now();
-    endTimeRef.current = now + remainingAtPauseRef.current * 1000;
-
-    timerIntervalRef.current = setInterval(() => {
-      if (!endTimeRef.current) return;
-      const diffMs = endTimeRef.current - Date.now();
-      const rem = Math.max(0, Math.ceil(diffMs / 1000));
-      setRemainingSeconds(rem);
-
-      if (rem <= 0) {
-        triggerAlarm();
-      }
-    }, 100);
-  }, [status, clearTimerInterval, triggerAlarm]);
+    const endMs = Date.now() + remainingAtPauseRef.current * 1000;
+    endTimeRef.current = endMs;
+    firedForEndRef.current = null;
+    setEndsAt(endMs);
+    armAlarm(endMs);
+    startTicking();
+  }, [status, armAlarm, startTicking]);
 
   const reset = useCallback(() => {
     stopAlarm();
@@ -258,6 +303,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setRemainingSeconds(targetSeconds);
     remainingAtPauseRef.current = targetSeconds;
     endTimeRef.current = null;
+    setEndsAt(null);
   }, [targetSeconds, clearTimerInterval, stopAlarm]);
 
   const setDuration = useCallback(
@@ -296,8 +342,11 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
           endTimeRef.current + deltaSeconds * 1000,
         );
         endTimeRef.current = newEnd;
+        setEndsAt(newEnd);
+        armAlarm(newEnd);
         const rem = Math.max(0, Math.ceil((newEnd - Date.now()) / 1000));
         setRemainingSeconds(rem);
+        setRunTotalSeconds((total) => Math.max(total, rem));
       } else {
         const next = Math.min(
           MAX_TIMER_SECONDS,
@@ -306,7 +355,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         setDuration(next, false);
       }
     },
-    [status, targetSeconds, setDuration],
+    [status, targetSeconds, setDuration, armAlarm],
   );
 
   const dismissAlarm = useCallback(() => {
@@ -342,6 +391,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         remainingSeconds,
         status,
         isAlarmActive,
+        endsAt,
+        runTotalSeconds,
         start,
         pause,
         resume,

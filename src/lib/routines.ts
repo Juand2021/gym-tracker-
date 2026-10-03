@@ -56,6 +56,7 @@ const BACK: string[] = [
 ];
 
 const BICEPS: string[] = [
+  "Curl de bíceps con barra Z",
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",

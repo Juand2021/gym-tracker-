@@ -35,6 +35,7 @@ export const DEFAULT_ESPALDA: string[] = [
   "Remo en máquina con discos",
   "Remo unilateral con agarre de polea",
   "Face pull",
+  "Curl de bíceps con barra Z",
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",
@@ -51,6 +52,7 @@ export const DEFAULT_HOMBRO_BICEPS: string[] = [
   "Elevaciones hacia el frente unilaterales con cable",
   "Face-pull o reverse peck deck",
   "Encogimiento de hombros",
+  "Curl de bíceps con barra Z",
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",
@@ -109,7 +111,7 @@ export function loadCustomRoutines(): CustomRoutines {
     const parsed = JSON.parse(raw) as Partial<CustomRoutines>;
 
     const defaults = getDefaultRoutines();
-    return {
+    const routines: CustomRoutines = {
       pecho: Array.isArray(parsed.pecho) && parsed.pecho.length > 0 ? parsed.pecho : defaults.pecho,
       espalda: Array.isArray(parsed.espalda) && parsed.espalda.length > 0 ? parsed.espalda : defaults.espalda,
       hombro_biceps:
@@ -122,9 +124,79 @@ export function loadCustomRoutines(): CustomRoutines {
           : defaults.hombro_triceps,
       pierna: Array.isArray(parsed.pierna) && parsed.pierna.length > 0 ? parsed.pierna : defaults.pierna,
     };
+    return applyNewDefaultExercises(routines);
   } catch {
     return getDefaultRoutines();
   }
+}
+
+/** Ids de ejercicios nuevos que ya se insertaron una vez en las rutinas guardadas. */
+export const ADDED_DEFAULTS_STORAGE_KEY = "fuerza_custom_routines_added_v1";
+
+type NewDefaultExercise = {
+  id: string;
+  exercise: string;
+  slots: Array<keyof CustomRoutines>;
+  /** Se inserta antes de este ejercicio; si no está, va al final. */
+  before: string;
+};
+
+/**
+ * Ejercicios agregados a las rutinas de fábrica después de que el usuario ya
+ * personalizó las suyas. Se insertan una sola vez: si luego los quita, no vuelven.
+ */
+export const NEW_DEFAULT_EXERCISES: NewDefaultExercise[] = [
+  {
+    id: "curl-biceps-barra-z",
+    exercise: "Curl de bíceps con barra Z",
+    slots: ["espalda", "hombro_biceps"],
+    before: "Curl martillo",
+  },
+];
+
+export function insertExerciseBefore(
+  list: string[],
+  exercise: string,
+  before: string,
+): string[] {
+  if (list.includes(exercise)) return list;
+  const idx = list.indexOf(before);
+  if (idx === -1) return [...list, exercise];
+  return [...list.slice(0, idx), exercise, ...list.slice(idx)];
+}
+
+export function mergeNewDefaults(
+  routines: CustomRoutines,
+  appliedIds: string[],
+): { routines: CustomRoutines; appliedIds: string[] } {
+  const next = { ...routines };
+  const applied = [...appliedIds];
+  for (const item of NEW_DEFAULT_EXERCISES) {
+    if (applied.includes(item.id)) continue;
+    for (const slot of item.slots) {
+      next[slot] = insertExerciseBefore(next[slot], item.exercise, item.before);
+    }
+    applied.push(item.id);
+  }
+  return { routines: next, appliedIds: applied };
+}
+
+function applyNewDefaultExercises(routines: CustomRoutines): CustomRoutines {
+  let appliedIds: string[] = [];
+  try {
+    const raw = localStorage.getItem(ADDED_DEFAULTS_STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) appliedIds = parsed.filter((v) => typeof v === "string");
+  } catch {}
+
+  const merged = mergeNewDefaults(routines, appliedIds);
+  if (merged.appliedIds.length !== appliedIds.length) {
+    try {
+      localStorage.setItem(CUSTOM_ROUTINES_STORAGE_KEY, JSON.stringify(merged.routines));
+      localStorage.setItem(ADDED_DEFAULTS_STORAGE_KEY, JSON.stringify(merged.appliedIds));
+    } catch {}
+  }
+  return merged.routines;
 }
 
 /**
@@ -134,6 +206,11 @@ export function saveCustomRoutines(routines: CustomRoutines): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(CUSTOM_ROUTINES_STORAGE_KEY, JSON.stringify(routines));
+    // Lo guardado ya refleja el catálogo actual: no reinsertar lo que se quitó.
+    localStorage.setItem(
+      ADDED_DEFAULTS_STORAGE_KEY,
+      JSON.stringify(NEW_DEFAULT_EXERCISES.map((item) => item.id)),
+    );
   } catch (err) {
     console.error("Error guardando rutinas personalizadas:", err);
   }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { LiquidTabBar } from "@/components/LiquidTabBar";
 import { RestTimerButton } from "@/components/RestTimerButton";
 import { UserProfileDrawer } from "@/components/UserProfileDrawer";
 
@@ -55,53 +56,41 @@ export function AppNav() {
   return (
     <>
       <header className="app-topbar">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3">
-          <Link
-            href="/"
-            className="font-[family-name:var(--font-display)] text-3xl tracking-[0.08em] text-white hover:opacity-90 transition-opacity flex items-center leading-none"
-          >
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2.5">
+          <Link href="/" className="hd-logo" aria-label="Fuerza, inicio">
             FUERZA
-            <span className="text-[var(--accent)]">.</span>
+            <span className="hd-logo-dot">.</span>
           </Link>
-          <div className="flex items-center gap-1.5 sm:gap-2">
+
+          {/* Cápsula de vidrio con descanso, perfil y salida */}
+          <div className="hd-cluster">
             <RestTimerButton />
             {displayName ? (
-              <button
-                type="button"
-                onClick={() => setIsProfileOpen(true)}
-                className="card-interactive flex items-center gap-1.5 rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-[2.35rem] text-[var(--ink)] hover:border-[var(--accent)]/50 hover:text-white transition-all active:scale-95 shadow-sm"
-                aria-label="Abrir perfil de usuario y ajustes"
-                title="Ver perfil, racha y configuraciones"
-              >
-                {/* Icono de usuario vectorial blanco puro (sin emoji iOS) */}
-                <svg
-                  className="h-3.5 w-3.5 text-white flex-shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+              <>
+                <span className="hd-divider" aria-hidden="true" />
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(true)}
+                  className="hd-item hd-profile"
+                  aria-label={`Perfil de ${displayName}: racha y ajustes`}
+                  title="Ver perfil, racha y configuraciones"
                 >
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span className="font-[family-name:var(--font-display)] text-base tracking-[0.06em] leading-none pt-0.5">
-                  {displayName}
-                </span>
-              </button>
+                  <span className="hd-avatar" aria-hidden="true">
+                    {displayName.trim().charAt(0).toUpperCase()}
+                  </span>
+                  <span className="hd-label">{displayName}</span>
+                </button>
+              </>
             ) : null}
+            <span className="hd-divider" aria-hidden="true" />
             <button
               type="button"
               onClick={logout}
-              className="card-interactive flex items-center gap-1.5 justify-center rounded-full bg-[var(--surface-2)]/90 border border-[var(--glass-stroke)] px-3 min-h-[2.35rem] text-[var(--muted)] hover:text-white hover:border-[var(--accent)]/50 transition-all active:scale-95 shadow-sm"
+              className="hd-item hd-icon"
               aria-label="Cerrar sesión"
               title="Cerrar sesión"
             >
-              {/* Icono de salida vectorial blanco puro */}
               <svg
-                className="h-3.5 w-3.5 text-white/80 flex-shrink-0"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -114,9 +103,6 @@ export function AppNav() {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              <span className="font-[family-name:var(--font-display)] text-base tracking-[0.06em] leading-none pt-0.5">
-                Salir
-              </span>
             </button>
           </div>
         </div>
@@ -129,29 +115,7 @@ export function AppNav() {
         displayName={displayName}
       />
 
-      <nav className="app-tabbar">
-        <div className="mx-auto grid max-w-lg grid-cols-6 gap-0.5 px-1 py-1.5">
-          {links.map((link) => {
-            const active =
-              link.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(link.href);
-            const isEntreno = link.href === "/entreno";
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`app-tab ${active ? "is-active" : ""} ${
-                  active && isEntreno ? "is-entreno" : ""
-                }`}
-              >
-                <span className="sm:hidden">{link.short}</span>
-                <span className="hidden sm:inline">{link.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      <LiquidTabBar links={links} />
     </>
   );
 }

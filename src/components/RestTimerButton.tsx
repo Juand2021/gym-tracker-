@@ -1,65 +1,49 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRestTimer } from "@/context/RestTimerContext";
+import { formatTimerDisplay, hueForFraction } from "@/lib/rest-timer";
 
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+const RING_R = 9;
+const RING_C = 2 * Math.PI * RING_R;
 
+/** Botón del encabezado: ícono con mini anillo de progreso del color del tiempo restante. */
 export function RestTimerButton() {
-  const { openModal, status, remainingSeconds, isAlarmActive } = useRestTimer();
+  const { openModal, status, remainingSeconds, runTotalSeconds, isAlarmActive } = useRestTimer();
 
   const isRunning = status === "running";
   const isPaused = status === "paused";
+  const active = isRunning || isPaused || isAlarmActive;
+  const fraction = isAlarmActive ? 0 : active ? remainingSeconds / Math.max(1, runTotalSeconds) : 1;
+  const hue = isAlarmActive ? 2 : active ? hueForFraction(fraction) : 16;
 
   return (
     <button
       type="button"
       onClick={openModal}
-      className={`card-interactive group relative flex items-center gap-1.5 rounded-full px-3 py-1.5 min-h-[2.35rem] transition-all active:scale-95 shadow-sm ${
-        isAlarmActive
-          ? "bg-red-600 text-white animate-bounce shadow-[0_0_16px_rgba(255,50,50,0.8)] border border-red-400"
-          : isRunning
-          ? "bg-[var(--surface-2)] text-[var(--accent)] border border-[var(--accent)]/60 shadow-[0_0_12px_rgba(255,77,26,0.35)]"
-          : isPaused
-          ? "bg-[var(--surface-2)] text-amber-400 border border-amber-500/60"
-          : "bg-[var(--surface-2)]/90 text-[var(--ink)] border border-[var(--glass-stroke)] hover:border-[var(--accent)]/50 hover:text-white"
-      }`}
-      aria-label="Temporizador de descanso"
+      className={`hd-item hd-timer ${isRunning ? "is-running" : ""} ${isPaused ? "is-paused" : ""} ${isAlarmActive ? "is-alarm" : ""}`}
+      style={{ "--hd-hue": hue } as CSSProperties}
+      aria-label={active ? `Temporizador de descanso: ${formatTimerDisplay(remainingSeconds)}` : "Temporizador de descanso"}
       title="Temporizador de descanso entre series"
     >
-      {/* Icono de cronómetro en vector blanco puro */}
-      <svg
-        className="h-3.5 w-3.5 text-white flex-shrink-0"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="13" r="8" />
-        <path d="M12 9v4l2 2" />
-        <path d="M10 2h4" />
-      </svg>
-
-      {/* Texto con tipografía unificada Bebas Neue */}
-      <span className="font-[family-name:var(--font-display)] text-base tracking-[0.06em] leading-none pt-0.5">
-        {isRunning || isPaused || isAlarmActive
-          ? formatTime(remainingSeconds)
-          : "Descanso"}
+      <span className="hd-ring" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r={RING_R} className="hd-ring-track" />
+          <circle
+            cx="12"
+            cy="12"
+            r={RING_R}
+            className="hd-ring-fill"
+            strokeDasharray={RING_C}
+            strokeDashoffset={RING_C * (1 - fraction)}
+            transform="rotate(-90 12 12)"
+          />
+          <path d="M12 8.2v4l2.4 1.6" className="hd-ring-hand" />
+        </svg>
       </span>
-
-      {/* Punto pulsante en estado activo */}
-      {isRunning && (
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]" />
-        </span>
-      )}
+      <span className="hd-label hd-timer-label">
+        {active ? formatTimerDisplay(remainingSeconds) : "Descanso"}
+      </span>
     </button>
   );
 }
@@ -80,7 +64,7 @@ export function RestTimerFloatingWidget() {
   return (
     <aside
       aria-label="Temporizador de descanso en curso"
-      className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 animate-fade-in"
+      className="fixed bottom-[calc(4.85rem+env(safe-area-inset-bottom))] right-4 z-40 animate-fade-in"
     >
       <button
         type="button"
@@ -121,7 +105,7 @@ export function RestTimerFloatingWidget() {
               : "PAUSADO"}
           </span>
           <span className="font-[family-name:var(--font-display)] text-lg tracking-wider leading-tight">
-            {isAlarmActive ? "00:00" : formatTime(remainingSeconds)}
+            {isAlarmActive ? "00:00" : formatTimerDisplay(remainingSeconds)}
           </span>
         </div>
         <span

@@ -21,6 +21,27 @@ const PLATE_MACHINE_EXERCISES = new Set([
   "Remo con máquina",
 ]);
 
+/**
+ * Grosor visual de cada disco (unidades SVG de los selectores). Sirve para
+ * dibujar y para saber cuántos discos caben en cada manga.
+ */
+export const PLATE_THICKNESS: Record<number, number> = {
+  45: 14,
+  25: 12,
+  10: 10,
+  5: 8,
+  2.5: 7,
+};
+
+/** Separación entre discos (unidades SVG). */
+export const PLATE_GAP = 2;
+
+/** Largo útil de la manga de la barra olímpica: 7 discos de 45 lb por lado. */
+export const OLYMPIC_SLEEVE_CAPACITY = 112;
+
+/** Largo útil de los tubos de carga de la máquina de remo: 5 discos de 45 lb. */
+export const MACHINE_SLEEVE_CAPACITY = 80;
+
 export type BarbellLoad = {
   barLbs: number;
   /** Discos de un lado, de dentro (cerca del collar) hacia fuera. */
@@ -67,6 +88,36 @@ export function getBaseEquipmentLbs(exercise: string): number {
   return isPlateMachineExercise(exercise) ? 0 : OLYMPIC_BAR_LBS;
 }
 
+export function getSleeveCapacity(exercise: string): number {
+  return isPlateMachineExercise(exercise)
+    ? MACHINE_SLEEVE_CAPACITY
+    : OLYMPIC_SLEEVE_CAPACITY;
+}
+
+export function plateFootprint(lbs: number): number {
+  return (PLATE_THICKNESS[lbs] ?? 8) + PLATE_GAP;
+}
+
+/** Espacio ocupado en una manga por los discos de un lado. */
+export function sleeveUsed(platesPerSide: number[]): number {
+  return platesPerSide.reduce((sum, lbs) => sum + plateFootprint(lbs), 0);
+}
+
+export function plateFits(
+  platesPerSide: number[],
+  plateLbs: number,
+  capacity: number = OLYMPIC_SLEEVE_CAPACITY,
+): boolean {
+  return sleeveUsed(platesPerSide) + plateFootprint(plateLbs) <= capacity;
+}
+
+/** Quita discos exteriores hasta que la carga quepa en la manga. */
+export function trimToCapacity(platesPerSide: number[], capacity: number): number[] {
+  const plates = [...platesPerSide];
+  while (plates.length > 0 && sleeveUsed(plates) > capacity) plates.pop();
+  return plates;
+}
+
 export function platesPerSideSum(platesPerSide: number[]): number {
   return platesPerSide.reduce((sum, p) => sum + p, 0);
 }
@@ -101,15 +152,6 @@ export function buildBarbellLoad(
   };
 }
 
-/** Clase visual por tamaño de disco. */
-export function plateSizeClass(lbs: number): string {
-  if (lbs >= 45) return "plate-45";
-  if (lbs >= 25) return "plate-25";
-  if (lbs >= 10) return "plate-10";
-  if (lbs >= 5) return "plate-5";
-  return "plate-2";
-}
-
 /**
  * Descompone un peso en kg a la carga más cercana con barra/máquina + discos
  * (greedy por lado, disco más grande primero).
@@ -117,6 +159,7 @@ export function plateSizeClass(lbs: number): string {
 export function nearestPlateLoad(
   weightKg: number,
   baseLbs: number = OLYMPIC_BAR_LBS,
+  capacity: number = Number.POSITIVE_INFINITY,
 ): BarbellLoad {
   if (!Number.isFinite(weightKg) || weightKg < 0) {
     return emptyBarbellLoad(baseLbs);
@@ -127,11 +170,13 @@ export function nearestPlateLoad(
   const targetLbs = Math.round(rawLbs / 5) * 5;
   const sideTarget = Math.max(0, (targetLbs - baseLbs) / 2);
 
+  const fit = (plates: number[]) =>
+    buildBarbellLoad(trimToCapacity(plates, capacity), baseLbs);
   const candidates = [
     emptyBarbellLoad(baseLbs),
-    buildBarbellLoad(greedyPlates(sideTarget), baseLbs),
-    buildBarbellLoad(greedyPlates(Math.max(0, sideTarget - 2.5)), baseLbs),
-    buildBarbellLoad(greedyPlates(sideTarget + 2.5), baseLbs),
+    fit(greedyPlates(sideTarget)),
+    fit(greedyPlates(Math.max(0, sideTarget - 2.5))),
+    fit(greedyPlates(sideTarget + 2.5)),
   ];
 
   let best = candidates[0];
@@ -164,8 +209,10 @@ function greedyPlates(sideLbs: number): number[] {
 export function addPlate(
   platesPerSide: number[],
   plateLbs: number,
+  capacity: number = Number.POSITIVE_INFINITY,
 ): number[] {
   if (!PLATE_LBS.includes(plateLbs)) return platesPerSide;
+  if (!plateFits(platesPerSide, plateLbs, capacity)) return platesPerSide;
   return [...platesPerSide, plateLbs];
 }
 

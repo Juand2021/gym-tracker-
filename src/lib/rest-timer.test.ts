@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   calculateSecondsFromDialAngle,
   formatTimerDisplay,
+  hueForFraction,
   MAX_TIMER_SECONDS,
   snapTimerSeconds,
 } from "./rest-timer.ts";
@@ -43,5 +44,15 @@ describe("RestTimer: time formatting & limits", () => {
     // A las 9 (izquierda): dx = -100, dy = 0 => 135 seg (3/4 del círculo de 180s)
     const leftSec = calculateSecondsFromDialAngle(0, 100, cx, cy);
     assert.equal(leftSec, 135);
+  });
+});
+
+describe("RestTimer: color según el tiempo restante", () => {
+  it("va de turquesa a ámbar y a rojo", () => {
+    assert.equal(hueForFraction(1), 168);
+    assert.equal(hueForFraction(0.5), 38);
+    assert.equal(hueForFraction(0), 4);
+    assert.equal(hueForFraction(2), 168);
+    assert.equal(hueForFraction(-1), 4);
   });
 });

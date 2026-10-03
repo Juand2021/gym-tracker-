@@ -436,7 +436,7 @@ export default function IaPage() {
       </main>
 
       {/* Barra de Entrada fija: estrictamente compacta, sin elementos flotantes */}
-      <footer className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 mx-auto w-full max-w-lg px-4 pointer-events-none">
+      <footer className="fixed bottom-[calc(4.4rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 mx-auto w-full max-w-lg px-4 pointer-events-none">
         <div className="pointer-events-auto">
           {/* Caja de entrada táctil sólida */}
           <div className="flex items-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-[#101010] p-1.5 sm:p-2 shadow-[0_-8px_30px_rgba(0,0,0,0.9)] backdrop-blur-md focus-within:border-[var(--accent)] transition-colors">

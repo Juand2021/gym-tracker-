@@ -25,6 +25,7 @@ export const EXERCISE_IMAGES: Record<string, string> = {
   "Bíceps polea": "/exercises/curl-biceps-polea.png",
   "Curl bíceps polea": "/exercises/curl-biceps-polea.png",
   "Bíceps barra Z": "/exercises/biceps-barra-z.png",
+  "Curl de bíceps con barra Z": "/exercises/biceps-barra-z.png",
   "Curl de antebrazo con mancuernas": "/exercises/curl-antebrazo-mancuernas.png",
   "Curl inverso de antebrazo con mancuernas":
     "/exercises/curl-inverso-antebrazo-mancuernas.png",

@@ -6,14 +6,14 @@ import { Suspense } from "react";
 import { BarbellPlatePicker } from "@/components/BarbellPlatePicker";
 import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
 import { DumbbellRackPicker } from "@/components/DumbbellRackPicker";
-import { EzBarRackPicker } from "@/components/EzBarRackPicker";
+import { EzBarPlatePicker } from "@/components/EzBarPlatePicker";
 import { MachineStackPicker } from "@/components/MachineStackPicker";
 import {
   hasBarbellPlatePicker,
   isPlateMachineExercise,
 } from "@/lib/barbell-plates";
 import { hasDumbbellRackPicker } from "@/lib/dumbbell-rack";
-import { hasEzBarRackPicker } from "@/lib/ez-bar-rack";
+import { hasEzBarPlatePicker } from "@/lib/ez-bar-rack";
 import { getLoadHint, LOAD_CONVENTION_NOTE } from "@/lib/exercises";
 import {
   formatStackKg,
@@ -85,7 +85,7 @@ function ExerciseBlock({
     !useStackPicker &&
     !useDumbbellPicker &&
     !useBarbellPicker &&
-    hasEzBarRackPicker(exercise);
+    hasEzBarPlatePicker(exercise);
   const useVisualPicker =
     useStackPicker || useDumbbellPicker || useBarbellPicker || useEzBarPicker;
   const [weightKg, setWeightKg] = useState(last?.weightKg ?? "");
@@ -351,7 +351,7 @@ function ExerciseBlock({
       ) : null}
 
       {useEzBarPicker ? (
-        <EzBarRackPicker
+        <EzBarPlatePicker
           open={pickerOpen}
           exercise={exercise}
           valueKg={isValidWeight(parsedWeight) ? parsedWeight : null}

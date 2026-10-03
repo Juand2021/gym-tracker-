@@ -1,6 +1,12 @@
 /** Constantes y utilidades para el temporizador de descanso */
 export const MAX_TIMER_SECONDS = 180; // 3 minutos máximo
 
+/** Tono (HSL) según la fracción restante: turquesa → ámbar a la mitad → rojo al final. */
+export function hueForFraction(fraction: number): number {
+  const f = Math.min(1, Math.max(0, fraction));
+  return f > 0.5 ? 38 + (f - 0.5) * 2 * (168 - 38) : 4 + f * 2 * (38 - 4);
+}
+
 export function formatTimerDisplay(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;

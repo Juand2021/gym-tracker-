@@ -1,27 +1,27 @@
-/** Barras Z fijas del gimnasio (kg). */
-export const EZ_BAR_KG: number[] = [20, 22.5, 25, 27.5, 30, 35, 40];
+import {
+  PLATE_LBS,
+  addPlate,
+  buildBarbellLoad,
+  nearestPlateLoad,
+  plateFits,
+  type BarbellLoad,
+} from "./barbell-plates.ts";
+
+/** Discos disponibles en el gym (lb), los mismos que en press de banca. */
+export const EZ_PLATE_LBS: number[] = PLATE_LBS;
+
+/** Barra Z olímpica estándar del gym, vacía (lb). ≈ 11.3 kg. */
+export const EZ_BAR_LBS = 25;
+
+/** Largo útil de cada manga corta: caben 4 discos de 45 lb por lado. */
+export const EZ_SLEEVE_CAPACITY = 64;
 
 const EZ_BAR_EXERCISES = new Set([
   "Press francés con barra Z",
+  "Curl de bíceps con barra Z",
 ]);
 
-export type EzBarOption = {
-  kg: number;
-};
-
-function formatKg(kg: number): string {
-  return Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace(/\.0$/, "");
-}
-
-export function formatEzBarKg(kg: number): string {
-  return formatKg(kg);
-}
-
-export function buildEzBarRack(): EzBarOption[] {
-  return EZ_BAR_KG.map((kg) => ({ kg }));
-}
-
-export function hasEzBarRackPicker(exercise: string): boolean {
+export function hasEzBarPlatePicker(exercise: string): boolean {
   if (EZ_BAR_EXERCISES.has(exercise)) return true;
   const key = exercise
     .normalize("NFD")
@@ -30,18 +30,24 @@ export function hasEzBarRackPicker(exercise: string): boolean {
   return key.includes("barra z") || key.includes("barra ez");
 }
 
-/** Kg del rack más cercano; null si no hay peso útil. */
-export function nearestEzBarKg(weightKg: number): number | null {
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return null;
+export function ezPlateFits(platesPerSide: number[], plateLbs: number): boolean {
+  return plateFits(platesPerSide, plateLbs, EZ_SLEEVE_CAPACITY);
+}
 
-  let best = EZ_BAR_KG[0];
-  let bestDiff = Math.abs(best - weightKg);
-  for (let i = 1; i < EZ_BAR_KG.length; i++) {
-    const diff = Math.abs(EZ_BAR_KG[i] - weightKg);
-    if (diff < bestDiff) {
-      best = EZ_BAR_KG[i];
-      bestDiff = diff;
-    }
-  }
-  return best;
+/** Agrega un disco por lado solo si cabe en la manga. */
+export function addEzPlate(platesPerSide: number[], plateLbs: number): number[] {
+  return addPlate(platesPerSide, plateLbs, EZ_SLEEVE_CAPACITY);
+}
+
+export function buildEzLoad(platesPerSide: number[]): BarbellLoad {
+  return buildBarbellLoad(platesPerSide, EZ_BAR_LBS);
+}
+
+export function emptyEzLoad(): BarbellLoad {
+  return buildEzLoad([]);
+}
+
+/** Carga más cercana a un peso en kg sin pasarse de lo que cabe en la manga. */
+export function nearestEzLoad(weightKg: number): BarbellLoad {
+  return nearestPlateLoad(weightKg, EZ_BAR_LBS, EZ_SLEEVE_CAPACITY);
 }
