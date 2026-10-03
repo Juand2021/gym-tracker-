@@ -118,7 +118,7 @@ function espalda(week: number, date: string, id: string): Workout {
       weightKg: w(week, 8, 12),
       reps: [10, 10, 8],
     },
-    { exercise: "Curl de bíceps con polea", weightKg: w(week, 15, 22.5), reps: [10, 9, 8] },
+    { exercise: "Curl de bíceps con barra Z", weightKg: w(week, 20.4, 29.5), reps: [10, 9, 8] },
   ]);
 }
 
@@ -146,7 +146,7 @@ function hombro(
       reps: [12, 12, 10],
     },
     {
-      exercise: "Face-pull o reverse peck deck",
+      exercise: "Face pull",
       weightKg: w(week, 30, 40),
       reps: [12, 12, 12],
     },
@@ -176,8 +176,8 @@ function hombro(
             reps: [10, 10, 8],
           },
           {
-            exercise: "Curl de bíceps con polea",
-            weightKg: w(week, 15, 22.5),
+            exercise: "Curl de bíceps con barra Z",
+            weightKg: w(week, 20.4, 29.5),
             reps: [10, 9, 8],
           },
         ]

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { BarbellPlatePicker } from "@/components/BarbellPlatePicker";
+import { PageHero } from "@/components/ui/PageHero";
 import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
 import { DumbbellRackPicker } from "@/components/DumbbellRackPicker";
 import { EzBarPlatePicker } from "@/components/EzBarPlatePicker";
@@ -120,106 +121,81 @@ function ExerciseBlock({
       data-exercise-card
       className="card space-y-3 p-4 transition-all duration-150"
     >
-      <div className="flex items-start justify-between gap-2.5">
+      <div className="en-ex-head">
         {/* Controles de secuencia y arrastre táctil */}
-        <div className="flex items-center gap-2 shrink-0 self-start mt-0.5">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-[#141414] text-[var(--muted)] hover:text-white active:bg-[var(--accent)]/20 active:text-[var(--accent)] cursor-grab active:cursor-grabbing touch-none select-none"
+            className="en-ex-grip cursor-grab active:cursor-grabbing touch-none select-none"
             title="Arrastra para reordenar"
+            aria-label={`Reordenar ${exercise}`}
             onPointerDown={onPointerDownDrag}
           >
             <span className="text-sm font-mono tracking-tighter">⠿</span>
           </button>
-
-          <span className="inline-flex h-6 min-w-[1.6rem] items-center justify-center rounded-md bg-white/5 px-1.5 text-[11px] font-bold tabular-nums text-[var(--muted)] border border-white/10">
-            #{orderNumber}
-          </span>
+          <span className="en-ex-order">#{orderNumber}</span>
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-lg font-semibold leading-snug tracking-wide">
-            {exercise}
-          </p>
-          <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+          <p className="en-ex-title">{exercise}</p>
+          <p className="en-ex-sub">
             {sets.length === 0
               ? "Sin series"
               : `${sets.length} serie${sets.length > 1 ? "s" : ""}`}
             {" · "}
-            <span className="text-[var(--accent)]">{load.short}</span>
-            {useStackPicker ? (
-              <span className="text-[var(--muted)]"> · stack</span>
-            ) : null}
-            {useDumbbellPicker ? (
-              <span className="text-[var(--muted)]"> · rack</span>
-            ) : null}
-            {useBarbellPicker ? (
-              <span className="text-[var(--muted)]">
-                {" "}
-                · {isPlateMachineExercise(exercise) ? "discos" : "barra"}
-              </span>
-            ) : null}
-            {useEzBarPicker ? (
-              <span className="text-[var(--muted)]"> · barra Z</span>
-            ) : null}
+            <span className="text-[#ffa47a]">{load.short}</span>
+            {useStackPicker ? " · stack" : null}
+            {useDumbbellPicker ? " · rack" : null}
+            {useBarbellPicker
+              ? ` · ${isPlateMachineExercise(exercise) ? "discos" : "barra"}`
+              : null}
+            {useEzBarPicker ? " · barra Z" : null}
           </p>
         </div>
 
-        <div className="flex items-start gap-2 shrink-0">
-          {lastHistory && lastHistory.sets.length > 0 ? (
-            <button
-              type="button"
-              className="rounded-lg bg-[var(--surface-2)]/80 border border-[var(--glass-stroke)] px-2.5 py-1.5 text-right transition hover:border-[var(--accent)]/50 active:scale-95 text-left"
-              title="Toca para usar este peso y repeticiones"
-              onClick={() => {
-                const targetSet =
-                  lastHistory.sets[lastHistory.sets.length - 1];
-                if (targetSet) {
-                  setWeightKg(String(targetSet.weightKg));
-                  setReps(String(targetSet.reps));
-                }
-              }}
-            >
-              <p className="text-[0.62rem] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
-                Último registro{" "}
-                <span className="text-[var(--ink)] font-medium">
-                  ({lastHistory.shortDate})
-                </span>
-              </p>
-              <p className="mt-0.5 text-xs font-semibold tabular-nums text-[var(--ink)] tracking-tight">
-                {lastHistory.sets.map((s, idx) => (
-                  <span key={idx}>
-                    {idx > 0 ? " · " : ""}
-                    <span className="font-bold text-[var(--accent)]">
-                      {s.weightKg}
-                    </span>
-                    <span className="text-[0.7rem] text-[var(--muted)]">×</span>
-                    {s.reps}
-                  </span>
-                ))}
-              </p>
-            </button>
-          ) : (
-            <div className="rounded-lg bg-[var(--surface-2)]/35 px-2.5 py-1 text-right">
-              <p className="text-[0.62rem] font-medium uppercase tracking-[0.08em] text-[var(--muted)]/60">
-                Sin historial
-              </p>
-            </div>
-          )}
-
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-sm text-[var(--muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--danger)]"
-              title="Quitar ejercicio de la sesión"
-              aria-label={`Quitar ${exercise}`}
-            >
-              ✕
-            </button>
-          ) : null}
-        </div>
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="en-ex-remove"
+            title="Quitar ejercicio de la sesión"
+            aria-label={`Quitar ${exercise}`}
+          >
+            ✕
+          </button>
+        ) : null}
       </div>
+
+      {/* Último registro: franja completa; al tocarla se copian peso y reps */}
+      {lastHistory && lastHistory.sets.length > 0 ? (
+        <button
+          type="button"
+          className="en-last"
+          title="Toca para usar este peso y repeticiones"
+          onClick={() => {
+            const targetSet = lastHistory.sets[lastHistory.sets.length - 1];
+            if (targetSet) {
+              setWeightKg(String(targetSet.weightKg));
+              setReps(String(targetSet.reps));
+            }
+          }}
+        >
+          <span className="en-last-label">
+            Último <b>{lastHistory.shortDate}</b>
+          </span>
+          <span className="en-last-sets">
+            {lastHistory.sets.map((s, idx) => (
+              <span key={idx} className="en-last-set">
+                <b>{s.weightKg}</b>
+                <i>×</i>
+                {s.reps}
+              </span>
+            ))}
+          </span>
+        </button>
+      ) : (
+        <p className="en-last is-empty">Sin historial todavía</p>
+      )}
 
       {sets.length > 0 ? (
         <div className="flex flex-wrap gap-2">
@@ -865,192 +841,139 @@ function EntrenoForm() {
 
   if (step === "customize") {
     return (
-      <RoutineCustomizer
-        onBack={() => setStep("day")}
-        onSaved={() => {
-          if (dayType) {
-            setExerciseOrder(getExercisesForDayCustom(dayType, armFocus));
-          }
-        }}
-      />
+      <div className="pg">
+        <RoutineCustomizer
+          onBack={() => setStep("day")}
+          onSaved={() => {
+            if (dayType) {
+              setExerciseOrder(getExercisesForDayCustom(dayType, armFocus));
+            }
+          }}
+        />
+      </div>
     );
   }
 
   if (step === "day") {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <p className="page-kicker">Nuevo entreno</p>
-          <h1 className="page-title mt-1">¿Qué toca hoy?</h1>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-            Elige tu rutina para cargar los ejercicios previstos.
-          </p>
-        </div>
+      <div className="pg">
+        <PageHero
+          kicker="Nuevo entreno"
+          title="¿Qué toca hoy?"
+          description="Elige tu rutina para cargar los ejercicios previstos."
+        />
 
-        <div className="grid grid-cols-2 gap-2.5">
-          {DAY_OPTIONS.map((opt) => (
+        <div className="hm-days">
+          {DAY_OPTIONS.map((opt, i) => (
             <button
               key={opt.id}
               type="button"
               onClick={() => selectDay(opt.id)}
-              className="card card-interactive group relative flex min-h-[6.25rem] sm:min-h-[6.5rem] items-center justify-between p-3.5 sm:p-4 overflow-hidden text-left transition-all hover:border-[var(--accent)] active:scale-[0.99] rounded-2xl"
+              className="glass-panel hm-day text-left"
+              style={{ animationDelay: `${i * 55}ms` }}
             >
-              <div className="min-w-0 pr-1.5 z-10">
-                <p className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl tracking-[0.04em] text-white leading-none">
-                  {opt.label}
-                </p>
-                <p className="mt-1 text-xs text-[var(--muted)] truncate">
-                  {opt.subtitle}
-                </p>
-              </div>
-              <MuscleGroupIcon
-                group={opt.id}
-                className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 transition-transform duration-300 group-hover:scale-105"
-              />
+              <span className="hm-day-glow" aria-hidden="true" />
+              <span className="hm-day-top">
+                <span className="hm-day-icon">
+                  <MuscleGroupIcon group={opt.id} className="h-[4.1rem] w-[4.1rem]" />
+                </span>
+              </span>
+              <span className="hm-day-label">{opt.label}</span>
+              <span className="hm-day-sub">{opt.subtitle}</span>
             </button>
           ))}
         </div>
 
-        {/* Botón destacado para Ajustar Rutinas */}
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => setStep("customize")}
-            className="card card-interactive flex items-center justify-between p-4 border border-[var(--accent)]/30 bg-gradient-to-r from-[var(--surface-2)]/90 via-[var(--surface-2)]/60 to-[var(--accent)]/10 hover:border-[var(--accent)] transition-all active:scale-[0.99] shadow-sm w-full rounded-2xl"
-          >
-            <div className="flex items-center gap-3.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 shadow-sm flex-shrink-0">
-                <svg
-                  className="h-4 w-4 text-[var(--accent)]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-              </span>
-              <div className="text-left">
-                <p className="font-[family-name:var(--font-display)] text-xl tracking-[0.04em] text-white">
-                  Ajustar Rutinas
-                </p>
-                <p className="text-xs text-[var(--muted)]">
-                  Personaliza y guarda los ejercicios de cada día
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 flex-shrink-0">
-              Configurar
-              <svg
-                className="h-3.5 w-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </span>
-          </button>
-        </div>
+        <button type="button" onClick={() => setStep("customize")} className="glass-panel en-action">
+          <span className="en-action-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="en-action-title">Ajustar rutinas</span>
+            <span className="en-action-text">Personaliza y guarda los ejercicios de cada día</span>
+          </span>
+          <span className="hs-arrow" aria-hidden="true">
+            →
+          </span>
+        </button>
       </div>
     );
   }
 
   if (step === "arms") {
     return (
-      <div className="space-y-6">
-        <div>
-          <button
-            type="button"
-            onClick={handleBackStep}
-            className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] mb-2 inline-block"
-          >
-            ← Cambiar día
-          </button>
-          <p className="page-kicker">Hombro</p>
-          <h1 className="page-title mt-1">Enfoque de brazo</h1>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-            ¿Con qué complementas hombro hoy?
-          </p>
-        </div>
+      <div className="pg">
+        <PageHero
+          kicker="Hombro"
+          title="Enfoque de brazo"
+          description="¿Con qué complementas hombro hoy?"
+          back={{ label: "Cambiar día", onClick: handleBackStep }}
+        />
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => selectArms("biceps")}
-            className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
-          >
-            <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
-              Bíceps
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Curls y antebrazo
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => selectArms("triceps")}
-            className="card card-interactive flex min-h-[5.5rem] flex-col justify-center p-4 text-left transition hover:border-[var(--accent)] active:scale-[0.99]"
-          >
-            <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
-              Tríceps
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Fondos y extensiones
-            </p>
-          </button>
+        <div className="hm-days">
+          {(
+            [
+              { id: "biceps", label: "Bíceps", sub: "Curls y antebrazo", icon: "M7 21c-1-4 0-8 3-10 1-3 4-5 7-4 2 1 2 4 0 5-2 1-3 2-3 4 0 2 2 3 4 3M10 11c2 0 4 1 5 3" },
+              { id: "triceps", label: "Tríceps", sub: "Fondos y extensiones", icon: "M6 4c4 0 8 2 9 6 1 3 0 6-2 8M6 4c-1 4 0 9 4 12 1 1 2 2 3 2M10 9c2 1 3 3 3 6" },
+            ] as const
+          ).map((opt, i) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => selectArms(opt.id)}
+              className="glass-panel hm-day text-left"
+              style={{ animationDelay: `${i * 55}ms` }}
+            >
+              <span className="hm-day-glow" aria-hidden="true" />
+              <span className="hm-day-top">
+                <span className="hm-day-icon">
+                  <svg viewBox="0 0 24 24" className="h-12 w-12" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d={opt.icon} />
+                  </svg>
+                </span>
+              </span>
+              <span className="hm-day-label">{opt.label}</span>
+              <span className="hm-day-sub">{opt.sub}</span>
+            </button>
+          ))}
         </div>
       </div>
     );
   }
 
+  const exercisesWithSets = new Set(sets.map((s) => s.exercise)).size;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <button
-            type="button"
-            onClick={handleBackStep}
-            className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] mb-2 inline-block"
-          >
-            ← Cambiar rutina
-          </button>
-          <p className="page-kicker">Registro</p>
-          <h1 className="page-title mt-1">
+    <div className="pg">
+      <PageHero
+        kicker="Registro"
+        title={
+          <>
             {dayType ? getDayLabel(dayType) : "Entreno"}
             {armFocus ? (
-              <span className="text-[var(--accent)]">
-                {" "}
-                · {armFocus === "biceps" ? "Bíceps" : "Tríceps"}
-              </span>
+              <span className="text-[var(--accent)]"> · {armFocus === "biceps" ? "Bíceps" : "Tríceps"}</span>
             ) : null}
-          </h1>
-          <p className="mt-2 text-[var(--muted)]">
-            Toca + en cada ejercicio. Arrastra desde ⠿ para reordenar según cómo entrenes hoy.
-          </p>
-          <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">
-            {LOAD_CONVENTION_NOTE}
-          </p>
-        </div>
-
-        {sets.length > 0 || dayType ? (
-          <button
-            type="button"
-            onClick={handleDiscard}
-            className="min-h-10 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--danger)] shrink-0"
-            title="Descartar borrador"
-          >
-            Descartar
-          </button>
-        ) : null}
-      </div>
+          </>
+        }
+        description="Toca + en cada ejercicio. Arrastra desde ⠿ para reordenar según cómo entrenes hoy."
+        back={{ label: "Cambiar rutina", onClick: handleBackStep }}
+        action={
+          sets.length > 0 || dayType ? (
+            <button type="button" onClick={handleDiscard} className="pg-pill is-danger" title="Descartar borrador">
+              Descartar
+            </button>
+          ) : undefined
+        }
+        stats={[
+          { label: sets.length === 1 ? "Serie" : "Series", value: sets.length },
+          { label: "Con series", value: `${exercisesWithSets}/${activeExercises.length}` },
+        ]}
+      >
+        <p className="en-note">{LOAD_CONVENTION_NOTE}</p>
+      </PageHero>
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="card space-y-3 p-4">
@@ -1211,7 +1134,7 @@ function EntrenoForm() {
 
         <div className="sticky-save">
           <button
-            className="btn btn-primary w-full"
+            className="btn btn-primary en-save w-full"
             type="submit"
             disabled={saving}
           >

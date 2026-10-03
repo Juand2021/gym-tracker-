@@ -1,13 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 export type TabLink = { href: string; label: string; short: string };
 
 /** Distancia (px) que separa un toque de un arrastre de la lente. */
 const DRAG_THRESHOLD = 8;
+/** La lente nunca es más angosta que esto: en "IA" sería más alta que ancha. */
+const MIN_LENS_WIDTH = 54;
+
+/** Posición y ancho de cada pestaña dentro de la barra (px). */
+type Slot = { left: number; width: number };
 
 function activeIndexFor(pathname: string, links: TabLink[]): number {
   return links.findIndex((link) =>
@@ -15,14 +26,23 @@ function activeIndexFor(pathname: string, links: TabLink[]): number {
   );
 }
 
+function slotIndexAt(slots: Slot[], x: number): number {
+  for (let i = 0; i < slots.length; i++) {
+    if (x < slots[i].left + slots[i].width) return i;
+  }
+  return slots.length - 1;
+}
+
 /**
  * Barra de pestañas estilo Liquid Glass: cápsula flotante de vidrio con una
  * lente que se desliza a la pestaña activa y se puede arrastrar con el dedo.
+ * Cada pestaña ocupa el ancho de su palabra, así "Historial" cabe completo.
  */
 export function LiquidTabBar({ links }: { links: TabLink[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const barRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const gesture = useRef<{ startX: number; pointerId: number; dragging: boolean } | null>(null);
   const suppressClick = useRef(false);
   const lastHoverIndex = useRef<number | null>(null);
@@ -30,30 +50,38 @@ export function LiquidTabBar({ links }: { links: TabLink[] }) {
   // Índice elegido por el usuario mientras la navegación termina de cargar.
   const [pendingIndex, setPendingIndex] = useState<number | null>(null);
   const [lastPath, setLastPath] = useState(pathname);
-  /** Centro de la lente (px) y ancho de cada pestaña mientras se arrastra. */
-  const [drag, setDrag] = useState<{ x: number; slot: number } | null>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [barWidth, setBarWidth] = useState(0);
+  /** Centro de la lente (px) mientras se arrastra. */
+  const [dragX, setDragX] = useState<number | null>(null);
 
   if (pathname !== lastPath) {
     setLastPath(pathname);
     setPendingIndex(null);
   }
 
+  // Medir las pestañas (y re-medir si cambia el ancho o cargan las fuentes).
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const measure = () => {
+      setBarWidth(bar.clientWidth);
+      setSlots(
+        tabRefs.current.map((tab) =>
+          tab ? { left: tab.offsetLeft, width: tab.offsetWidth } : { left: 0, width: 0 },
+        ),
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(bar);
+    tabRefs.current.forEach((tab) => tab && ro.observe(tab));
+    return () => ro.disconnect();
+  }, [links.length]);
+
   const routeIndex = activeIndexFor(pathname, links);
   const lensIndex = pendingIndex ?? routeIndex;
-  const count = links.length;
-
-  function metrics() {
-    const bar = barRef.current;
-    if (!bar) return null;
-    const rect = bar.getBoundingClientRect();
-    const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
-    const slot = (rect.width - pad * 2) / count;
-    return { rect, pad, slot };
-  }
-
-  function indexAt(centerX: number, slot: number): number {
-    return Math.min(count - 1, Math.max(0, Math.floor(centerX / slot)));
-  }
+  const measured = slots.length === links.length && slots.every((s) => s.width > 0);
 
   function setGlow(e: PointerEvent<HTMLDivElement>, on: boolean) {
     const bar = barRef.current;
@@ -72,25 +100,28 @@ export function LiquidTabBar({ links }: { links: TabLink[] }) {
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
     setGlow(e, e.pointerType === "mouse" || gesture.current != null);
     const g = gesture.current;
-    if (!g) return;
-    const m = metrics();
-    if (!m) return;
+    const bar = barRef.current;
+    if (!g || !bar || !measured) return;
 
     if (!g.dragging) {
       if (Math.abs(e.clientX - g.startX) < DRAG_THRESHOLD) return;
       g.dragging = true;
       try {
         // Seguir recibiendo el movimiento aunque el dedo salga de la barra
-        barRef.current?.setPointerCapture(g.pointerId);
+        bar.setPointerCapture(g.pointerId);
       } catch {}
     }
 
-    const half = m.slot / 2;
-    const x = Math.min(m.slot * count - half, Math.max(half, e.clientX - m.rect.left - m.pad));
-    setDrag({ x, slot: m.slot });
+    const first = slots[0];
+    const last = slots[slots.length - 1];
+    const x = Math.min(
+      last.left + last.width / 2,
+      Math.max(first.left + first.width / 2, e.clientX - bar.getBoundingClientRect().left),
+    );
+    setDragX(x);
 
     // Pequeño "clic" háptico al cruzar de pestaña (solo Android)
-    const idx = indexAt(x, m.slot);
+    const idx = slotIndexAt(slots, x);
     if (idx !== lastHoverIndex.current) {
       lastHoverIndex.current = idx;
       try {
@@ -107,32 +138,38 @@ export function LiquidTabBar({ links }: { links: TabLink[] }) {
     if (!g?.dragging) return;
 
     suppressClick.current = true;
-    if (commit && drag) {
-      const idx = indexAt(drag.x, drag.slot);
+    if (commit && dragX != null && measured) {
+      const idx = slotIndexAt(slots, dragX);
       setPendingIndex(idx);
       if (idx !== routeIndex) router.push(links[idx].href);
     }
-    setDrag(null);
+    setDragX(null);
   }
 
   // Cercanía de cada pestaña a la lente (0–1): agranda e ilumina la etiqueta.
   function proximity(i: number): number {
-    if (!drag) return i === lensIndex ? 1 : 0;
-    const center = drag.slot * i + drag.slot / 2;
-    return Math.max(0, 1 - Math.abs(center - drag.x) / drag.slot);
+    if (dragX == null || !measured) return i === lensIndex ? 1 : 0;
+    const s = slots[i];
+    return Math.max(0, 1 - Math.abs(s.left + s.width / 2 - dragX) / s.width);
   }
 
-  const dragging = drag != null;
-  const lensStyle: CSSProperties | undefined = drag
-    ? { transform: `translateX(${drag.x - drag.slot / 2}px)` }
-    : undefined;
+  const dragging = dragX != null;
+  let lensStyle: CSSProperties | undefined;
+  if (measured && lensIndex >= 0) {
+    // Al arrastrar, la lente toma el ancho de la pestaña que tiene debajo.
+    const slot = dragging ? slots[slotIndexAt(slots, dragX)] : slots[lensIndex];
+    const width = Math.max(slot.width, MIN_LENS_WIDTH);
+    const center = dragging ? dragX : slot.left + slot.width / 2;
+    const inset = slots[0].left; // padding interno de la barra
+    const left = Math.min(Math.max(center - width / 2, inset), barWidth - inset - width);
+    lensStyle = { transform: `translateX(${left}px)`, width: `${width}px` };
+  }
 
   return (
     <nav className="app-tabbar" aria-label="Navegación principal">
       <div
         ref={barRef}
         className={`lg-bar ${dragging ? "is-dragging" : ""}`}
-        style={{ "--count": count, "--i": Math.max(0, lensIndex) } as CSSProperties}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={(e) => endGesture(e, true)}
@@ -149,7 +186,7 @@ export function LiquidTabBar({ links }: { links: TabLink[] }) {
         }}
       >
         <span className="lg-sheen" aria-hidden />
-        {lensIndex >= 0 ? (
+        {lensStyle ? (
           <span
             className={`lg-lens ${links[lensIndex]?.href === "/entreno" && !dragging ? "is-entreno" : ""}`}
             style={lensStyle}
@@ -165,6 +202,9 @@ export function LiquidTabBar({ links }: { links: TabLink[] }) {
           return (
             <Link
               key={link.href}
+              ref={(el) => {
+                tabRefs.current[i] = el;
+              }}
               href={link.href}
               draggable={false}
               aria-current={active ? "page" : undefined}

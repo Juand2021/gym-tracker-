@@ -60,7 +60,6 @@ const BICEPS: string[] = [
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",
-  "Curl de bíceps con polea",
 ];
 
 /** Antebrazo: suele ir al final del trabajo de bíceps. */
@@ -78,7 +77,7 @@ const SHOULDERS: string[] = [
   "Press militar con mancuernas",
   "Elevaciones unilaterales con cable",
   "Elevaciones hacia el frente unilaterales con cable",
-  "Face-pull o reverse peck deck",
+  "Face pull",
   "Encogimiento de hombros",
 ];
 
@@ -95,7 +94,6 @@ const LEGS: string[] = [
 const ABS_CORE: string[] = [
   "Dragon Fly en el piso",
   "Crunch de polea alta",
-  "Crunch abdominal en polea",
   "Elevación de piernas",
   "Rueda abdominal",
   "Plancha abdominal",

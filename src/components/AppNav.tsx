@@ -10,7 +10,7 @@ import { UserProfileDrawer } from "@/components/UserProfileDrawer";
 const links = [
   { href: "/", label: "Inicio", short: "Inicio" },
   { href: "/entreno", label: "Entreno", short: "Entreno" },
-  { href: "/historial", label: "Historial", short: "Hist." },
+  { href: "/historial", label: "Historial", short: "Historial" },
   { href: "/peso", label: "Peso", short: "Peso" },
   { href: "/metricas", label: "Métricas", short: "Stats" },
   { href: "/ia", label: "IA", short: "IA" },

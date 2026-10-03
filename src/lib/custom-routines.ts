@@ -3,6 +3,8 @@
  * Permite al usuario modificar la lista de ejercicios de cada día (Pecho, Espalda, Hombro, Pierna).
  */
 
+import { canonicalExerciseName } from "./exercise-aliases.ts";
+
 export type DayType = "pecho" | "espalda" | "hombro" | "pierna";
 export type ArmFocus = "biceps" | "triceps";
 
@@ -39,7 +41,6 @@ export const DEFAULT_ESPALDA: string[] = [
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",
-  "Curl de bíceps con polea",
   "Curl de antebrazo con mancuernas",
   "Curl inverso de antebrazo con mancuernas",
   "Crunch de polea alta",
@@ -50,13 +51,12 @@ export const DEFAULT_HOMBRO_BICEPS: string[] = [
   "Press militar con mancuernas",
   "Elevaciones unilaterales con cable",
   "Elevaciones hacia el frente unilaterales con cable",
-  "Face-pull o reverse peck deck",
+  "Face pull",
   "Encogimiento de hombros",
   "Curl de bíceps con barra Z",
   "Curl martillo",
   "Bíceps con mancuernas",
   "Bíceps unilateral concentrado",
-  "Curl de bíceps con polea",
   "Curl de antebrazo con mancuernas",
   "Curl inverso de antebrazo con mancuernas",
 ];
@@ -66,7 +66,7 @@ export const DEFAULT_HOMBRO_TRICEPS: string[] = [
   "Press militar con mancuernas",
   "Elevaciones unilaterales con cable",
   "Elevaciones hacia el frente unilaterales con cable",
-  "Face-pull o reverse peck deck",
+  "Face pull",
   "Encogimiento de hombros",
   "Press francés con barra Z",
   "Extensión de tríceps con cuerda",
@@ -137,13 +137,16 @@ type NewDefaultExercise = {
   id: string;
   exercise: string;
   slots: Array<keyof CustomRoutines>;
-  /** Se inserta antes de este ejercicio; si no está, va al final. */
-  before: string;
+  /** "add" (por defecto) inserta, "remove" retira, "rename" lo cambia por `renameTo`. */
+  action?: "add" | "remove" | "rename";
+  renameTo?: string;
+  /** Al agregar, se inserta antes de este ejercicio; si no está, va al final. */
+  before?: string;
 };
 
 /**
- * Ejercicios agregados a las rutinas de fábrica después de que el usuario ya
- * personalizó las suyas. Se insertan una sola vez: si luego los quita, no vuelven.
+ * Cambios a las rutinas de fábrica posteriores a que el usuario personalizara
+ * las suyas. Se aplican una sola vez: si luego deshace el cambio, se respeta.
  */
 export const NEW_DEFAULT_EXERCISES: NewDefaultExercise[] = [
   {
@@ -151,6 +154,21 @@ export const NEW_DEFAULT_EXERCISES: NewDefaultExercise[] = [
     exercise: "Curl de bíceps con barra Z",
     slots: ["espalda", "hombro_biceps"],
     before: "Curl martillo",
+  },
+  {
+    // Reemplazado por el curl con barra Z (incomodaba los antebrazos)
+    id: "remove-curl-biceps-polea",
+    exercise: "Curl de bíceps con polea",
+    slots: ["espalda", "hombro_biceps"],
+    action: "remove",
+  },
+  {
+    // Face pull y "Face-pull o reverse peck deck" eran el mismo ejercicio
+    id: "rename-face-pull",
+    exercise: "Face-pull o reverse peck deck",
+    slots: ["espalda", "hombro_biceps", "hombro_triceps"],
+    action: "rename",
+    renameTo: "Face pull",
   },
 ];
 
@@ -165,6 +183,28 @@ export function insertExerciseBefore(
   return [...list.slice(0, idx), exercise, ...list.slice(idx)];
 }
 
+/**
+ * Pasa cada ejercicio por los alias (p. ej. variantes del crunch en polea) y
+ * quita los duplicados que resulten, conservando el primero.
+ */
+export function canonicalizeRoutines(routines: CustomRoutines): CustomRoutines {
+  const fix = (list: string[]) => [...new Set(list.map(canonicalExerciseName))];
+  return {
+    pecho: fix(routines.pecho),
+    espalda: fix(routines.espalda),
+    hombro_biceps: fix(routines.hombro_biceps),
+    hombro_triceps: fix(routines.hombro_triceps),
+    pierna: fix(routines.pierna),
+  };
+}
+
+/** Cambia el nombre en su misma posición; si el nuevo ya estaba, quita el viejo. */
+export function renameExercise(list: string[], from: string, to: string): string[] {
+  if (!list.includes(from)) return list;
+  if (list.includes(to)) return list.filter((name) => name !== from);
+  return list.map((name) => (name === from ? to : name));
+}
+
 export function mergeNewDefaults(
   routines: CustomRoutines,
   appliedIds: string[],
@@ -174,7 +214,12 @@ export function mergeNewDefaults(
   for (const item of NEW_DEFAULT_EXERCISES) {
     if (applied.includes(item.id)) continue;
     for (const slot of item.slots) {
-      next[slot] = insertExerciseBefore(next[slot], item.exercise, item.before);
+      next[slot] =
+        item.action === "remove"
+          ? next[slot].filter((name) => name !== item.exercise)
+          : item.action === "rename"
+            ? renameExercise(next[slot], item.exercise, item.renameTo ?? item.exercise)
+            : insertExerciseBefore(next[slot], item.exercise, item.before ?? "");
     }
     applied.push(item.id);
   }
@@ -190,13 +235,15 @@ function applyNewDefaultExercises(routines: CustomRoutines): CustomRoutines {
   } catch {}
 
   const merged = mergeNewDefaults(routines, appliedIds);
-  if (merged.appliedIds.length !== appliedIds.length) {
+  const canonical = canonicalizeRoutines(merged.routines);
+  const changed = JSON.stringify(canonical) !== JSON.stringify(routines);
+  if (changed || merged.appliedIds.length !== appliedIds.length) {
     try {
-      localStorage.setItem(CUSTOM_ROUTINES_STORAGE_KEY, JSON.stringify(merged.routines));
+      localStorage.setItem(CUSTOM_ROUTINES_STORAGE_KEY, JSON.stringify(canonical));
       localStorage.setItem(ADDED_DEFAULTS_STORAGE_KEY, JSON.stringify(merged.appliedIds));
     } catch {}
   }
-  return merged.routines;
+  return canonical;
 }
 
 /**

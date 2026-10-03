@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { PickerPortal } from "@/components/PickerPortal";
+import { getExerciseImage } from "@/lib/exercise-images";
 import { getLoadHint } from "@/lib/exercises";
 import { CATALOG_EXERCISES_BY_GROUP } from "@/lib/routines";
 
@@ -51,145 +53,122 @@ export function CatalogExercisePicker({
   return (
     <PickerPortal open={open}>
       <div
-        className="stack-picker-overlay"
+        className="stack-picker-overlay ct-overlay"
         role="dialog"
         aria-modal="true"
         aria-label="Catálogo de ejercicios"
         onClick={onClose}
       >
-        <div
-          className="stack-picker-sheet flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden p-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-[var(--glass-stroke)] px-5 py-4">
+        <div className="ct-sheet" onClick={(e) => e.stopPropagation()}>
+          {/* Cabecera */}
+          <div className="ct-head">
             <div>
-              <p className="label mb-0 text-xs font-bold tracking-[0.14em] text-[var(--accent)]">
-                Catálogo
-              </p>
-              <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-[0.04em]">
-                Añadir Ejercicio
-              </h2>
+              <p className="hm-kicker">Catálogo</p>
+              <h2 className="pf-title">Añadir ejercicio</h2>
             </div>
-            <button
-              type="button"
-              className="stack-picker-close flex h-9 w-9 items-center justify-center rounded-full text-base transition-transform active:scale-95"
-              onClick={onClose}
-              aria-label="Cerrar"
-            >
+            <button type="button" className="rt-icon-btn" onClick={onClose} aria-label="Cerrar">
               ✕
             </button>
           </div>
 
-          {/* Search Bar */}
-          <div className="border-b border-[var(--glass-stroke)] bg-[var(--surface)]/50 px-4 py-3">
-            <div className="relative">
+          {/* Búsqueda y filtros */}
+          <div className="ct-tools">
+            <div className="ct-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.3-4.3" />
+              </svg>
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar ejercicio (ej. Crunch, Press, Polea…)"
-                className="field h-11 w-full px-3.5 pr-8 text-sm"
+                placeholder="Buscar ejercicio (press, polea, crunch…)"
+                aria-label="Buscar ejercicio"
               />
               {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)] hover:text-white"
-                  aria-label="Limpiar búsqueda"
-                >
+                <button type="button" onClick={() => setSearch("")} aria-label="Limpiar búsqueda">
                   ✕
                 </button>
               ) : null}
             </div>
 
-            {/* Category Filter Chips */}
-            <div className="no-scrollbar mt-3 -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
-              {groups.map((group) => {
-                const isActive = selectedGroup === group;
-                return (
-                  <button
-                    key={group}
-                    type="button"
-                    onClick={() => setSelectedGroup(group)}
-                    className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] transition-all active:scale-95 ${
-                      isActive
-                        ? "bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/40"
-                        : "bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--ink)]"
-                    }`}
-                  >
-                    {group}
-                  </button>
-                );
-              })}
+            <div className="pg-filters" role="tablist" aria-label="Filtrar por grupo muscular">
+              {groups.map((group) => (
+                <button
+                  key={group}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedGroup === group}
+                  onClick={() => setSelectedGroup(group)}
+                  className={`pg-filter ${selectedGroup === group ? "is-active" : ""}`}
+                >
+                  {group}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Exercise List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+          {/* Lista */}
+          <div className="ct-list">
+            <p className="ct-count">
+              {filteredExercises.length} {filteredExercises.length === 1 ? "ejercicio" : "ejercicios"}
+            </p>
+
             {filteredExercises.length === 0 ? (
-              <div className="py-12 text-center text-sm text-[var(--muted)]">
-                No se encontraron ejercicios con &ldquo;{search}&rdquo;.
+              <div className="ct-empty">
+                No se encontraron ejercicios{search ? <> con &ldquo;{search}&rdquo;</> : null}.
               </div>
             ) : (
-              filteredExercises.map(({ name, group }) => {
+              filteredExercises.map(({ name, group }, i) => {
                 const isAdded = activeExercises.includes(name);
                 const load = getLoadHint(name);
+                const thumb = getExerciseImage(name);
 
                 return (
                   <button
-                    key={name}
+                    key={`${group}-${name}`}
                     type="button"
                     disabled={isAdded}
                     onClick={() => handleSelect(name)}
-                    className={`group card card-interactive flex w-full items-center justify-between gap-3 p-3.5 text-left transition-all ${
-                      isAdded
-                        ? "opacity-45 cursor-not-allowed border-transparent bg-transparent"
-                        : "hover:border-[var(--accent)]/50 active:scale-[0.985]"
-                    }`}
+                    className={`ct-row ${isAdded ? "is-added" : ""}`}
+                    style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold leading-snug tracking-wide text-[var(--ink)]">
-                        {name}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                        <span className="rounded bg-[var(--surface-2)] px-2 py-0.5 font-medium">
-                          {group}
-                        </span>
-                        <span>·</span>
-                        <span className="text-[var(--accent)] font-medium">
+                    <span className={`ct-thumb ${thumb ? "" : "is-empty"}`}>
+                      {thumb ? (
+                        <Image src={thumb} alt="" fill className="object-cover" sizes="64px" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" />
+                        </svg>
+                      )}
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="ct-name">{name}</span>
+                      <span className="ct-meta">
+                        <span className="hm-chip">{group}</span>
+                        <span className="ct-load" title={load.detail}>
                           {load.short}
                         </span>
-                        <span className="hidden sm:inline text-[var(--muted)]">
-                          ({load.detail})
-                        </span>
-                      </div>
-                    </div>
+                      </span>
+                    </span>
 
-                    <div className="shrink-0">
-                      {isAdded ? (
-                        <span className="rounded-full bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400">
-                          ✓ Añadido
-                        </span>
-                      ) : (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-base font-bold text-[var(--ink)] group-hover:bg-[var(--accent)] group-hover:text-white transition-colors">
-                          +
-                        </span>
-                      )}
-                    </div>
+                    {isAdded ? (
+                      <span className="ct-added">Añadido</span>
+                    ) : (
+                      <span className="ct-add" aria-hidden="true">
+                        +
+                      </span>
+                    )}
                   </button>
                 );
               })
             )}
           </div>
 
-          {/* Footer Actions */}
-          <div className="border-t border-[var(--glass-stroke)] bg-[var(--surface)] px-4 py-3 text-center">
-            <button
-              type="button"
-              className="btn btn-ghost w-full min-h-[2.8rem] text-xs font-bold tracking-[0.1em]"
-              onClick={onClose}
-            >
+          {/* Pie */}
+          <div className="ct-foot">
+            <button type="button" className="pg-pill ct-close" onClick={onClose}>
               Cerrar
             </button>
           </div>

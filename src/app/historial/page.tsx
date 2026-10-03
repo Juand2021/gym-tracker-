@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { getDayLabel } from "@/lib/routines";
+import { useEffect, useMemo, useState } from "react";
+import { MuscleGroupIcon } from "@/components/MuscleGroupIcon";
+import { PageHero } from "@/components/ui/PageHero";
+import { dateParts, groupByMonth } from "@/lib/history-summary";
+import { DAY_OPTIONS, getDayLabel, type DayType } from "@/lib/routines";
 import type { Workout } from "@/lib/types";
+
+type Filter = "todos" | DayType;
 
 export default function HistorialPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [filter, setFilter] = useState<Filter>("todos");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -29,66 +35,125 @@ export default function HistorialPage() {
     void load();
   }, []);
 
+  const totalSets = useMemo(() => workouts.reduce((sum, w) => sum + w.sets.length, 0), [workouts]);
+  const visible = useMemo(
+    () => (filter === "todos" ? workouts : workouts.filter((w) => w.dayType === filter)),
+    [workouts, filter],
+  );
+  const groups = useMemo(() => groupByMonth(visible), [visible]);
+  const months = useMemo(() => groupByMonth(workouts).length, [workouts]);
+
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="page-kicker">Registro</p>
-        <h1 className="page-title mt-1">Historial</h1>
-        <p className="mt-2 text-[var(--muted)]">Todas tus sesiones guardadas.</p>
+    <div className="pg">
+      <PageHero
+        kicker="Registro"
+        title="Historial"
+        description="Todas tus sesiones guardadas, de la más reciente a la más antigua."
+        stats={
+          loading || error
+            ? undefined
+            : [
+                { label: "Sesiones", value: workouts.length },
+                { label: "Series", value: totalSets },
+                { label: months === 1 ? "Mes" : "Meses", value: months },
+              ]
+        }
+      />
+
+      {/* Filtro por día */}
+      <div className="pg-filters" role="tablist" aria-label="Filtrar por día">
+        {([{ id: "todos", label: "Todos" }, ...DAY_OPTIONS] as Array<{ id: Filter; label: string }>).map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={filter === opt.id}
+            className={`pg-filter ${filter === opt.id ? "is-active" : ""}`}
+            onClick={() => setFilter(opt.id)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
-      {loading ? <p className="text-[var(--muted)]">Cargando…</p> : null}
-      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+      {loading ? <div className="glass-panel hm-note">Cargando…</div> : null}
+      {error ? <div className="glass-panel hm-note is-error">{error}</div> : null}
 
-      <div className="space-y-2.5">
-        {workouts.map((workout) => {
-          const exercises = [...new Set(workout.sets.map((s) => s.exercise))];
-          return (
-            <Link
-              key={workout.id}
-              href={`/historial/${workout.id}`}
-              className="card card-interactive block p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.03em]">
-                    {workout.date}
-                  </p>
-                  {workout.dayType ? (
-                    <p className="mt-0.5 text-sm font-semibold uppercase tracking-wide text-[var(--accent)]">
-                      {getDayLabel(workout.dayType)}
-                      {workout.armFocus
-                        ? ` · ${workout.armFocus === "biceps" ? "Bíceps" : "Tríceps"}`
-                        : ""}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 text-sm text-[var(--muted)]">
-                    {workout.sets.length} series · {exercises.slice(0, 4).join(", ")}
-                    {exercises.length > 4 ? "…" : ""}
-                  </p>
-                  {workout.notes ? (
-                    <p
-                      className={`mt-2 text-sm ${
-                        workout.notes === "demo"
-                          ? "font-semibold uppercase tracking-wide text-[var(--muted)]"
-                          : ""
-                      }`}
-                    >
-                      {workout.notes === "demo" ? "Datos demo" : workout.notes}
-                    </p>
-                  ) : null}
-                </div>
-                <span className="pt-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">
-                  Ver
+      {groups.map((group) => (
+        <section key={group.key} className="pg-group">
+          <div className="hm-section-head">
+            <h2>{group.label}</h2>
+            <span>
+              {group.items.length} {group.items.length === 1 ? "sesión" : "sesiones"}
+            </span>
+          </div>
+
+          {group.items.map((workout, i) => {
+            const exercises = [...new Set(workout.sets.map((s) => s.exercise))];
+            const parts = dateParts(workout.date);
+            const isDemo = workout.notes === "demo";
+            return (
+              <Link
+                key={workout.id}
+                href={`/historial/${workout.id}`}
+                className="glass-panel hs-card"
+                style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}
+              >
+                <span className="hs-date">
+                  <span className="hs-date-weekday">{parts?.weekday ?? ""}</span>
+                  <span className="hs-date-day">{parts?.day ?? "–"}</span>
+                  <span className="hs-date-month">{parts?.monthAbbr ?? ""}</span>
                 </span>
-              </div>
-            </Link>
-          );
-        })}
-        {!loading && !error && workouts.length === 0 ? (
-          <p className="text-[var(--muted)]">Aún no hay entrenamientos.</p>
-        ) : null}
-      </div>
+
+                <span className="hs-body">
+                  <span className="hs-top">
+                    <span className="hs-day">
+                      {workout.dayType ? getDayLabel(workout.dayType) : "Sesión"}
+                      {workout.armFocus ? (
+                        <small> · {workout.armFocus === "biceps" ? "Bíceps" : "Tríceps"}</small>
+                      ) : null}
+                    </span>
+                    {workout.dayType ? (
+                      <span className="hs-icon" aria-hidden="true">
+                        <MuscleGroupIcon group={workout.dayType} className="h-9 w-9" />
+                      </span>
+                    ) : null}
+                  </span>
+
+                  <span className="hs-meta">
+                    <b>{workout.sets.length}</b> series · <b>{exercises.length}</b>{" "}
+                    {exercises.length === 1 ? "ejercicio" : "ejercicios"}
+                    {isDemo ? <span className="hs-demo">Demo</span> : null}
+                  </span>
+
+                  <span className="hm-chip-row">
+                    {exercises.slice(0, 3).map((ex) => (
+                      <span key={ex} className="hm-chip">
+                        {ex}
+                      </span>
+                    ))}
+                    {exercises.length > 3 ? <span className="hm-chip is-more">+{exercises.length - 3}</span> : null}
+                  </span>
+
+                  {workout.notes && !isDemo ? <span className="hs-notes">“{workout.notes}”</span> : null}
+                </span>
+
+                <span className="hs-arrow" aria-hidden="true">
+                  →
+                </span>
+              </Link>
+            );
+          })}
+        </section>
+      ))}
+
+      {!loading && !error && visible.length === 0 ? (
+        <div className="glass-panel hm-note">
+          {workouts.length === 0
+            ? "Aún no hay entrenamientos. Tu primera sesión aparecerá aquí."
+            : "No hay sesiones de ese día todavía."}
+        </div>
+      ) : null}
     </div>
   );
 }

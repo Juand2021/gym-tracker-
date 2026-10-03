@@ -10,6 +10,7 @@ import {
   isValidWeight,
   parseDecimal,
 } from "@/lib/numbers";
+import { dateParts } from "@/lib/history-summary";
 import { getDayLabel } from "@/lib/routines";
 import type { Workout } from "@/lib/types";
 
@@ -258,27 +259,45 @@ export default function WorkoutDetailPage() {
   if (!workout) return <p>No encontrado.</p>;
 
   return (
-    <div className="space-y-5">
-      <div>
-        <Link
-          href="/historial"
-          className="inline-flex min-h-10 items-center text-sm font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
-        >
-          ← Historial
-        </Link>
-        <h1 className="page-title mt-2">{editing ? "Editar sesión" : workout.date}</h1>
-        {workout.dayType ? (
-          <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-[var(--accent)]">
-            {getDayLabel(workout.dayType)}
-            {workout.armFocus
-              ? ` · ${workout.armFocus === "biceps" ? "Bíceps" : "Tríceps"}`
-              : ""}
+    <div className="pg">
+      <section className="glass-panel pg-hero">
+        <span className="pg-hero-glow" aria-hidden="true" />
+        <div className="pg-hero-bar">
+          <Link href="/historial" className="pg-pill">
+            <span aria-hidden="true">←</span> Historial
+          </Link>
+        </div>
+        <div className="min-w-0">
+          <p className="hm-kicker">
+            {workout.dayType
+              ? `${getDayLabel(workout.dayType)}${
+                  workout.armFocus ? ` · ${workout.armFocus === "biceps" ? "Bíceps" : "Tríceps"}` : ""
+                }`
+              : "Sesión"}
           </p>
+          <h1 className="page-title mt-1">
+            {editing ? "Editar sesión" : (() => {
+              const parts = dateParts(workout.date);
+              return parts ? `${parts.weekday} ${parts.day} ${parts.monthAbbr}` : workout.date;
+            })()}
+          </h1>
+          {!editing && workout.notes ? (
+            <p className="pg-hero-text">{workout.notes === "demo" ? "Datos de demostración" : workout.notes}</p>
+          ) : null}
+        </div>
+        {!editing ? (
+          <div className="pg-hero-stats" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <div className="pg-stat">
+              <span className="pg-stat-value">{workout.sets.length}</span>
+              <span className="pg-stat-label">Series</span>
+            </div>
+            <div className="pg-stat">
+              <span className="pg-stat-value">{new Set(workout.sets.map((s) => s.exercise)).size}</span>
+              <span className="pg-stat-label">Ejercicios</span>
+            </div>
+          </div>
         ) : null}
-        {!editing && workout.notes ? (
-          <p className="mt-2 text-[var(--muted)]">{workout.notes}</p>
-        ) : null}
-      </div>
+      </section>
 
       {editing ? (
         <form onSubmit={onSave} className="space-y-4">

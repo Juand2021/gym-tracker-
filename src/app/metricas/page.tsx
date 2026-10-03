@@ -17,6 +17,7 @@ import { MuscleGroupVolumeChart } from "@/components/analytics/MuscleGroupVolume
 import { StrengthProgressionChart } from "@/components/analytics/StrengthProgressionChart";
 import { WeeklyVolumeChart } from "@/components/analytics/WeeklyVolumeChart";
 import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
+import { PageHero } from "@/components/ui/PageHero";
 import {
   getExerciseMuscleGroup,
   WorkoutAnalyticsService,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/analytics";
 import { getExerciseImage } from "@/lib/exercise-images";
 import { getLoadHint } from "@/lib/exercises";
+import { loadCustomRoutines } from "@/lib/custom-routines";
 import { computeExercisePrs } from "@/lib/metrics";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
 
@@ -35,6 +37,8 @@ export default function MetricasPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [weights, setWeights] = useState<BodyWeightEntry[]>([]);
   const [exercise, setExercise] = useState("");
+  /** Ejercicios de las rutinas del usuario (aunque aún no tengan series). */
+  const [routineExercises, setRoutineExercises] = useState<string[]>([]);
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [filterHighReps, setFilterHighReps] = useState(true);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -61,6 +65,7 @@ export default function MetricasPage() {
         const list = wData.workouts ?? [];
         setWorkouts(list);
         setWeights(bData.entries ?? []);
+        setRoutineExercises([...new Set(Object.values(loadCustomRoutines()).flat())]);
 
         const preferred = [
           "Press banca",
@@ -88,11 +93,22 @@ export default function MetricasPage() {
     void load();
   }, []);
 
-  const exerciseOptions = useMemo(() => {
+  const loggedExercises = useMemo(() => {
     return [
       ...new Set(workouts.flatMap((w) => w.sets.map((s) => s.exercise))),
     ].sort();
   }, [workouts]);
+
+  /** De la rutina, pero sin series todavía (p. ej. un ejercicio recién agregado). */
+  const pendingExercises = useMemo(() => {
+    const logged = new Set(loggedExercises);
+    return routineExercises.filter((name) => !logged.has(name)).sort();
+  }, [loggedExercises, routineExercises]);
+
+  const exerciseOptions = useMemo(
+    () => [...loggedExercises, ...pendingExercises],
+    [loggedExercises, pendingExercises],
+  );
 
   const analyticsOptions = useMemo(
     () => ({
@@ -178,19 +194,12 @@ export default function MetricasPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="page-kicker text-[var(--accent)] font-semibold tracking-wider">
-            ANALYTICS & RENDIMIENTO
-          </p>
-          <h1 className="page-title mt-1">Métricas & Dashboard</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Evolución de 1RM, media móvil, volumen de carga y zonas de intensidad.
-          </p>
-        </div>
-      </div>
+    <div className="pg mt-page">
+      <PageHero
+        kicker="Análisis y rendimiento"
+        title="Métricas"
+        description="Evolución de 1RM, media móvil, volumen de carga y zonas de intensidad."
+      />
 
       {/* Estados de carga y error */}
       {loading ? (
@@ -238,16 +247,29 @@ export default function MetricasPage() {
                       value={exercise}
                       onChange={(e) => setExercise(e.target.value)}
                       disabled={exerciseOptions.length === 0}
-                      className="w-full rounded-xl border border-[var(--line-strong)] bg-[#111] px-3.5 py-2.5 text-sm font-semibold text-[var(--ink)] shadow-inner transition-colors focus:border-[var(--accent)] focus:outline-none"
+                      className="field mt-select"
                     >
                       {exerciseOptions.length === 0 ? (
                         <option value="">Sin datos de entrenamiento</option>
                       ) : (
-                        exerciseOptions.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))
+                        <>
+                          <optgroup label="Con registros">
+                            {loggedExercises.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {pendingExercises.length > 0 ? (
+                            <optgroup label="En tus rutinas · sin registros aún">
+                              {pendingExercises.map((name) => (
+                                <option key={name} value={name}>
+                                  {name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ) : null}
+                        </>
                       )}
                     </select>
                   </div>
@@ -255,7 +277,7 @@ export default function MetricasPage() {
                   <button
                     type="button"
                     onClick={() => setIsCatalogOpen(true)}
-                    className="flex h-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[#141414] px-3 text-xs font-semibold text-[var(--ink)] hover:border-[var(--accent)] transition-all"
+                    className="pg-pill shrink-0"
                     title="Ver catálogo completo"
                   >
                     Catálogo
@@ -266,7 +288,7 @@ export default function MetricasPage() {
               {/* Selector de Rango Temporal */}
               <div className="space-y-1.5">
                 <label className="label text-xs">Rango Temporal</label>
-                <div className="flex items-center rounded-xl border border-[var(--line)] bg-[#0d0d0d] p-1 text-xs">
+                <div className="mt-range">
                   {(
                     [
                       { id: "1m", label: "1M" },
@@ -279,11 +301,7 @@ export default function MetricasPage() {
                       key={range.id}
                       type="button"
                       onClick={() => setTimeRange(range.id)}
-                      className={`rounded-lg px-3 py-1.5 font-bold transition-all ${
-                        timeRange === range.id
-                          ? "bg-[var(--accent)] text-white shadow-md shadow-[var(--accent)]/20"
-                          : "text-[var(--muted)] hover:text-white"
-                      }`}
+                      className={`mt-range-btn ${timeRange === range.id ? "is-active" : ""}`}
                     >
                       {range.label}
                     </button>
@@ -321,39 +339,36 @@ export default function MetricasPage() {
             </div>
           </section>
 
-          {/* Imagen y Hero del Ejercicio (si aplica) */}
+          {/* Ejercicio seleccionado: la ilustración se ve completa, sin recortes */}
           {exerciseImage ? (
-            <div className="relative mx-auto aspect-[21/9] w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--line)] bg-[#0c0c0c] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <Image
-                src={exerciseImage}
-                alt={exercise}
-                fill
-                className="object-cover object-center"
-                sizes="(max-width: 768px) 100vw, 512px"
-                priority
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-              <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
-                    {exerciseGroup}
-                  </p>
-                  <h2 className="text-lg font-bold text-white drop-shadow">
-                    {exercise}
-                  </h2>
+            <section className="mt-spot">
+              <Image src={exerciseImage} alt="" fill aria-hidden className="mt-spot-fill" sizes="64px" />
+              <div className="mt-spot-art">
+                <Image
+                  src={exerciseImage}
+                  alt={`Ilustración de ${exercise}`}
+                  fill
+                  className="mt-spot-img"
+                  sizes="(max-width: 768px) 85vw, 336px"
+                  priority
+                />
+              </div>
+              <div className="mt-spot-info">
+                <div className="min-w-0">
+                  {exerciseGroup ? <p className="hm-kicker">{exerciseGroup}</p> : null}
+                  <h2 className="mt-spot-title">{exercise}</h2>
                 </div>
                 {kpiSummary.allTimeMax1rm ? (
-                  <div className="rounded-lg bg-black/60 px-2.5 py-1 text-right backdrop-blur-md">
-                    <p className="text-[10px] text-[var(--muted)] uppercase font-semibold">
-                      PR Histórico
-                    </p>
-                    <p className="text-sm font-bold text-[var(--accent)]">
-                      {kpiSummary.allTimeMax1rm} kg
-                    </p>
+                  <div className="pg-stat mt-spot-pr">
+                    <span className="pg-stat-value">
+                      {kpiSummary.allTimeMax1rm}
+                      <small> kg</small>
+                    </span>
+                    <span className="pg-stat-label">PR histórico</span>
                   </div>
                 ) : null}
               </div>
-            </div>
+            </section>
           ) : null}
 
           {/* Tarjetas de KPIs */}
@@ -391,7 +406,7 @@ export default function MetricasPage() {
             </div>
 
             {prs.length > 0 ? (
-              <div className="space-y-2 divide-y divide-[var(--line)]">
+              <div className="mt-pr-list">
                 {prs.map((pr) => {
                   const thumb = getExerciseImage(pr.exercise);
                   const isSelected = pr.exercise === exercise;
@@ -399,19 +414,17 @@ export default function MetricasPage() {
                     <div
                       key={pr.exercise}
                       onClick={() => setExercise(pr.exercise)}
-                      className={`flex cursor-pointer items-center justify-between gap-3 pt-2.5 pb-2 transition-colors hover:bg-white/[0.02] ${
-                        isSelected ? "bg-[var(--accent)]/5 rounded-lg px-2" : ""
-                      }`}
+                      className={`mt-pr ${isSelected ? "is-selected" : ""}`}
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         {thumb ? (
-                          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#111]">
+                          <div className="mt-thumb">
                             <Image
                               src={thumb}
                               alt=""
                               fill
                               className="object-cover"
-                              sizes="44px"
+                              sizes="64px"
                             />
                           </div>
                         ) : null}

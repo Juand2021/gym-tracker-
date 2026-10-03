@@ -4,12 +4,46 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DAY_OPTIONS, getDayLabel } from "@/lib/routines";
 import { MuscleGroupIcon } from "@/components/MuscleGroupIcon";
+import { Sparkline } from "@/components/ui/Sparkline";
+import { formatShortDate } from "@/lib/exercise-history";
+import { dayStats, latestWorkout, weeklySets, weightTrend } from "@/lib/home-summary";
+import { calculateUserStreakSummary } from "@/lib/user-streak";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
 import { useWorkoutDraft } from "@/lib/workout-draft";
+
+function greetingFor(date: Date): string {
+  const h = date.getHours();
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+const KPI_ICONS = {
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+    </>
+  ),
+  flame: <path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8 0 4 3 7 7 7z" />,
+  stack: <path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" />,
+  dumbbell: <path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" />,
+};
+
+function SectionHeader({ title, aside }: { title: string; aside?: string }) {
+  return (
+    <div className="hm-section-head">
+      <h2>{title}</h2>
+      {aside ? <span>{aside}</span> : null}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [weights, setWeights] = useState<BodyWeightEntry[]>([]);
+  const [name, setName] = useState<string | null>(null);
+  const [now, setNow] = useState<Date | null>(null);
   const draft = useWorkoutDraft();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -18,23 +52,23 @@ export default function HomePage() {
     let active = true;
     async function load() {
       try {
-        const [wRes, bRes] = await Promise.all([
+        const [wRes, bRes, meRes] = await Promise.all([
           fetch("/api/workouts"),
           fetch("/api/body-weight"),
+          fetch("/api/auth/me"),
         ]);
-        const wData = (await wRes.json()) as {
-          workouts?: Workout[];
-          error?: string;
-        };
-        const bData = (await bRes.json()) as {
-          entries?: BodyWeightEntry[];
-          error?: string;
-        };
+        const wData = (await wRes.json()) as { workouts?: Workout[]; error?: string };
+        const bData = (await bRes.json()) as { entries?: BodyWeightEntry[]; error?: string };
+        const me = meRes.ok
+          ? ((await meRes.json()) as { profile?: { displayName?: string } })
+          : null;
         if (!active) return;
         if (!wRes.ok) throw new Error(wData.error || "Error al cargar entrenos");
         if (!bRes.ok) throw new Error(bData.error || "Error al cargar peso");
         setWorkouts(wData.workouts ?? []);
         setWeights(bData.entries ?? []);
+        setName(me?.profile?.displayName ?? null);
+        setNow(new Date());
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Error");
       } finally {
@@ -47,143 +81,245 @@ export default function HomePage() {
     };
   }, []);
 
-  const lastWorkout = workouts[0];
-  const lastWeight = weights[0];
-  const uniqueExercises = new Set(
-    workouts.flatMap((w) => w.sets.map((s) => s.exercise)),
-  ).size;
+  const streak = calculateUserStreakSummary(workouts, now ?? undefined);
+  const perDay = dayStats(workouts);
+  const lastWorkout = latestWorkout(workouts);
+  const weekly = weeklySets(workouts, now ?? undefined, 6);
+  const weeklyMax = Math.max(1, ...weekly);
+  const trend = weightTrend(weights);
+  const uniqueExercises = new Set(workouts.flatMap((w) => w.sets.map((s) => s.exercise))).size;
+  const goalPct = Math.min(1, streak.currentWeekCount / streak.weeklyGoal);
+  const RING = 2 * Math.PI * 26;
+  const hasDraft = Boolean(draft && (draft.dayType || (draft.sets && draft.sets.length > 0)));
 
   return (
-    <div className="space-y-6">
-      <section>
-        <p className="page-kicker">Hoy</p>
-        <h1 className="page-title mt-1">
-          A entrenar
-          <span className="text-[var(--accent)]">.</span>
-        </h1>
-        <p className="mt-3 max-w-sm text-[var(--muted)]">
-          Elige el día, mete peso × reps entre series y sigue.
-        </p>
+    <div className="hm">
+      {/* Portada */}
+      <section className="glass-panel hm-hero">
+        <span className="hm-hero-glow" aria-hidden="true" />
+        <div className="hm-hero-top">
+          <div className="min-w-0">
+            <p className="hm-kicker">
+              {now ? greetingFor(now) : "Hoy"}
+              {name ? `, ${name}` : ""}
+            </p>
+            <h1 className="page-title mt-1">
+              A entrenar<span className="text-[var(--accent)]">.</span>
+            </h1>
+          </div>
+
+          <div className="hm-goal" aria-label={`${streak.currentWeekCount} de ${streak.weeklyGoal} días esta semana`}>
+            <svg viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="26" className="hm-goal-track" />
+              <circle
+                cx="32"
+                cy="32"
+                r="26"
+                className="hm-goal-fill"
+                strokeDasharray={RING}
+                strokeDashoffset={RING * (1 - goalPct)}
+                transform="rotate(-90 32 32)"
+              />
+            </svg>
+            <span className="hm-goal-value">
+              {streak.currentWeekCount}
+              <small>/{streak.weeklyGoal}</small>
+            </span>
+            <span className="hm-goal-label">semana</span>
+          </div>
+        </div>
+
+        <div className="hm-week" role="list" aria-label="Días entrenados esta semana">
+          {(now ? streak.daysOfWeek : []).map((d) => (
+            <span
+              key={d.dateIso}
+              role="listitem"
+              className={`hm-week-day ${d.isTrained ? "is-trained" : ""} ${d.isToday ? "is-today" : ""}`}
+              title={`${d.dayName}${d.isTrained ? ": entrenado" : ""}`}
+            >
+              {d.dayLetter}
+              <i aria-hidden="true" />
+            </span>
+          ))}
+        </div>
+
+        {now ? <p className="hm-motiv">{streak.motivationalMessage}</p> : null}
       </section>
 
-      {draft && (draft.dayType || (draft.sets && draft.sets.length > 0)) ? (
-        <Link
-          href="/entreno"
-          className="card card-interactive block border-emerald-500/40 bg-emerald-950/20 p-4"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-              </span>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-400">
-                Entreno en curso
-              </p>
-            </div>
-            <span className="text-xs font-semibold text-emerald-400">
-              Continuar →
+      {hasDraft && draft ? (
+        <Link href="/entreno" className="glass-panel hm-draft">
+          <span className="hm-live-dot" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span className="hm-draft-kicker">Entreno en curso</span>
+            <span className="hm-draft-title">
+              {draft.dayType ? getDayLabel(draft.dayType) : "Sesión"}
+              {draft.armFocus ? ` · ${draft.armFocus === "biceps" ? "Bíceps" : "Tríceps"}` : ""}
             </span>
-          </div>
-          <p className="mt-2 font-[family-name:var(--font-display)] text-2xl tracking-[0.03em]">
-            {draft.dayType ? getDayLabel(draft.dayType) : "Sesión"}
-            {draft.armFocus
-              ? ` · ${draft.armFocus === "biceps" ? "Bíceps" : "Tríceps"}`
-              : ""}
-          </p>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">
-            {draft.sets?.length ?? 0} series registradas en tu borrador
-          </p>
+            <span className="hm-draft-meta">{draft.sets?.length ?? 0} series en tu borrador</span>
+          </span>
+          <span className="hm-draft-go">Continuar →</span>
         </Link>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-2.5">
-        {DAY_OPTIONS.map((day) => (
-          <Link
-            key={day.id}
-            href={`/entreno?day=${day.id}`}
-            className="card card-interactive group relative flex min-h-[6.25rem] sm:min-h-[6.5rem] items-center justify-between p-3.5 sm:p-4 overflow-hidden transition-all hover:border-[var(--accent)] active:scale-[0.99] rounded-2xl"
-          >
-            <div className="min-w-0 pr-1.5 z-10">
-              <p className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl tracking-[0.04em] text-white leading-none">
-                {day.label}
-              </p>
-              <p className="mt-1 text-xs text-[var(--muted)] truncate">{day.subtitle}</p>
-            </div>
-            <MuscleGroupIcon
-              group={day.id}
-              className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 transition-transform duration-300 group-hover:scale-105"
-            />
-          </Link>
-        ))}
+      {/* Días */}
+      <SectionHeader title="Elige tu día" />
+      <section className="hm-days">
+        {DAY_OPTIONS.map((day, i) => {
+          const stat = perDay[day.id];
+          return (
+            <Link
+              key={day.id}
+              href={`/entreno?day=${day.id}`}
+              className="glass-panel hm-day"
+              style={{ animationDelay: `${i * 55}ms` }}
+            >
+              <span className="hm-day-glow" aria-hidden="true" />
+              <span className="hm-day-top">
+                <span className="hm-day-icon">
+                  <MuscleGroupIcon group={day.id} className="h-[4.1rem] w-[4.1rem]" />
+                </span>
+              </span>
+              <span className="hm-day-label">{day.label}</span>
+              <span className="hm-day-sub">{day.subtitle}</span>
+              <span className="hm-day-meta">
+                <span>
+                  <b>{stat.sessions}</b> {stat.sessions === 1 ? "sesión" : "sesiones"}
+                </span>
+                <span>{stat.lastDate ? formatShortDate(stat.lastDate) : "Sin registros"}</span>
+              </span>
+            </Link>
+          );
+        })}
       </section>
 
-      {loading ? <p className="text-[var(--muted)]">Cargando resumen…</p> : null}
-      {error ? (
-        <div className="card border-[var(--danger)] p-4 text-sm text-[var(--danger)]">
-          {error}
-        </div>
-      ) : null}
+      {loading ? <div className="glass-panel hm-note">Cargando resumen…</div> : null}
+      {error ? <div className="glass-panel hm-note is-error">{error}</div> : null}
 
       {!loading && !error ? (
-        <section className="grid grid-cols-2 gap-2.5">
-          <div className="card p-4">
-            <p className="label">Sesiones</p>
-            <p className="stat-value">{workouts.length}</p>
-          </div>
-          <div className="card p-4">
-            <p className="label">Ejercicios</p>
-            <p className="stat-value">{uniqueExercises}</p>
-          </div>
-          <div className="card col-span-2 p-4">
-            <p className="label">Último entreno</p>
+        <>
+          <SectionHeader title="Tu progreso" />
+          <section className="hm-kpis">
+            {(
+              [
+                { label: "Sesiones", value: workouts.length, hint: "en total", icon: "calendar" },
+                { label: "Racha", value: streak.consecutiveWeeks, hint: streak.consecutiveWeeks === 1 ? "semana" : "semanas", icon: "flame" },
+                { label: "Series", value: weekly[weekly.length - 1], hint: "esta semana", icon: "stack" },
+                { label: "Ejercicios", value: uniqueExercises, hint: "distintos", icon: "dumbbell" },
+              ] as const
+            ).map((k) => (
+              <div key={k.label} className="glass-panel hm-kpi">
+                <span className="hm-kpi-top">
+                  <span className="hm-kpi-label">{k.label}</span>
+                  <span className="hm-kpi-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {KPI_ICONS[k.icon]}
+                    </svg>
+                  </span>
+                </span>
+                <span className="hm-kpi-value">{k.value}</span>
+                <span className="hm-kpi-hint">{k.hint}</span>
+              </div>
+            ))}
+          </section>
+
+          <section className="glass-panel hm-volume">
+            <div className="hm-card-head">
+              <span>Series por semana</span>
+              <span className="hm-card-aside">últimas 6</span>
+            </div>
+            {weekly.every((v) => v === 0) ? (
+              <p className="hm-bars-empty">Sin series en las últimas 6 semanas. ¡Hoy es buen día para empezar!</p>
+            ) : null}
+            <div className="hm-bars">
+              {weekly.map((v, i) => (
+                <div key={i} className={`hm-bar ${i === weekly.length - 1 ? "is-current" : ""}`}>
+                  <span className="hm-bar-value">{v || ""}</span>
+                  <span className="hm-bar-track">
+                    <span className="hm-bar-fill" style={{ height: `${(v / weeklyMax) * 100}%` }} />
+                  </span>
+                  <span className="hm-bar-label">{i === weekly.length - 1 ? "Esta" : `-${weekly.length - 1 - i}`}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="glass-panel hm-last">
+            <div className="hm-card-head">
+              <span>Último entreno</span>
+              {lastWorkout ? (
+                <Link href={`/historial/${lastWorkout.id}`} className="hm-card-link">
+                  Ver →
+                </Link>
+              ) : null}
+            </div>
             {lastWorkout ? (
               <>
-                <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.03em]">
-                  {lastWorkout.date}
-                  {lastWorkout.dayType
-                    ? ` · ${getDayLabel(lastWorkout.dayType)}`
-                    : ""}
-                </p>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  {lastWorkout.sets.length} series ·{" "}
-                  {[...new Set(lastWorkout.sets.map((s) => s.exercise))]
-                    .slice(0, 3)
-                    .join(", ")}
-                </p>
+                <div className="hm-last-row">
+                  {lastWorkout.dayType ? (
+                    <span className="hm-chip is-day">{getDayLabel(lastWorkout.dayType)}</span>
+                  ) : null}
+                  <span className="hm-last-date">{formatShortDate(lastWorkout.date)}</span>
+                  <span className="hm-last-sets">{lastWorkout.sets.length} series</span>
+                </div>
+                <div className="hm-chip-row">
+                  {[...new Set(lastWorkout.sets.map((s) => s.exercise))].slice(0, 5).map((ex) => (
+                    <span key={ex} className="hm-chip">
+                      {ex}
+                    </span>
+                  ))}
+                </div>
               </>
             ) : (
-              <p className="text-[var(--muted)]">Aún no hay sesiones.</p>
+              <p className="hm-empty">Aún no hay sesiones. ¡La primera es hoy!</p>
             )}
-          </div>
-          <div className="card col-span-2 p-4">
-            <p className="label">Último peso corporal</p>
-            {lastWeight ? (
-              <p className="font-[family-name:var(--font-display)] text-2xl tracking-[0.03em]">
-                {lastWeight.weightKg} kg{" "}
-                <span className="text-base font-normal tracking-normal text-[var(--muted)]">
-                  ({lastWeight.date})
-                </span>
-              </p>
-            ) : (
-              <p className="text-[var(--muted)]">Sin registros aún.</p>
-            )}
-          </div>
-        </section>
+          </section>
+
+          <section className="glass-panel hm-weight">
+            <div className="min-w-0">
+              <div className="hm-card-head">
+                <span>Peso corporal</span>
+              </div>
+              {trend.latest ? (
+                <>
+                  <p className="hm-weight-value">
+                    {trend.latest.weightKg}
+                    <small> kg</small>
+                  </p>
+                  <p className="hm-weight-meta">
+                    {trend.delta != null ? (
+                      <span className={`hm-delta ${trend.delta > 0 ? "is-up" : trend.delta < 0 ? "is-down" : ""}`}>
+                        {trend.delta > 0 ? "▲" : trend.delta < 0 ? "▼" : "="} {Math.abs(trend.delta)} kg
+                      </span>
+                    ) : null}
+                    <span>{formatShortDate(trend.latest.date)}</span>
+                  </p>
+                </>
+              ) : (
+                <p className="hm-empty">Sin registros aún.</p>
+              )}
+            </div>
+            <Sparkline values={trend.series} />
+          </section>
+        </>
       ) : null}
 
-      <section className="grid gap-2.5">
-        <Link href="/ia" className="card card-interactive block p-4">
-          <p className="font-semibold uppercase tracking-wide">Análisis con IA</p>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Pregunta cómo va tu progreso y qué ajustar.
-          </p>
+      {/* Atajos */}
+      <SectionHeader title="Atajos" />
+      <section className="hm-shortcuts">
+        <Link href="/ia" className="glass-panel hm-shortcut">
+          <span className="ia-orb hm-shortcut-orb" aria-hidden="true" />
+          <span className="hm-shortcut-title">Coach IA</span>
+          <span className="hm-shortcut-text">Pregunta cómo va tu progreso y qué ajustar.</span>
         </Link>
-        <Link href="/metricas" className="card card-interactive block p-4">
-          <p className="font-semibold uppercase tracking-wide">Métricas</p>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Evolución de fuerza y peso corporal.
-          </p>
+        <Link href="/metricas" className="glass-panel hm-shortcut">
+          <span className="hm-shortcut-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" />
+              <path d="M7 15l4-4 3 3 5-6" />
+            </svg>
+          </span>
+          <span className="hm-shortcut-title">Métricas</span>
+          <span className="hm-shortcut-text">Evolución de fuerza y peso corporal.</span>
         </Link>
       </section>
     </div>

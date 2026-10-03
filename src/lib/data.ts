@@ -39,6 +39,7 @@ import type {
   WorkoutSet,
 } from "@/lib/types";
 import { WorkoutAnalyticsService } from "@/lib/analytics";
+import { canonicalExerciseName } from "@/lib/exercise-aliases";
 import type {
   CollectionReference,
   DocumentData,
@@ -58,14 +59,7 @@ function asArmFocus(value: unknown): ArmFocus | null {
 }
 
 export function normalizeExerciseName(raw: string): string {
-  const name = raw.trim();
-  if (
-    name === "Remo unilateral (agarre al tronco)" ||
-    name === "remo unilateral (agarre al tronco)"
-  ) {
-    return "Remo unilateral con agarre de polea";
-  }
-  return name;
+  return canonicalExerciseName(raw);
 }
 
 function mapSet(id: string, data: Record<string, unknown>): WorkoutSet {

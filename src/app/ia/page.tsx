@@ -1,15 +1,45 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AiAnalysis } from "@/components/AiAnalysis";
 import { formatShortDate } from "@/lib/exercise-history";
 import type { ChatMessage, ChatThread, ChatThreadSummary } from "@/lib/types";
 
-const SUGGESTIONS = [
-  "¿Cómo va mi progreso general de fuerza y sobrecarga?",
-  "¿Estoy estancado en algún ejercicio de mi rutina?",
-  "Recomiéndame una rutina de 4 días enfocada en hipertrofia",
-  "¿Debería rotar o sustituir algún ejercicio de espalda?",
+/* Íconos de línea (sin emojis, coherentes con el resto de la app) */
+const ICONS: Record<string, ReactNode> = {
+  trend: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
+  pause: <path d="M10 4H6v16h4zM18 4h-4v16h4z" />,
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+    </>
+  ),
+  swap: <path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />,
+  bolt: <path d="M13 2L4 14h7l-1 8 9-12h-7z" />,
+  stack: <path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" />,
+  heart: <path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z" />,
+};
+
+function Icon({ name }: { name: keyof typeof ICONS }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+const SUGGESTIONS: Array<{ tag: string; icon: keyof typeof ICONS; text: string }> = [
+  { tag: "Progreso", icon: "trend", text: "¿Cómo va mi progreso general de fuerza y sobrecarga?" },
+  { tag: "Estancamiento", icon: "pause", text: "¿Estoy estancado en algún ejercicio de mi rutina?" },
+  { tag: "Rutina", icon: "calendar", text: "Recomiéndame una rutina de 4 días enfocada en hipertrofia" },
+  { tag: "Variantes", icon: "swap", text: "¿Debería rotar o sustituir algún ejercicio de espalda?" },
+];
+
+const CAPABILITIES: Array<{ icon: keyof typeof ICONS; title: string; text: string }> = [
+  { icon: "bolt", title: "1RM y marcas", text: "Fuerza estimada por ejercicio" },
+  { icon: "stack", title: "Volumen", text: "Carga semanal por músculo" },
+  { icon: "heart", title: "Recuperación", text: "Frecuencia y descargas" },
 ];
 
 const FOLLOW_UPS = [
@@ -18,6 +48,52 @@ const FOLLOW_UPS = [
   "¿Cómo ajusto mis cargas la próxima semana?",
   "¿Necesito una semana de descarga?",
 ];
+
+/** "3 oct · 14:05" en la hora local del teléfono. */
+function formatMessageTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${formatShortDate(local)} · ${time}`;
+}
+
+/**
+ * Distancia (px) desde el borde inferior para la caja de escritura: justo
+ * encima de la barra de pestañas o, con el teclado abierto, encima del teclado.
+ */
+function useComposerOffset(): number | null {
+  const [offset, setOffset] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const vv = window.visualViewport;
+    const update = () => {
+      const layoutH = window.innerHeight;
+      const keyboard = vv ? Math.max(0, layoutH - (vv.height + vv.offsetTop)) : 0;
+      if (keyboard > 80) {
+        setOffset(keyboard + 8);
+        return;
+      }
+      const bar = document.querySelector(".lg-bar");
+      const barTop = bar?.getBoundingClientRect().top;
+      setOffset(barTop ? Math.max(8, layoutH - barTop + 10) : null);
+    };
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    // La barra puede reacomodarse un instante después de cargar (iOS)
+    const late = window.setTimeout(update, 600);
+    return () => {
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      window.clearTimeout(late);
+    };
+  }, []);
+
+  return offset;
+}
 
 export default function IaPage() {
   const [threads, setThreads] = useState<ChatThreadSummary[]>([]);
@@ -33,6 +109,7 @@ export default function IaPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerOffset = useComposerOffset();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,6 +122,14 @@ export default function IaPage() {
   useEffect(() => {
     fetchThreads();
   }, []);
+
+  // La caja crece con el texto (hasta ~5 líneas)
+  useLayoutEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 132)}px`;
+  }, [input]);
 
   async function fetchThreads() {
     setLoadingThreads(true);
@@ -192,194 +277,165 @@ export default function IaPage() {
     }
   }
 
-  return (
-    <div className="relative flex flex-col space-y-4">
-      {/* Barra superior de control */}
-      <header className="flex items-center justify-between gap-2 border-b border-[var(--line)] pb-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="page-kicker">Coach Inteligente</p>
-            <span className="inline-flex items-center rounded-full bg-[var(--accent)]/10 px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider text-[var(--accent)]">
-              IA
-            </span>
-          </div>
-          <h1 className="page-title mt-0.5 truncate text-lg sm:text-xl">
-            {activeThread ? activeThread.title : "Nueva consulta"}
-          </h1>
-        </div>
+  const lastIsAssistant =
+    messages.length > 0 && !sending && messages[messages.length - 1].role === "assistant";
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            className="rounded-lg border border-[var(--line)] bg-[#121212] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] active:border-[var(--accent)] hover:text-white transition-colors"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            Historial {threads.length > 0 ? `(${threads.length})` : ""}
+  return (
+    <div className="ia-page">
+      {/* Encabezado */}
+      <header className="ia-glass ia-hero">
+        <span className="ia-orb" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="ia-kicker">Coach inteligente</p>
+          <h1 className="ia-title">{activeThread ? activeThread.title : "Nueva consulta"}</h1>
+        </div>
+        <div className="ia-hero-actions">
+          <button type="button" className="ia-pill" onClick={() => setIsSidebarOpen(true)}>
+            Historial
+            {threads.length > 0 ? <span className="ia-badge">{threads.length}</span> : null}
           </button>
-          <button
-            type="button"
-            className="btn btn-primary px-3 py-1.5 text-xs font-bold"
-            onClick={startNewChat}
-          >
+          <button type="button" className="ia-pill is-primary" onClick={startNewChat}>
             + Nuevo
           </button>
         </div>
       </header>
 
-      {/* Drawer / Sidebar de Historial de Conversaciones */}
+      {/* Historial de conversaciones */}
       {isSidebarOpen ? (
-        <div className="fixed inset-0 z-50 flex bg-black/70 backdrop-blur-sm">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-          <aside className="relative z-10 flex h-full w-full max-w-xs sm:max-w-sm flex-col border-r border-[var(--line)] bg-[#0d0d0d] p-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                Historial de Chats
-              </p>
+        <div className="ia-drawer-overlay" onClick={() => setIsSidebarOpen(false)}>
+          <aside className="ia-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="ia-drawer-head">
+              <div>
+                <p className="ia-kicker">Coach inteligente</p>
+                <p className="ia-drawer-title">Historial de chats</p>
+              </div>
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-sm text-[var(--muted)] hover:bg-white/10 hover:text-white"
+                className="rt-icon-btn"
                 onClick={() => setIsSidebarOpen(false)}
+                aria-label="Cerrar historial"
               >
                 ✕
               </button>
             </div>
 
-            <div className="my-3">
-              <button
-                type="button"
-                className="btn btn-primary w-full text-xs py-2.5 font-bold"
-                onClick={startNewChat}
-              >
-                + Iniciar Nueva Conversación
-              </button>
-            </div>
+            <button type="button" className="ia-pill is-primary w-full" onClick={startNewChat}>
+              + Nueva conversación
+            </button>
 
-            <div className="flex-1 space-y-1.5 overflow-y-auto pr-1">
+            <div className="ia-thread-list">
               {loadingThreads ? (
-                <p className="p-3 text-center text-xs text-[var(--muted)]">
-                  Cargando conversaciones...
-                </p>
+                <p className="ia-empty-text">Cargando conversaciones…</p>
               ) : threads.length === 0 ? (
-                <p className="p-4 text-center text-xs text-[var(--muted)]">
-                  No hay conversaciones guardadas aún.
-                </p>
+                <p className="ia-empty-text">No hay conversaciones guardadas aún.</p>
               ) : (
-                threads.map((t) => {
-                  const isSelected = t.id === activeThreadId;
-                  return (
-                    <div
-                      key={t.id}
-                      className={`group flex items-center justify-between rounded-xl border p-3 text-left transition-all active:scale-[0.99] cursor-pointer ${
-                        isSelected
-                          ? "border-[var(--accent)] bg-[var(--accent)]/10 text-white"
-                          : "border-[var(--line)] bg-[#121212] text-[var(--muted)] hover:border-white/20 hover:text-white"
-                      }`}
-                      onClick={() => loadThread(t.id)}
-                    >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <p className="text-xs font-semibold text-[var(--ink)] truncate">
-                          {t.title}
-                        </p>
-                        {t.lastMessageSnippet ? (
-                          <p className="text-[11px] text-[var(--muted)] truncate mt-0.5">
-                            {t.lastMessageSnippet}
-                          </p>
-                        ) : null}
-                        <p className="text-[10px] text-[var(--muted)] mt-1">
-                          {formatShortDate(t.updatedAt.slice(0, 10))} · {t.messageCount} msgs
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="opacity-60 hover:opacity-100 p-1.5 text-xs text-[var(--danger)] hover:bg-red-500/10 rounded-md transition-opacity shrink-0"
-                        title="Eliminar conversación"
-                        onClick={(e) => deleteThread(t.id, e)}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                threads.map((t) => (
+                  <div
+                    key={t.id}
+                    role="button"
+                    tabIndex={0}
+                    className={`ia-glass ia-thread ${t.id === activeThreadId ? "is-active" : ""}`}
+                    onClick={() => loadThread(t.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") loadThread(t.id);
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="ia-thread-title">{t.title}</p>
+                      {t.lastMessageSnippet ? <p className="ia-thread-snippet">{t.lastMessageSnippet}</p> : null}
+                      <p className="ia-thread-meta">
+                        {formatShortDate(t.updatedAt.slice(0, 10))} · {t.messageCount} mensajes
+                      </p>
                     </div>
-                  );
-                })
+                    <button
+                      type="button"
+                      className="ia-thread-delete"
+                      title="Eliminar conversación"
+                      aria-label="Eliminar conversación"
+                      onClick={(e) => deleteThread(t.id, e)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  </div>
+                ))
               )}
             </div>
           </aside>
         </div>
       ) : null}
 
-      {/* Contenedor principal de mensajes con padding inferior seguro para no tapar el input */}
-      <main className="space-y-4 pb-32">
+      <section className="ia-feed">
         {loadingChat ? (
-          <div className="flex h-56 items-center justify-center">
-            <p className="text-xs text-[var(--muted)]">Cargando conversación...</p>
+          <div className="ia-glass ia-loading">
+            <span className="ia-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            Cargando conversación…
           </div>
         ) : messages.length === 0 ? (
-          /* Estado Vacío / Bienvenida */
-          <div className="card space-y-4 p-4 sm:p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--line)] bg-[#141414]">
-              <span className="text-xl font-bold text-[var(--accent)]">IA</span>
-            </div>
-
-            <div>
-              <h2 className="text-base sm:text-lg font-bold uppercase tracking-tight text-[var(--ink)]">
-                ¿En qué puedo ayudarte hoy?
-              </h2>
-              <p className="mx-auto mt-1 max-w-sm text-xs text-[var(--muted)] leading-relaxed">
-                Analizo tus entrenamientos, 1RM, volumen de carga y marcas para darte recomendaciones personalizadas.
+          /* Bienvenida */
+          <>
+            <div className="ia-glass ia-welcome">
+              <span className="ia-orb is-large" aria-hidden="true" />
+              <h2 className="ia-welcome-title">¿En qué puedo ayudarte hoy?</h2>
+              <p className="ia-welcome-text">
+                Analizo tus entrenamientos, 1RM, volumen de carga y marcas para darte recomendaciones
+                personalizadas.
               </p>
             </div>
 
-            <div className="grid gap-2 text-left sm:grid-cols-2 pt-1">
-              {SUGGESTIONS.map((item) => (
+            <div className="ia-cap-grid">
+              {CAPABILITIES.map((c) => (
+                <div key={c.title} className="ia-glass ia-cap">
+                  <span className="ia-cap-icon">
+                    <Icon name={c.icon} />
+                  </span>
+                  <p className="ia-cap-title">{c.title}</p>
+                  <p className="ia-cap-text">{c.text}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="ia-section-label">Prueba con</p>
+            <div className="ia-suggest-grid">
+              {SUGGESTIONS.map((item, i) => (
                 <button
-                  key={item}
+                  key={item.text}
                   type="button"
-                  className="rounded-xl border border-[var(--line)] bg-[#111111] p-3 text-xs text-[var(--ink)] hover:border-[var(--accent)] hover:bg-[#161616] active:scale-[0.98] transition-all text-left leading-snug"
-                  onClick={() => sendMessage(item)}
+                  className="ia-glass ia-suggest"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                  onClick={() => sendMessage(item.text)}
                 >
-                  <p className="font-medium text-[var(--ink)]">{item}</p>
+                  <span className="ia-suggest-head">
+                    <span className="ia-suggest-icon">
+                      <Icon name={item.icon} />
+                    </span>
+                    <span className="ia-suggest-tag">{item.tag}</span>
+                  </span>
+                  <span className="ia-suggest-text">{item.text}</span>
                 </button>
               ))}
             </div>
-          </div>
+          </>
         ) : (
-          /* Lista de mensajes */
-          <div className="space-y-3.5">
+          /* Conversación */
+          <div className="ia-thread-feed">
             {messages.map((msg) => {
               const isUser = msg.role === "user";
               return (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${
-                    isUser ? "items-end" : "items-start"
-                  }`}
-                >
-                  {/* Encabezado del mensaje */}
-                  <div className="mb-1 flex items-center gap-2 px-1 text-[10px] text-[var(--muted)]">
-                    <span className="font-semibold uppercase tracking-wider">
-                      {isUser ? "Tú" : "Coach"}
-                    </span>
-                    {msg.createdAt ? (
-                      <span>{msg.createdAt.slice(11, 16)}</span>
-                    ) : null}
+                <div key={msg.id} className={`ia-msg ${isUser ? "is-user" : "is-coach"}`}>
+                  <div className="ia-msg-meta">
+                    {isUser ? null : <span className="ia-orb is-tiny" aria-hidden="true" />}
+                    <span className="ia-msg-author">{isUser ? "Tú" : "Coach"}</span>
+                    {msg.createdAt ? <span className="ia-msg-time">{formatMessageTime(msg.createdAt)}</span> : null}
                   </div>
-
-                  {/* Burbuja del mensaje */}
-                  <div
-                    className={`max-w-[94%] sm:max-w-[88%] rounded-2xl p-3.5 sm:p-4.5 ${
-                      isUser
-                        ? "bg-[#181818] border border-[var(--accent)]/40 text-[var(--ink)] shadow-md"
-                        : "card bg-[#0e0e0e] border border-[var(--line)] text-[var(--ink)] shadow-lg"
-                    }`}
-                  >
+                  <div className={`ia-bubble ${isUser ? "is-user" : "ia-glass"}`}>
                     {isUser ? (
-                      <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">
-                        {msg.content}
-                      </p>
+                      <p className="whitespace-pre-wrap text-[0.95rem] leading-relaxed">{msg.content}</p>
                     ) : (
                       <AiAnalysis content={msg.content} />
                     )}
@@ -388,35 +444,29 @@ export default function IaPage() {
               );
             })}
 
-            {/* Animación de respuesta en curso */}
             {sending ? (
-              <div className="flex flex-col items-start">
-                <div className="mb-1 px-1 text-[10px] text-[var(--muted)] font-semibold uppercase tracking-wider">
-                  Coach
+              <div className="ia-msg is-coach">
+                <div className="ia-msg-meta">
+                  <span className="ia-orb is-tiny" aria-hidden="true" />
+                  <span className="ia-msg-author">Coach</span>
                 </div>
-                <div className="card rounded-2xl p-3.5 bg-[#0e0e0e] border border-[var(--line)]">
-                  <div className="flex items-center gap-2 text-xs text-[var(--accent)]">
-                    <span className="inline-block h-2 w-2 animate-ping rounded-full bg-[var(--accent)]" />
-                    <span>Analizando historial y métricas...</span>
-                  </div>
+                <div className="ia-bubble ia-glass ia-typing">
+                  <span className="ia-dots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  Analizando historial y métricas…
                 </div>
               </div>
             ) : null}
 
-            {/* Chips de sugerencias de seguimiento debajo de la última respuesta (scroll natural) */}
-            {messages.length > 0 && !sending && messages[messages.length - 1].role === "assistant" ? (
-              <div className="pt-2">
-                <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Sugerencias de seguimiento
-                </p>
-                <div className="flex flex-wrap gap-1.5">
+            {lastIsAssistant ? (
+              <div>
+                <p className="ia-section-label">Sugerencias de seguimiento</p>
+                <div className="ia-followups">
                   {FOLLOW_UPS.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      className="rounded-full border border-[var(--line)] bg-[#141414] px-3 py-1.5 text-xs text-[var(--ink)] hover:border-[var(--accent)] hover:text-white active:scale-95 transition-all text-left"
-                      onClick={() => sendMessage(f)}
-                    >
+                    <button key={f} type="button" className="ia-chip" onClick={() => sendMessage(f)}>
                       {f}
                     </button>
                   ))}
@@ -428,41 +478,41 @@ export default function IaPage() {
           </div>
         )}
 
-        {error ? (
-          <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-400">
-            {error}
-          </div>
-        ) : null}
-      </main>
+        {error ? <div className="ia-error">{error}</div> : null}
+      </section>
 
-      {/* Barra de Entrada fija: estrictamente compacta, sin elementos flotantes */}
-      <footer className="fixed bottom-[calc(4.4rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 mx-auto w-full max-w-lg px-4 pointer-events-none">
-        <div className="pointer-events-auto">
-          {/* Caja de entrada táctil sólida */}
-          <div className="flex items-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-[#101010] p-1.5 sm:p-2 shadow-[0_-8px_30px_rgba(0,0,0,0.9)] backdrop-blur-md focus-within:border-[var(--accent)] transition-colors">
-            <textarea
-              ref={textareaRef}
-              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs sm:text-sm text-[var(--ink)] placeholder-[var(--muted)] outline-none min-h-[38px] max-h-28"
-              rows={1}
-              placeholder="Escribe tu consulta al Coach..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={sending}
-            />
-            <button
-              type="button"
-              className="btn btn-primary h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl p-0 flex items-center justify-center disabled:opacity-40"
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || sending}
-            >
-              {sending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <span className="text-sm sm:text-base font-bold">↑</span>
-              )}
-            </button>
-          </div>
+      {/* Caja de escritura: encima de la barra de pestañas o del teclado */}
+      <footer
+        className="ia-composer-wrap"
+        style={composerOffset != null ? { bottom: `${composerOffset}px` } : undefined}
+      >
+        <div className="ia-composer">
+          <textarea
+            ref={textareaRef}
+            className="ia-input"
+            rows={1}
+            placeholder="Escribe tu consulta al Coach…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={sending}
+            enterKeyHint="send"
+          />
+          <button
+            type="button"
+            className="ia-send"
+            onClick={() => sendMessage()}
+            disabled={!input.trim() || sending}
+            aria-label="Enviar consulta"
+          >
+            {sending ? (
+              <span className="ia-spinner" />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            )}
+          </button>
         </div>
       </footer>
     </div>
