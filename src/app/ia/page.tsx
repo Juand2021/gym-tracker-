@@ -4,6 +4,13 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { AiAnalysis } from "@/components/AiAnalysis";
 import { formatShortDate } from "@/lib/exercise-history";
 import type { ChatMessage, ChatThread, ChatThreadSummary } from "@/lib/types";
+import {
+  fetchJsonCached,
+  invalidateCachedJson,
+  readCachedJson,
+  readSession,
+  writeSession,
+} from "@/lib/client-cache";
 
 /* Íconos de línea (sin emojis, coherentes con el resto de la app) */
 const ICONS: Record<string, ReactNode> = {
@@ -132,15 +139,26 @@ export default function IaPage() {
   }, [input]);
 
   async function fetchThreads() {
-    setLoadingThreads(true);
+    // Volver a la conversación que tenías abierta (o a la consulta nueva)
+    const saved = readSession<string>("ia:thread");
+    const cachedList = readCachedJson<{ threads: ChatThreadSummary[] }>("/api/ai/threads");
+    if (cachedList?.threads) setThreads(cachedList.threads);
+    if (saved && saved !== "new") void loadThread(saved);
+
+    setLoadingThreads(!cachedList);
     try {
-      const res = await fetch("/api/ai/threads");
-      if (!res.ok) throw new Error("Error al cargar historial de conversaciones");
-      const data = (await res.json()) as { threads: ChatThreadSummary[] };
+      const { ok, data } = await fetchJsonCached<{ threads: ChatThreadSummary[] }>("/api/ai/threads");
+      if (!ok) throw new Error("Error al cargar historial de conversaciones");
       setThreads(data.threads || []);
 
-      if (data.threads && data.threads.length > 0 && !activeThreadId) {
+      const stillExists = saved && saved !== "new" && data.threads?.some((t) => t.id === saved);
+      if (!saved && data.threads && data.threads.length > 0 && !activeThreadId) {
         loadThread(data.threads[0].id);
+      } else if (saved && saved !== "new" && !stillExists) {
+        writeSession("ia:thread", "new");
+        setActiveThreadId(null);
+        setActiveThread(null);
+        setMessages([]);
       }
     } catch (err) {
       console.error(err);
@@ -151,13 +169,20 @@ export default function IaPage() {
 
   async function loadThread(threadId: string) {
     setActiveThreadId(threadId);
-    setLoadingChat(true);
+    writeSession("ia:thread", threadId);
     setError(null);
     setIsSidebarOpen(false);
+    const url = `/api/ai/threads/${threadId}`;
+    const cached = readCachedJson<{ thread: ChatThread }>(url);
+    if (cached?.thread) {
+      setActiveThread(cached.thread);
+      setMessages(cached.thread.messages || []);
+    } else {
+      setLoadingChat(true);
+    }
     try {
-      const res = await fetch(`/api/ai/threads/${threadId}`);
-      if (!res.ok) throw new Error("No se pudo cargar la conversación");
-      const data = (await res.json()) as { thread: ChatThread };
+      const { ok, data } = await fetchJsonCached<{ thread: ChatThread }>(url);
+      if (!ok) throw new Error("No se pudo cargar la conversación");
       setActiveThread(data.thread);
       setMessages(data.thread.messages || []);
     } catch (err) {
@@ -168,6 +193,7 @@ export default function IaPage() {
   }
 
   function startNewChat() {
+    writeSession("ia:thread", "new");
     setActiveThreadId(null);
     setActiveThread(null);
     setMessages([]);
@@ -183,6 +209,7 @@ export default function IaPage() {
     try {
       const res = await fetch(`/api/ai/threads/${threadId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Error al eliminar conversación");
+      invalidateCachedJson("/api/ai/threads");
       setThreads((prev) => prev.filter((t) => t.id !== threadId));
       if (activeThreadId === threadId) {
         startNewChat();
@@ -231,6 +258,8 @@ export default function IaPage() {
       }
 
       if (data.thread) {
+        invalidateCachedJson("/api/ai/threads");
+        writeSession("ia:thread", data.thread.id);
         setActiveThreadId(data.thread.id);
         setActiveThread(data.thread);
         setMessages(data.thread.messages || []);

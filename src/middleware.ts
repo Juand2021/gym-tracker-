@@ -103,6 +103,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // La app de Comidas solo para los perfiles en COMIDAS_PROFILES (por defecto, Juan).
+  const comidasProfiles = (process.env.COMIDAS_PROFILES ?? "juan").split(",").map((s) => s.trim());
+  if (!comidasProfiles.includes(session.id) && (pathname === "/comidas" || pathname.startsWith("/comidas/"))) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-gym-profile", session.id);
   return NextResponse.next({

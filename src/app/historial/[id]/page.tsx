@@ -11,6 +11,7 @@ import {
   parseDecimal,
 } from "@/lib/numbers";
 import { dateParts } from "@/lib/history-summary";
+import { fetchJsonCached, invalidateCachedJson, readCachedJson } from "@/lib/client-cache";
 import { getDayLabel } from "@/lib/routines";
 import type { Workout } from "@/lib/types";
 
@@ -47,14 +48,20 @@ export default function WorkoutDetailPage() {
   const isDemo = Boolean(workout?.id.startsWith("demo-"));
 
   useEffect(() => {
+    type WData = { workout?: Workout; error?: string };
     async function load() {
+      const url = `/api/workouts/${params.id}`;
+      const cached = readCachedJson<WData>(url);
+      if (cached?.workout) {
+        setWorkout(cached.workout);
+        setDate(cached.workout.date);
+        setNotes(cached.workout.notes);
+        setDraftSets(toDraftSets(cached.workout));
+        setLoading(false);
+      }
       try {
-        const res = await fetch(`/api/workouts/${params.id}`);
-        const data = (await res.json()) as {
-          workout?: Workout;
-          error?: string;
-        };
-        if (!res.ok) throw new Error(data.error || "Error");
+        const { ok, data } = await fetchJsonCached<WData>(url);
+        if (!ok) throw new Error(data.error || "Error");
         const next = data.workout ?? null;
         setWorkout(next);
         if (next) {
@@ -224,6 +231,7 @@ export default function WorkoutDetailPage() {
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
 
       const next = data.workout!;
+      invalidateCachedJson("/api/workouts");
       setWorkout(next);
       setDate(next.date);
       setNotes(next.notes);
@@ -244,6 +252,7 @@ export default function WorkoutDetailPage() {
       const res = await fetch(`/api/workouts/${params.id}`, { method: "DELETE" });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "No se pudo borrar");
+      invalidateCachedJson("/api/workouts");
       router.push("/historial");
       router.refresh();
     } catch (err) {

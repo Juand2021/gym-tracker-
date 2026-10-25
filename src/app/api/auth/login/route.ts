@@ -4,6 +4,7 @@ import {
   getAuthCookieName,
   getProfileCookieName,
   hasAnySitePinConfigured,
+  isSecureRequest,
   verifyPin,
 } from "@/lib/auth";
 
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
   const cookieBase = {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecureRequest(request),
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   };

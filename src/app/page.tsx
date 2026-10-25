@@ -10,6 +10,7 @@ import { dayStats, latestWorkout, weeklySets, weightTrend } from "@/lib/home-sum
 import { calculateUserStreakSummary } from "@/lib/user-streak";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
 import { useWorkoutDraft } from "@/lib/workout-draft";
+import { fetchJsonCached, readCachedJson } from "@/lib/client-cache";
 
 function greetingFor(date: Date): string {
   const h = date.getHours();
@@ -50,21 +51,32 @@ export default function HomePage() {
 
   useEffect(() => {
     let active = true;
+    type WData = { workouts?: Workout[]; error?: string };
+    type BData = { entries?: BodyWeightEntry[]; error?: string };
+    type MeData = { profile?: { displayName?: string } };
     async function load() {
+      // Lo último cargado se pinta al instante; luego se actualiza
+      const cw = readCachedJson<WData>("/api/workouts");
+      const cb = readCachedJson<BData>("/api/body-weight");
+      if (cw && cb) {
+        setWorkouts(cw.workouts ?? []);
+        setWeights(cb.entries ?? []);
+        setName(readCachedJson<MeData>("/api/auth/me")?.profile?.displayName ?? null);
+        setNow(new Date());
+        setLoading(false);
+      }
       try {
-        const [wRes, bRes, meRes] = await Promise.all([
-          fetch("/api/workouts"),
-          fetch("/api/body-weight"),
-          fetch("/api/auth/me"),
+        const [w, b, m] = await Promise.all([
+          fetchJsonCached<WData>("/api/workouts"),
+          fetchJsonCached<BData>("/api/body-weight"),
+          fetchJsonCached<MeData>("/api/auth/me"),
         ]);
-        const wData = (await wRes.json()) as { workouts?: Workout[]; error?: string };
-        const bData = (await bRes.json()) as { entries?: BodyWeightEntry[]; error?: string };
-        const me = meRes.ok
-          ? ((await meRes.json()) as { profile?: { displayName?: string } })
-          : null;
+        const wData = w.data;
+        const bData = b.data;
+        const me = m.ok ? m.data : null;
         if (!active) return;
-        if (!wRes.ok) throw new Error(wData.error || "Error al cargar entrenos");
-        if (!bRes.ok) throw new Error(bData.error || "Error al cargar peso");
+        if (!w.ok) throw new Error(wData.error || "Error al cargar entrenos");
+        if (!b.ok) throw new Error(bData.error || "Error al cargar peso");
         setWorkouts(wData.workouts ?? []);
         setWeights(bData.entries ?? []);
         setName(me?.profile?.displayName ?? null);
@@ -195,7 +207,8 @@ export default function HomePage() {
       {loading ? <div className="glass-panel hm-note">Cargando resumen…</div> : null}
       {error ? <div className="glass-panel hm-note is-error">{error}</div> : null}
 
-      {!loading && !error ? (
+      {/* Con un error (p. ej. la base llegó a su límite del día) se sigue mostrando la última copia guardada. */}
+      {!loading && (!error || workouts.length > 0) ? (
         <>
           <SectionHeader title="Tu progreso" />
           <section className="hm-kpis">

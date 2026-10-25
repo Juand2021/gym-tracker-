@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const DISMISS_KEY = "fuerza_ios_pwa_dismissed_v1";
 
 export function IosInstallPrompt() {
+  const pathname = usePathname();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIosSafari, setIsIosSafari] = useState(false);
 
@@ -51,7 +53,8 @@ export function IosInstallPrompt() {
     }
   }
 
-  if (!showPrompt) return null;
+  // Es el aviso de Fuerza: no aparece dentro de NutriVerse.
+  if (!showPrompt || pathname === "/comidas" || pathname.startsWith("/comidas/")) return null;
 
   return (
     <div

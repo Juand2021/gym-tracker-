@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clearWorkoutDraft,
+  discardDraftBackup,
+  getDraftBackup,
   getWorkoutDraft,
   hasWorkoutDraft,
   saveWorkoutDraft,
@@ -62,4 +64,36 @@ test("workout-draft: guarda, recupera y limpia borradores", () => {
   clearWorkoutDraft();
   assert.equal(getWorkoutDraft(), null);
   assert.equal(hasWorkoutDraft(), false);
+});
+
+test("workout-draft: la copia de seguridad sobrevive al descarte y se borra al guardar", () => {
+  clearWorkoutDraft({ dropBackup: true });
+  const now = Date.now();
+  const draft: WorkoutDraft = {
+    step: "log",
+    dayType: "espalda",
+    armFocus: null,
+    date: "2026-10-24",
+    notes: "",
+    sets: [{ key: "a", exercise: "Dominadas", weightKg: "0", reps: "8" }],
+    extraExercises: [],
+    updatedAt: now,
+  };
+  saveWorkoutDraft(draft);
+  // Un borrador vacío o un descarte no se llevan la copia
+  saveWorkoutDraft({ ...draft, sets: [], updatedAt: now + 1 });
+  clearWorkoutDraft();
+  assert.equal(getWorkoutDraft(), null);
+  assert.equal(getDraftBackup(now)?.sets.length, 1);
+
+  // Copias de hace más de 48 h ya no se ofrecen
+  assert.equal(getDraftBackup(now + 49 * 60 * 60 * 1000), null);
+
+  // Guardar el entreno la elimina
+  clearWorkoutDraft({ dropBackup: true });
+  assert.equal(getDraftBackup(now), null);
+
+  saveWorkoutDraft(draft);
+  discardDraftBackup();
+  assert.equal(getDraftBackup(now), null);
 });

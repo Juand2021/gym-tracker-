@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import OpenAI from "openai";
 import {
   appendChatMessage,
@@ -184,6 +185,8 @@ export async function POST(request: NextRequest) {
       message: finalAssistantMsg,
     });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al procesar mensaje con la IA";
     return NextResponse.json({ error: message }, { status: 500 });
   }

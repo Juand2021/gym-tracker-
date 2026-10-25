@@ -86,6 +86,42 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Edad y estatura viven en el perfil compartido con Comidas (servidor); el teléfono guarda una copia.
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    fetch("/api/profile")
+      .then((res) => (res.ok ? (res.json() as Promise<{ age: number | null; profile: { heightCm: number | null } | null }>) : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setSettings((prev) => {
+          const next = {
+            ...prev,
+            userAge: data.age ?? prev.userAge,
+            userHeightCm: data.profile?.heightCm ?? prev.userHeightCm,
+          };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          } catch {
+            // Ignorar si localStorage no está disponible
+          }
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded]);
+
+  const syncProfile = useCallback((body: { age?: number; heightCm?: number }) => {
+    fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => undefined);
+  }, []);
+
   // Guardar cambios en localStorage
   const save = useCallback((next: AppSettings) => {
     setSettings(next);
@@ -112,18 +148,20 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     (age: number) => {
       if (age > 0 && age < 120) {
         save({ ...settings, userAge: Math.round(age) });
+        syncProfile({ age: Math.round(age) });
       }
     },
-    [settings, save],
+    [settings, save, syncProfile],
   );
 
   const setUserHeightCm = useCallback(
     (height: number) => {
       if (height > 50 && height < 260) {
         save({ ...settings, userHeightCm: Math.round(height) });
+        syncProfile({ heightCm: Math.round(height) });
       }
     },
-    [settings, save],
+    [settings, save, syncProfile],
   );
 
   const setDefaultRestSeconds = useCallback(

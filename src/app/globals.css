@@ -1743,6 +1743,17 @@ input[type="date"].field {
   z-index: 30;
   padding-inline: 0.75rem;
   pointer-events: none;
+  /* Corrección de iOS calculada en ViewportGuard */
+  translate: 0 var(--vv-shift, 0px);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+/* Con el teclado abierto la barra se oculta para no flotar sobre el contenido */
+html.kb-open .app-tabbar {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .lg-bar {
@@ -2921,11 +2932,6 @@ input[type="date"].field {
    de la pantalla. Al abrir o navegar, iOS a veces calcula el alto como si
    existiera la barra de Safari y la barra flotaba más arriba durante un instante. */
 @media (display-mode: standalone) {
-  .app-tabbar {
-    bottom: auto;
-    top: calc(100lvh - 3.5rem - max(0.55rem, env(safe-area-inset-bottom) - 0.35rem));
-  }
-
   /* Más aire bajo la isla dinámica */
   .app-topbar > div {
     padding-top: 0.95rem;
@@ -6063,4 +6069,165 @@ button.en-last:active {
   .pf-switch span {
     transition: none;
   }
+}
+
+/* Recuperar un entreno sin guardar */
+.en-recover {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.45),
+    0 0 0 1px rgba(255, 138, 85, 0.35),
+    0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.en-recover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.en-recover-actions .pg-pill {
+  justify-content: center;
+}
+
+
+/* ───────── Selector de apps (logo): Fuerza ↔ NutriVerse ───────── */
+.as-wrap {
+  position: relative;
+}
+
+.as-trigger {
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.as-chevron {
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.2rem;
+  color: var(--accent);
+  -webkit-text-fill-color: initial;
+  transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.as-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.as-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: -0.25rem;
+  z-index: 60;
+  display: grid;
+  gap: 0.4rem;
+  width: min(17rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.6rem 0.6rem;
+  border-radius: 1.3rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 45%, rgba(255, 255, 255, 0.05)),
+    color-mix(in srgb, #121212 88%, transparent);
+  animation: as-pop 0.22s cubic-bezier(0.3, 1.3, 0.5, 1);
+  transform-origin: top left;
+}
+
+@keyframes as-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+}
+
+.as-menu-title {
+  padding: 0 0.35rem 0.15rem;
+}
+
+.as-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border-radius: 1rem;
+  text-align: left;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  transition: transform 0.16s ease, background 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.as-item:active {
+  transform: scale(0.97);
+}
+
+.as-item.is-active {
+  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.as-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.85rem;
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.as-icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.as-icon.is-fuerza {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(135deg, #ff8a55, var(--accent));
+}
+
+.as-icon.is-comidas {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(135deg, #7be08f, #1f9d55);
+}
+
+.as-item-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.as-item-name {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+}
+
+.as-item-tag {
+  margin-top: 0.15rem;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.as-here {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ff8a55;
+  background: rgba(255, 255, 255, 0.06);
 }

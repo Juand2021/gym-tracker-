@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import { createChatThread, listChatThreads } from "@/lib/data";
 import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 
@@ -10,6 +11,8 @@ export async function GET(request: NextRequest) {
     const threads = await listChatThreads(profile);
     return NextResponse.json({ threads });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al obtener conversaciones";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -37,6 +40,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ thread }, { status: 201 });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al crear conversación";
     return NextResponse.json({ error: message }, { status: 500 });
   }

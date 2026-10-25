@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getAuthCookieName, getProfileCookieName } from "@/lib/auth";
+import { getAuthCookieName, getProfileCookieName, isSecureRequest } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(request: Request) {
   const response = NextResponse.json({ ok: true });
   const clear = {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecureRequest(request),
     path: "/",
     maxAge: 0,
   };

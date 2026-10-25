@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import { createWorkout, listWorkouts } from "@/lib/data";
 import {
   isValidReps,
@@ -16,6 +17,8 @@ export async function GET(request: NextRequest) {
     const workouts = await listWorkouts(profile);
     return NextResponse.json({ workouts });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al listar";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -66,6 +69,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ workout }, { status: 201 });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al crear";
     const status = message.includes("inválid") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });

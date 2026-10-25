@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { clearSession } from "@/lib/client-cache";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { AppSwitcher, appFromPath, type AppId } from "@/components/AppSwitcher";
 import { LiquidTabBar } from "@/components/LiquidTabBar";
 import { RestTimerButton } from "@/components/RestTimerButton";
 import { UserProfileDrawer } from "@/components/UserProfileDrawer";
@@ -20,6 +21,7 @@ export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [apps, setApps] = useState<AppId[]>(["fuerza"]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -29,12 +31,14 @@ export function AppNav() {
       .then(async (res) => {
         if (!res.ok) return null;
         return (await res.json()) as {
-          profile?: { displayName?: string };
+          profile?: { id?: string; displayName?: string };
+          apps?: AppId[];
         };
       })
       .then((data) => {
         if (!cancelled) {
           setDisplayName(data?.profile?.displayName ?? null);
+          setApps(data?.apps?.length ? data.apps : ["fuerza"]);
         }
       })
       .catch(() => {
@@ -47,8 +51,13 @@ export function AppNav() {
 
   if (pathname === "/login") return null;
 
+  const currentApp = appFromPath(pathname);
+  // NutriVerse dibuja su propio encabezado y pestañas (src/components/nutriverse/NvShell.tsx).
+  if (currentApp === "comidas") return null;
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearSession();
     router.push("/login");
     router.refresh();
   }
@@ -57,10 +66,7 @@ export function AppNav() {
     <>
       <header className="app-topbar">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2.5">
-          <Link href="/" className="hd-logo" aria-label="Fuerza, inicio">
-            FUERZA
-            <span className="hd-logo-dot">.</span>
-          </Link>
+          <AppSwitcher current={currentApp} available={apps} />
 
           {/* Cápsula de vidrio con descanso, perfil y salida */}
           <div className="hd-cluster">

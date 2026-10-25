@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import OpenAI from "openai";
 import { buildAiContext } from "@/lib/data";
 import { profileFromRequest, unauthorized } from "@/lib/request-profile";
@@ -94,6 +95,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ analysis, provider: ai.provider });
     }
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error de IA";
     return NextResponse.json({ error: message }, { status: 500 });
   }

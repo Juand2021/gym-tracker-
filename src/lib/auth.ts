@@ -74,3 +74,12 @@ export function resolveSession(
 export function hasAnySitePinConfigured(): boolean {
   return getProfiles().length > 0;
 }
+
+/**
+ * La cookie de sesión exige HTTPS solo si la conexión es HTTPS (Vercel siempre lo es).
+ * Así también se puede entrar desde el iPhone por la red Wi-Fi (http://192.168.x.x) con npm run iphone.
+ */
+export function isSecureRequest(request: Request): boolean {
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  return proto ? proto === "https" : new URL(request.url).protocol === "https:";
+}

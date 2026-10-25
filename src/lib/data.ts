@@ -4,6 +4,8 @@ import {
   mergeWithDemoWorkouts,
 } from "@/lib/demo-seed";
 import { isFirebaseConfigured, getDb } from "@/lib/firebase";
+import { countReads } from "@/lib/firestore-usage";
+import { cachedRead, forgetCached } from "@/lib/server-cache";
 import {
   localAppendChatMessage,
   localCreateBodyWeight,
@@ -40,8 +42,10 @@ import type {
 } from "@/lib/types";
 import { WorkoutAnalyticsService } from "@/lib/analytics";
 import { canonicalExerciseName } from "@/lib/exercise-aliases";
+import { embeddedSets, mapSet, setsForDoc, subcollectionSet } from "@/lib/workout-sets";
 import type {
   CollectionReference,
+  DocumentReference,
   DocumentData,
   Firestore,
 } from "firebase-admin/firestore";
@@ -60,22 +64,6 @@ function asArmFocus(value: unknown): ArmFocus | null {
 
 export function normalizeExerciseName(raw: string): string {
   return canonicalExerciseName(raw);
-}
-
-function mapSet(id: string, data: Record<string, unknown>): WorkoutSet {
-  const orderRaw = data.orderIndex;
-  const orderIndex =
-    typeof orderRaw === "number" && Number.isFinite(orderRaw)
-      ? orderRaw
-      : undefined;
-  return {
-    id,
-    exercise: normalizeExerciseName(String(data.exercise ?? "")),
-    weightKg: Number(data.weightKg ?? 0),
-    reps: Number(data.reps ?? 0),
-    setNumber: Number(data.setNumber ?? 0),
-    orderIndex,
-  };
 }
 
 function includeDemos(profile: Profile): boolean {
@@ -150,6 +138,7 @@ async function loadSets(
     .doc(workoutId)
     .collection("sets")
     .get();
+  countReads("series de un entreno (formato antiguo)", snap.size);
 
   const sets = snap.docs.map((doc) =>
     mapSet(doc.id, doc.data() as Record<string, unknown>),
@@ -163,27 +152,30 @@ export async function listWorkouts(
 ): Promise<Workout[]> {
   const real = !isFirebaseConfigured()
     ? localListWorkouts(profile.id, limit)
-    : await Promise.all(
-        (
-          await workoutsCollection(getDb(), profile)
-            .orderBy("date", "desc")
-            .limit(limit)
-            .get()
-        ).docs.map(async (doc) => {
-          const data = doc.data();
-          const dayType = asDayType(data.dayType);
-          const armFocus = asArmFocus(data.armFocus);
-          return {
-            id: doc.id,
-            date: String(data.date ?? ""),
-            notes: String(data.notes ?? ""),
-            createdAt: String(data.createdAt ?? ""),
-            dayType,
-            armFocus,
-            sets: await loadSets(profile, doc.id, dayType, armFocus),
-          } satisfies Workout;
-        }),
-      );
+    : await cachedRead(`${profile.id}:workouts:${limit}`, async () => {
+        const snap = await workoutsCollection(getDb(), profile)
+          .orderBy("date", "desc")
+          .limit(limit)
+          .get();
+        countReads(`listWorkouts(${limit})`, snap.size);
+        return Promise.all(
+          snap.docs.map(async (doc) => {
+            const data = doc.data();
+            const dayType = asDayType(data.dayType);
+            const armFocus = asArmFocus(data.armFocus);
+            return {
+              id: doc.id,
+              date: String(data.date ?? ""),
+              notes: String(data.notes ?? ""),
+              createdAt: String(data.createdAt ?? ""),
+              dayType,
+              armFocus,
+              // 1 lectura si las series están dentro del entreno; si no, 1 por serie (formato antiguo).
+              sets: embeddedSets(data) ?? (await loadSets(profile, doc.id, dayType, armFocus)),
+            } satisfies Workout;
+          }),
+        );
+      });
 
   const merged = includeDemos(profile)
     ? mergeWithDemoWorkouts(real, limit)
@@ -241,10 +233,12 @@ export async function getWorkout(
   }
 
   const doc = await workoutsCollection(getDb(), profile).doc(id).get();
+  countReads("getWorkout", 1);
   if (!doc.exists) return null;
   const data = doc.data()!;
   const dayType = asDayType(data.dayType);
   const armFocus = asArmFocus(data.armFocus);
+  const embedded = embeddedSets(data);
   return {
     id: doc.id,
     date: String(data.date ?? ""),
@@ -252,7 +246,7 @@ export async function getWorkout(
     createdAt: String(data.createdAt ?? ""),
     dayType,
     armFocus,
-    sets: await loadSets(profile, doc.id, dayType, armFocus),
+    sets: embedded ? sortSetsBySessionOrder(embedded, dayType, armFocus) : await loadSets(profile, doc.id, dayType, armFocus),
   };
 }
 
@@ -272,21 +266,17 @@ export async function createWorkout(
     armFocus: input.armFocus ?? null,
   };
 
-  const batch = getDb().batch();
-  batch.set(ref, payload);
+  // Las series van dentro del entreno (se leen con 1 lectura) y, durante la transición, también
+  // en la subcolección como antes, con los mismos ids (permite volver atrás sin perder nada).
+  const setRefs = input.sets.map(() => ref.collection("sets").doc());
+  const docSets = setsForDoc(input.sets, setRefs.map((r) => r.id));
 
-  input.sets.forEach((set, index) => {
-    const setRef = ref.collection("sets").doc();
-    batch.set(setRef, {
-      exercise: set.exercise,
-      weightKg: set.weightKg,
-      reps: set.reps,
-      setNumber: set.setNumber,
-      orderIndex: set.orderIndex ?? index,
-    });
-  });
+  const batch = getDb().batch();
+  batch.set(ref, { ...payload, sets: docSets });
+  docSets.forEach((set, index) => batch.set(setRefs[index], subcollectionSet(set)));
 
   await batch.commit();
+  forgetCached(profile.id);
 
   return {
     id: ref.id,
@@ -317,11 +307,25 @@ export async function deleteWorkout(
   }
 
   const ref = workoutsCollection(getDb(), profile).doc(id);
-  const sets = await ref.collection("sets").get();
   const batch = getDb().batch();
-  sets.docs.forEach((doc) => batch.delete(doc.ref));
+  for (const setRef of await subcollectionSetRefs(ref)) batch.delete(setRef);
   batch.delete(ref);
   await batch.commit();
+  forgetCached(profile.id);
+}
+
+/**
+ * Referencias de las series en la subcolección. Si el entreno ya trae las series dentro, salen de sus
+ * ids (1 lectura); si es del formato antiguo, se lee la subcolección.
+ */
+async function subcollectionSetRefs(ref: DocumentReference): Promise<DocumentReference[]> {
+  const doc = await ref.get();
+  countReads("entreno a editar/borrar", 1);
+  const embedded = doc.exists ? embeddedSets(doc.data()!) : null;
+  if (embedded && embedded.every((s) => !/^s\d+$/.test(s.id))) return embedded.map((s) => ref.collection("sets").doc(s.id));
+  const snap = await ref.collection("sets").get();
+  countReads("series a editar/borrar (formato antiguo)", snap.size);
+  return snap.docs.map((d) => d.ref);
 }
 
 export async function updateWorkout(
@@ -344,29 +348,25 @@ export async function updateWorkout(
   if (!existing.exists) throw new Error("No encontrado");
 
   const previous = existing.data()!;
+  countReads("entreno a editar", 1);
+  const oldSetRefs = await subcollectionSetRefs(ref);
+
+  const setRefs = input.sets.map(() => ref.collection("sets").doc());
+  const docSets = setsForDoc(input.sets, setRefs.map((r) => r.id));
+
   const batch = getDb().batch();
   batch.update(ref, {
     date: input.date,
     notes: input.notes ?? "",
     dayType: input.dayType ?? null,
     armFocus: input.armFocus ?? null,
+    sets: docSets,
   });
-
-  const oldSets = await ref.collection("sets").get();
-  oldSets.docs.forEach((doc) => batch.delete(doc.ref));
-
-  input.sets.forEach((set, index) => {
-    const setRef = ref.collection("sets").doc();
-    batch.set(setRef, {
-      exercise: set.exercise,
-      weightKg: set.weightKg,
-      reps: set.reps,
-      setNumber: set.setNumber,
-      orderIndex: set.orderIndex ?? index,
-    });
-  });
+  oldSetRefs.forEach((r) => batch.delete(r));
+  docSets.forEach((set, index) => batch.set(setRefs[index], subcollectionSet(set)));
 
   await batch.commit();
+  forgetCached(profile.id);
 
   return {
     id,
@@ -383,24 +383,42 @@ export async function updateWorkout(
   };
 }
 
+/**
+ * Solo las fechas de los entrenos reales desde `fromDate` (YYYY-MM-DD), sin series.
+ * En Firestore cuesta 1 lectura por entreno; listWorkouts lee además cada serie (1 lectura por serie),
+ * así que para contar días de entreno siempre debe usarse esta.
+ */
+export async function listWorkoutDates(profile: Profile, fromDate: string): Promise<string[]> {
+  if (!isFirebaseConfigured()) {
+    return localListWorkouts(profile.id, 400)
+      .map((w) => w.date.slice(0, 10))
+      .filter((d) => d >= fromDate);
+  }
+  const snap = await workoutsCollection(getDb(), profile).where("date", ">=", fromDate).select("date").get();
+  countReads("fechas de entreno", snap.size);
+  return snap.docs.map((doc) => String(doc.data().date ?? "").slice(0, 10)).filter(Boolean);
+}
+
 export async function listBodyWeight(
   profile: Profile,
   limit = 90,
 ): Promise<BodyWeightEntry[]> {
   const real = !isFirebaseConfigured()
     ? localListBodyWeight(profile.id, limit)
-    : (
-        await bodyWeightCollection(getDb(), profile)
+    : await cachedRead(`${profile.id}:bodyWeight:${limit}`, async () => {
+        const snap = await bodyWeightCollection(getDb(), profile)
           .orderBy("date", "desc")
           .limit(limit)
-          .get()
-      ).docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          date: String(data.date ?? ""),
-          weightKg: Number(data.weightKg ?? 0),
-        };
+          .get();
+        countReads(`listBodyWeight(${limit})`, snap.size);
+        return snap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            date: String(data.date ?? ""),
+            weightKg: Number(data.weightKg ?? 0),
+          };
+        });
       });
 
   return includeDemos(profile) ? mergeWithDemoBodyWeight(real, limit) : real;
@@ -420,6 +438,7 @@ export async function createBodyWeight(
     weightKg: input.weightKg,
   };
   await ref.set(payload);
+  forgetCached(profile.id);
   return { id: ref.id, ...payload };
 }
 
@@ -434,6 +453,7 @@ export async function deleteBodyWeight(
     return;
   }
   await bodyWeightCollection(getDb(), profile).doc(id).delete();
+  forgetCached(profile.id);
 }
 
 function formatSessionForAi(workout: Workout): string {
@@ -521,6 +541,7 @@ export async function listChatThreads(
       .orderBy("updatedAt", "desc")
       .limit(50)
       .get();
+    countReads("listChatThreads", snapshot.size);
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -552,6 +573,7 @@ export async function getChatThread(
   try {
     const db = getDb();
     const doc = await chatThreadsCollection(db, profile).doc(threadId).get();
+    countReads("getChatThread", 1);
     if (!doc.exists) return null;
     const data = doc.data()!;
     return {
@@ -627,6 +649,7 @@ export async function appendChatMessage(
     const db = getDb();
     const docRef = chatThreadsCollection(db, profile).doc(threadId);
     const doc = await docRef.get();
+    countReads("appendChatMessage", 1);
     if (!doc.exists) return null;
 
     const data = doc.data()!;

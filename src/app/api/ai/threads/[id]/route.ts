@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import { deleteChatThread, getChatThread } from "@/lib/data";
 import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
     return NextResponse.json({ thread });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al obtener conversación";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -37,6 +40,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     await deleteChatThread(profile, id);
     return NextResponse.json({ success: true });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al eliminar conversación";
     return NextResponse.json({ error: message }, { status: 500 });
   }
