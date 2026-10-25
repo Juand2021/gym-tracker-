@@ -19,7 +19,7 @@
 | 3 Arquitectura | ✅ Aprobada el 2026-10-25 (`03-arquitectura.md`) |
 | 4 Frontend mínimo | ✅ **Comidas es una app aparte** (corrección de Juan): selector de apps en el logo, `/comidas` (Hoy) y `/comidas/chat` (asistente propio). El Coach `/ia` de Fuerza quedó como estaba |
 | 5 Implementación | ✅ Lista para cualquier persona (ver `03-arquitectura.md` §0b): perfil completo y validado, bienvenida guiada, cambio de objetivo, peso, medidas, plan de comidas, perfil compartido con Fuerza, Firebase conectado. Probado: persona nueva de punta a punta (local) y Juan con datos reales (Firebase) |
-| 4b Frontend de **Nutriverse** | 🟡 Plan en `04-frontend.md` (nombre Nutriverse; colores blanco/gris/plata/verde; tarjeta compacta en el chat; diseños antes de construir). Esperando aprobación del plan → etapa 4a (diseños) |
+| 4b Frontend de **NutriVerse** | 🟡 Plan v2 en `04-frontend.md`: Liquid Glass plateado (blanco/plata/verde, nada minimalista), velocímetro en el inicio, motor de vidrio propio (fondo WebGL + vidrio CSS + lentes WebGL, porque Safari iPhone no soporta la refracción con SVG). Referencias en `docs/nutricion/referencias/`. Esperando aprobación → etapa 4a (laboratorio de vidrio) |
 | 6 Validación · 7 Mejoras | Pendientes |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.

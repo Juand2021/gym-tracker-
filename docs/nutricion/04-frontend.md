@@ -1,188 +1,200 @@
-# Fase 4 — Frontend de Nutriverse
+# Fase 4 — Frontend de Nutriverse (v2: Liquid Glass plateado)
 
-> Fecha: 2026-10-25 · Estado: **plan propuesto, pendiente de aprobación de Juan**
-> Antes: `03-arquitectura.md` (Nutriverse es una app aparte de Fuerza, con su propio chat).
+> Fecha: 2026-10-25 · Estado: **plan v2, pendiente de aprobación de Juan**
+> Reemplaza el plan v1 del mismo día. Base: las 3 imágenes de identidad que hizo Juan (`docs/nutricion/referencias/`) y `03-arquitectura.md`.
 
-## 1. Decisiones de Juan (2026-10-25)
+## 1. La visión (en palabras de Juan)
 
-| Tema | Decisión |
-|---|---|
-| Nombre | **Nutriverse** (logo, menú "Tus apps", ícono, títulos) |
-| Colores | **Blanco, gris, plateado y verde** |
-| Resumen al registrar una comida | **Tarjeta compacta** dentro del chat (alimentos con gramos y kcal, total, botones Guardar / Corregir) |
-| Proceso | **Primero diseños** (prototipo de las pantallas) → Juan aprueba o pide cambios → se construye |
-| Registro de comidas | Por el chat (decisión de la Fase 3), sin tener que buscar tarjetas en otras pantallas |
-| Usuarios | Pensado para **cualquier persona** (perfil, objetivo y bienvenida guiada ya implementados) |
+- **Vidrio por todas partes**, al nivel del *Liquid Glass* de Apple: se ve el fondo a través, con refracción, brillos y bordes de luz. Es lo más trabajado de la app.
+- **Nada de minimalismo** (se siente desactualizado): íconos complejos, con muchas líneas y capas, bien diseñados pero legibles. Gráficas, logos y el botón central también de vidrio.
+- **Blanco y plateado** como base, con **verde** como acento (las imágenes de referencia).
+- **Futurista e identificable**: al verla, se reconoce como Nutriverse.
+- **Animaciones muy suaves y optimizadas**.
+- **El inicio es un velocímetro de calorías**: la aguja avanza con lo que va comiendo; en déficit hay que quedarse **por debajo del límite**; en volumen, **por encima del mínimo**.
+- Chat, semana, progreso y perfil con la misma identidad. **El perfil mantiene las secciones de la referencia.**
+- No es una copia del efecto de Apple: es un desarrollo propio que logre ese nivel.
 
-## 2. Objetivos del frontend
+## 2. Lo que dicen las referencias (inventario visual)
 
-1. **Registrar una comida en menos de 15 segundos** de esfuerzo: escribir como se habla → ver la tarjeta → "Guardar".
-2. **Saber cómo vas con una mirada**: al abrir la app, las calorías y la proteína del día se entienden sin leer.
-3. **Saber qué comer**: el plan del día y "¿qué pido?" a un toque.
-4. **Ver el progreso** de semanas: peso, medidas, días de fiesta, si la tendencia va hacia la meta.
-5. **Que se sienta hermana de Fuerza** (mismo vidrio, tipografías, gestos y barra de pestañas) pero que **al cambiar de app se note** en cuál estás.
-6. Hecha para **iPhone en modo app** (pantalla completa, zonas seguras, teclado), que también funcione en el computador.
+| Elemento | Cómo se ve en las imágenes | Qué haremos |
+|---|---|---|
+| Fondo | Metal líquido plateado con ondas suaves, gotas/burbujas de agua, hojas verdes difuminadas | Fondo animado propio en WebGL (§4.2), que es lo que se ve a través del vidrio |
+| Paneles | Tarjetas de vidrio blanco translúcido, borde brillante grueso, sombra suave debajo, reflejo diagonal | "Vidrio de panel" (§4.3) |
+| Botones | Píldoras de vidrio con volumen, brillo superior, borde verde cuando están activas | "Vidrio de botón" con presión animada |
+| Botón central "+" | Esfera de vidrio verde con relieve, sobresale de la barra | Lente WebGL con refracción real (§4.4) |
+| Barra de pestañas | Cápsula de vidrio flotante; la pestaña activa con un lente/burbuja | Barra con lente que se desliza y se puede arrastrar (como Fuerza, mucho más trabajada) |
+| Íconos | Íconos 3D: objeto dentro de una burbuja de vidrio, con varias capas de brillo | Sistema de íconos en capas (§6) |
+| Comida | Fotos de platos dentro de esferas de vidrio (desayuno = frutas, almuerzo = ensalada, cena = salmón) | Burbujas de comida (§6.3) |
+| Gráficas | Anillos y líneas verdes sobre vidrio, con brillo | Gráficas de vidrio propias (§7) |
+| Inicio | Velocímetro de vidrio con escala, zonas verde/roja, aguja de vidrio, etiqueta del límite | §5.1 |
+| Tipografía | Sans geométrica redondeada, pesos ligeros en títulos, números grandes | Fuente nueva para Nutriverse (§3.3) |
+| Perfil | Foto, nivel y puntos, logros, Mi perfil (datos, preferencias, objetivos, configuración), resumen de salud, frase | §5.6 |
 
-## 3. Identidad visual
+## 3. Identidad
 
 ### 3.1 Nombre y logo
-- Logo de texto en la misma tipografía de "FUERZA." (Bebas Neue): **NUTRIVERSE.** con el punto en verde.
-- "NUTRIVERSE" es más largo que "FUERZA": en pantallas angostas se verifica que el logo + el menú desplegable + la cápsula de perfil quepan; si no, se reduce el tamaño del logo solo en Nutriverse.
-- Ícono de la app (menú "Tus apps" y pantalla de inicio): plato/hoja estilizado en plata con un detalle verde, mismo estilo de ícono de vidrio que el de Fuerza.
+- **NutriVerse** (como en las imágenes: "Nutri" + "Verse"), con el ícono de hojas de vidrio.
+- Lema de la referencia, opcional en la bienvenida: "Comida real. Vida mejor."
 
-### 3.2 Paleta (blanco, gris, plateado y verde)
-Se proponen **dos direcciones** y se eligen viéndolas en los diseños:
+### 3.2 Colores
+- **Base**: blancos fríos `#F7F9FA`, perla `#EEF1F3`, plata `#C9CED6`, plata oscura `#9AA1AB`, grafito para texto `#1F2428`.
+- **Verde**: principal `#2E9E5B`, brillante `#5BD68A` (brillos y anillos), profundo `#1E6E41` (texto sobre vidrio verde).
+- **Estados**: dentro de la meta → verde; acercándose → ámbar `#E9B44C`; pasado del límite → rojo coral `#E5604D` (la zona roja del velocímetro); alcohol/fiesta → violeta perla.
+- **Vidrio claro**: blanco con 35–60 % de opacidad según la capa, borde de luz casi blanco, sombra de contacto gris-azulada.
+- Nutriverse es **clara** y Fuerza es **oscura**: al cambiar de app hay una transición del fondo (el metal oscuro de Fuerza se aclara a plata) para que no deslumbre de golpe.
 
-| | A · Grafito plateado (oscuro) | B · Plata clara |
-|---|---|---|
-| Fondo | Grafito casi negro con un brillo plateado frío arriba | Blanco roto / gris muy claro |
-| Vidrio | Paneles de vidrio gris humo con borde plateado | Paneles blancos translúcidos con borde gris plata |
-| Texto | Blanco y grises | Gris carbón y grises medios |
-| Acento | **Verde** (botones principales, barras, el punto del logo) | **Verde** más profundo para que contraste sobre claro |
-| Ventaja | Hermana directa de Fuerza (que es oscura); cambio de app suave | Se diferencia muchísimo de Fuerza; muy "salud" |
-| Riesgo | Puede parecerse demasiado a Fuerza si el verde es tímido | Pasar de Fuerza (oscura) a una app clara puede deslumbrar de noche |
+### 3.3 Tipografía
+- Fuente geométrica redondeada, gratuita para la web, cercana a la referencia: **Outfit** (títulos, números grandes, ligera y amplia) + **Inter** o la misma Outfit para el texto. Se decide en el laboratorio comparándolas sobre el vidrio.
+- Números con cifras de ancho fijo para que no "bailen" al animarse.
 
-Tonos de partida (se ajustan en el prototipo):
-- Plata: `#C9CED6` (bordes, brillos), gris medio `#8A9099`, gris oscuro `#2A2E34`, grafito `#0E1013`.
-- Verde: `#3DDC84` (acento en oscuro) / `#1E9E5A` (acento en claro); verde suave para fondos de "en meta".
-- Colores de estado (los mismos en toda la app): **en meta** verde · **cerca** gris plata · **te pasaste** ámbar suave (no rojo, para no regañar) · **alcohol/fiesta** violeta tenue.
-- Los macros tienen color fijo en todas las pantallas: proteína (verde), carbohidratos (plata), grasa (gris cálido), alcohol (violeta).
+## 4. El motor de vidrio (lo más importante)
 
-### 3.3 Tipografía y estilo
-- Las mismas fuentes de Fuerza: **Bebas Neue** (títulos y números grandes) y **Barlow** (texto).
-- Números grandes "tabulares" (no bailan al cambiar).
-- Mismo lenguaje de íconos de línea (sin emojis), radios grandes, vidrio con borde de luz, barra de pestañas Liquid Glass con la lente que se desliza.
-- Animaciones cortas y con rebote suave (como la barra de Fuerza); respetan "reducir movimiento" del iPhone.
+### 4.1 El problema técnico
+- El efecto de Apple refracta (dobla) lo que está detrás. En la web, la técnica más conocida (filtros SVG con `backdrop-filter: url()`) **no funciona en Safari de iPhone**: se ve plano o no se ve. Como Nutriverse se usa sobre todo como app en el iPhone, esa técnica no sirve.
+- WebGL (dibujar con la tarjeta gráfica) sí funciona en todos los navegadores, pero no puede "ver" el texto y las imágenes de la página.
+- **La solución**: un motor en capas. Como **el fondo lo dibujamos nosotros**, el vidrio sí puede refractar el fondo de verdad con WebGL; y para el contenido que pasa por debajo (al hacer scroll) se usa el desenfoque nativo del navegador, que en iPhone es rápido.
 
-## 4. Navegación
+### 4.2 Capa 0 · Fondo vivo (WebGL)
+- Metal líquido plateado con ondas lentas (ruido de flujo), reflejos de luz y algunas gotas/burbujas; hojas verdes desenfocadas en las esquinas.
+- Se mueve muy despacio; reacciona apenas al inclinar el teléfono (si el usuario lo permite) y al hacer scroll (paralaje leve).
+- Optimización: resolución reducida (el fondo es suave, no necesita nitidez), 30–60 fps según el equipo, se pausa al ocultar la app, imagen fija si el usuario pide "reducir movimiento" o si el teléfono está en ahorro de energía.
 
-**Menú del logo** (ya existe): "Tus apps" → FUERZA / NUTRIVERSE.
+### 4.3 Capa 1 · Vidrio de panel (CSS, todo el contenido)
+Cada tarjeta, botón y barra se construye con las mismas capas:
+1. **Desenfoque y saturación** de lo que hay detrás (`backdrop-filter`, rápido en iPhone).
+2. **Cuerpo**: blanco translúcido con un degradado de grosor (más claro arriba, más denso abajo).
+3. **Borde de luz**: un trazo brillante que se ilumina más en el lado de la luz, con un leve tinte de color en el borde (aberración cromática, como el vidrio real).
+4. **Brillo especular**: una franja diagonal de luz que se mueve un poco con el scroll y la inclinación.
+5. **Sombra interior y de contacto**: profundidad y "flotación" sobre el fondo.
+6. **Grano finísimo**: evita que el degradado se vea en escalones.
+- Tres grosores de vidrio (fino, medio, grueso) para jerarquía: barras y botones gruesos, tarjetas medianas, chips finos.
+- Regla de rendimiento: como máximo ~8–10 superficies con desenfoque visibles a la vez; las que están fuera de la pantalla lo apagan.
 
-**Pestañas de Nutriverse** (barra inferior, 5 como máximo para que quepan):
+### 4.4 Capa 2 · Lentes de vidrio con refracción real (WebGL)
+Para las piezas protagonistas, un "lente" dibujado con un shader que dobla el fondo vivo:
+- **Botón central "+"** (esfera verde), **lente de la pestaña activa**, **velocímetro** (cristal del dial y aguja), **anillos de gráficas** y **burbujas de comida**.
+- El shader calcula: refracción según la curvatura del borde (más fuerte en los bordes, como una gota), aberración cromática ligera, brillo especular, sombra de contacto y un "menisco" de luz en el borde.
+- Un único lienzo WebGL detrás de la interfaz dibuja todos los lentes en sus posiciones (sincronizadas con la página). Así es una sola carga para la tarjeta gráfica, no una por elemento.
+- Si el equipo no soporta WebGL o va lento, cada lente cae a su versión CSS (§4.3) sin que se rompa nada.
 
-| Pestaña | Para qué | Pantalla |
-|---|---|---|
-| **Hoy** | Cómo voy y qué comí hoy | §5.1 |
-| **Chat** | Registrar, preguntar, "¿qué como?" | §5.2 |
-| **Semana** | Los últimos días: si cumplí, fiestas, promedio | §5.4 |
-| **Progreso** | Peso, medidas, tendencia hacia la meta | §5.5 |
-| **Perfil** | Mis datos y mi objetivo | §5.6 |
+### 4.5 Movimiento
+- **Física de resortes** para todo lo que se mueve (aguja, lente de pestañas, botones al presionar, hojas que suben): movimientos con un rebote suave, sin tiempos rígidos.
+- **Gelatina**: al presionar, el vidrio se aplasta un poco y vuelve; el lente de pestañas se estira mientras se arrastra (como en iOS).
+- **Transiciones entre pantallas**: las tarjetas de vidrio se deslizan y se desenfocan al salir; el fondo no se corta nunca.
+- Solo se animan propiedades baratas (posición, escala, opacidad); objetivo **60 fps** en un iPhone de hace 3 años.
+- Respeta "reducir movimiento" y "reducir transparencia" del iPhone (versión más sólida y legible).
 
-Botón flotante o principal "**+ Comida**" en Hoy que lleva directo al Chat con el teclado abierto.
+### 4.6 Legibilidad (que el vidrio no se coma el texto)
+- Texto oscuro sobre vidrio claro, con una "capa de lectura" un poco más densa bajo los textos largos.
+- Contraste mínimo AA en todos los textos, medido sobre la peor zona del fondo.
+- Los números importantes (kcal, proteína) van en tarjetas de vidrio más densas.
 
 ## 5. Pantallas
 
-### 5.1 Hoy (inicio)
-**Arriba — el día en una mirada**
-- **Anillo grande de calorías**: lo consumido llena el anillo; en el centro "**1.240** de 1.880 kcal" y debajo "te quedan 640".
-- **Tres barras de macros** debajo del anillo: proteína (la más importante, primero y más grande), carbohidratos, grasa. Fibra y agua como datos pequeños.
-- Si hubo alcohol: chip con ícono de copa (de línea) "**86 g de alcohol · día de fiesta**" en violeta tenue.
-- Chip de la fase: "Déficit grande · faltan 20 días".
+**Pestañas** (como en la referencia, 5 lugares con el botón central): **Inicio · [Pestaña 2] · ( + ) · [Pestaña 4] · Perfil** — las pestañas 2 y 4 se deciden en §11.
+El **"+"** central abre el **chat de registro** como una hoja de vidrio que sube desde abajo, con el teclado listo: es la acción más usada.
 
-**Plan / sugerencia**
-- Tarjeta "**¿Qué como ahora?**" con la sugerencia para la siguiente comida (de `plan_comidas`): "Cena: pechuga 150 g + arepa + ensalada · 520 kcal · 45 g prot". Toque → abre el Chat con el plan completo.
+### 5.1 Inicio — el velocímetro
+Basado en la imagen 3:
+- Arriba: logo NutriVerse, saludo "¡Hola, Juan!", campana, **progreso de agua** (barra de vidrio con líquido que se mueve; tocar suma un vaso).
+- **Velocímetro de vidrio** (pieza estrella):
+  - Escala en kcal de 0 hasta ~1,5 × el objetivo, con marcas cada 250, en vidrio en relieve.
+  - **Déficit**: zona verde de 0 al **límite** (objetivo del día), luego degradado a rojo. Etiqueta "Límite del déficit · 1.880 kcal". El objetivo es mantener la aguja en la zona verde.
+  - **Volumen**: zona roja/ámbar hasta el **mínimo**, verde desde el mínimo hasta el tope del volumen (+10 %), ámbar después. Etiqueta "Mínimo del volumen". El objetivo es pasar la aguja por encima del mínimo.
+  - **Mantenimiento/recomposición**: banda verde de ±5 % alrededor del objetivo.
+  - **Aguja de vidrio** que gira con resorte al abrir la app y cada vez que se guarda una comida; un brillo recorre la escala hasta la nueva posición.
+  - Centro: "**1.450** / 1.880 kcal" y un chip con el estado: "Déficit activo · ¡vas por buen camino!", "Cerca del límite", "Te pasaste 200 kcal", "Te faltan 400 kcal para tu mínimo".
+  - El alcohol del día se muestra como una franja violeta dentro del recorrido de la aguja.
+- **Cápsulas de comidas**: Desayuno, Almuerzo, Cena (y Snacks/Fiesta si hay) con su burbuja de comida y kcal; tocar abre el detalle. Una cápsula "**+ Añadir comida**".
+- **Macros**: proteína, carbohidratos, grasa como tubos de vidrio con líquido que se llena; al lado, la tarjeta "**Faltan 550 kcal** para tu límite" (o "para tu mínimo" en volumen).
+- **"¿Qué como ahora?"**: tarjeta con la sugerencia de la siguiente comida (del plan del día).
 
-**Comidas de hoy**
-- Agrupadas por momento: Desayuno · Almuerzo · Algo entre comidas · Cena · Fiesta.
-- Cada comida: hora, frase original ("almorcé un corrientazo…"), kcal y proteína; toque → **detalle** (§5.3).
-- Estados: sin comidas ("Cuéntale al chat qué comiste") · perfil incompleto (la tarjeta "Configura tu perfil" que ya existe) · cargando (esqueletos del mismo tamaño, sin saltos).
+### 5.2 Chat (registro y asistente) — hoja de vidrio
+- Burbujas de mensajes de vidrio (las del usuario en verde translúcido, las del asistente en vidrio blanco).
+- **Tarjeta de borrador** (decisión de Juan): vidrio grueso con la lista de alimentos (burbuja de ícono + nombre + gramos + kcal), total grande, "te quedarían X kcal" con un mini velocímetro, y botones de vidrio **Guardar** (verde) / **Corregir** / **Descartar**. Al guardar: la tarjeta "se sella" con una animación y la aguja del Inicio se mueve.
+- Tarjetas propias para: plan del día, comparación "¿qué pido?" (opciones lado a lado, la recomendada brilla), objetivos/perfil.
+- Mientras piensa (~10 s): una burbuja de vidrio que "respira" con mensajes que cambian ("Buscando los alimentos…", "Calculando porciones…").
+- Sugerencias de inicio en chips de vidrio.
 
-**Navegar días**: flechas o deslizar ← → para ver ayer/anteayer con la misma pantalla.
+### 5.3 Detalle de comida
+- Encabezado con la burbuja grande del momento y la frase original; lista de alimentos con gramos, kcal y proteína; de dónde salieron los gramos.
+- Acciones de vidrio: Corregir (abre el chat), Duplicar hoy, Borrar (con confirmación).
 
-### 5.2 Chat
-- Lo que ya existe (historial, nueva conversación, respuestas rápidas), con el estilo de Nutriverse.
-- **Tarjeta de borrador** (decisión de Juan) cuando el asistente analiza una comida:
-  ```
-  ┌──────────────────────────────────────┐
-  │ ALMUERZO · BORRADOR                   │
-  │ Arroz blanco ............ 180 g  275 │
-  │ Fríjoles ................ 150 g  206 │
-  │ Pechuga a la plancha .... 130 g  212 │
-  │ ─────────────────────────────────── │
-  │ 693 kcal · 57 g proteína             │
-  │ Te quedarían 1.187 kcal hoy          │
-  │ Supuse porciones típicas de almuerzo │
-  │ [ Guardar ]  [ Corregir ]  [ ✕ ]     │
-  └──────────────────────────────────────┘
-  ```
-  - **Guardar** envía "Sí, guárdalo"; **Corregir** pone el cursor en la caja con "Corrige: "; **✕** descarta.
-  - Al guardar, la tarjeta cambia a "✓ Guardado" (verde) y la cifra del día se actualiza.
-  - Los alimentos "sin coincidencia" o con supuesto importante se marcan con un punto plata y su nota.
-- **Tarjetas de otras respuestas**: plan del día (comidas con opciones), "¿qué pido?" (comparación lado a lado con la recomendada resaltada), perfil/objetivos (números con su explicación).
-- Sugerencias de inicio: "¿Qué como hoy?", "Almorcé…", "¿Cómo voy?", "Quiero cambiar mi objetivo".
-- Indicador de espera con texto que cambia ("Buscando los alimentos…", "Calculando…") porque una comida tarda ~10 s.
+### 5.4 Estadísticas (semana / mes / trimestre)
+Basado en "Tus estadísticas":
+- Selector de vidrio **Semana · Mes · Trimestre** y rango de fechas con flechas.
+- **Anillo de vidrio** con las kcal promedio vs objetivo, y las tres barras de macros con %.
+- Tarjetas: **Peso actual** (con cambio), **Agua** (vs meta), **Días en meta** (en lugar de pasos, que no medimos; los pasos se agregan si algún día se conectan con el teléfono).
+- **Barras por día** con la línea del límite y los días de fiesta marcados.
+- **Evolución del peso** (los pesajes de Fuerza): línea verde de vidrio con su tendencia.
+- **Distribución de macros**: dona de vidrio.
+- **Balance**: "la fiesta del sábado sumó 1.400 kcal: repartidas en 4 días son ~350 menos por día".
 
-### 5.3 Detalle de una comida
-- Encabezado: momento, fecha y hora, frase original.
-- Lista de alimentos: nombre, gramos, kcal, proteína; de dónde salieron los gramos ("dijiste 200 g", "porción típica", "estimado").
-- Totales y macros de esa comida.
-- Acciones: **Corregir por chat** (abre el chat con la comida cargada), **Duplicar hoy** (para "lo mismo de ayer"), **Borrar** (con confirmación).
+### 5.5 Planes
+- **Plan del día** (de `plan_comidas`): las comidas que faltan con 2 opciones cada una, en tarjetas con burbujas de comida, kcal y proteína; "Elegir" la manda al chat para registrarla cuando la coma.
+- **"¿Qué pido?"**: escribir o dictar opciones de un menú y verlas comparadas.
+- Más adelante (Fase 7): plan de la semana y lista de compras (como en la referencia).
 
-### 5.4 Semana
-- **Barras de 7 días** (calorías vs la línea del objetivo) con color por estado (en meta / cerca / te pasaste); los días de fiesta con su marca.
-- Promedio de la semana: kcal y proteína, y **días que cumplió la proteína**.
-- **Balance de la semana**: "vas 1.200 kcal por debajo de lo planeado ✓" o "la fiesta del sábado sumó 1.400 kcal: repartidas en 4 días son ~350 menos por día".
-- Toque en un día → abre ese día en "Hoy".
-
-### 5.5 Progreso
-- **Peso** (los pesajes son los mismos de Fuerza): puntos diarios + línea de tendencia suavizada; meta y fecha meta si hay.
-- Ritmo real vs planeado: "bajando 0,6 kg/semana (plan: 0,8)".
-- **Medidas** (cintura, cuello, bíceps, muslo, cadera) y **grasa estimada** con cinta, como líneas pequeñas.
-- **Mantenimiento según tu registro** (TDEE adaptativo, Fase 7) cuando haya 14+ días de datos; antes, un aviso "se calcula con 2 semanas de registro".
-- Botones: "Registrar peso" y "Registrar medidas" (formularios cortos, sin chat).
-
-### 5.6 Perfil y objetivo
-- **Objetivo actual** arriba, grande: tipo, ritmo, fechas, meta con sus palabras.
-- **Cambiar objetivo** visual: 4 tarjetas (Déficit · Mantener · Recomposición · Volumen); al elegir déficit/volumen, selector de ritmo (suave · moderado · grande) que muestra en vivo **cuántas kcal y proteína** quedarían y **cuánto peso por semana**.
-- **Mis números explicados**: gasto en reposo → mantenimiento → ajuste por objetivo → objetivo diario, como una escalera simple; "estimación ±10 %, se ajusta con tu peso".
-- **Mis datos**: sexo, fecha de nacimiento, estatura, peso, grasa, actividad, entrenos, estilo de alimentación, alimentos que no como, comidas al día. Cada dato editable en una hoja inferior (bottom sheet), con la misma validación del servidor.
-- Edad y estatura son las mismas que en Fuerza.
+### 5.6 Perfil (como en la referencia)
+- **Encabezado**: foto (o avatar), nombre con hoja, lema ("Constancia · Disciplina · Resultados").
+- **Nivel y puntos** con barra de vidrio, y **4 logros** en burbujas: días seguidos registrando, comidas registradas, semanas en meta, mejora continua. (Puntos por registrar y cumplir; sin castigos.)
+- **Mi perfil** (lista de vidrio): Datos personales (edad, estatura, peso, grasa), Preferencias alimentarias (estilo, lo que no come), **Objetivos** (cambiar objetivo con vista previa en vivo de kcal/proteína/peso por semana), Configuración (unidades, notificaciones, privacidad, reducir movimiento).
+- **Resumen de mi salud**: IMC, grasa corporal (medida o estimada), masa magra.
+- Tarjeta con la frase ("No es una dieta, es un estilo de vida").
+- Cada dato se edita en una **hoja de vidrio** que sube, con la validación del servidor.
 
 ### 5.7 Bienvenida (persona nueva)
-- Hoy ya muestra "Configura tu perfil". Se añade una **bienvenida de 3 pantallas** la primera vez (qué es Nutriverse · cómo se registra hablando · tu privacidad) que termina en el chat con el mensaje listo.
-- La configuración del perfil sigue por chat (pocas preguntas a la vez); al final, una **tarjeta de resultado** con sus números y el botón "Ver mi plan de hoy".
+- 3 pantallas a pantalla completa con el fondo vivo, el logo de vidrio que se arma y textos cortos (qué es, cómo se registra hablando, privacidad) → configuración del perfil por chat → **revelación del velocímetro** con su límite personal.
 
-## 6. Componentes reutilizables (librería Nutriverse)
-- `NvRing` (anillo de calorías), `NvMacroBar`, `NvStat` (número grande + etiqueta), `NvChip` (fase, fiesta, estado).
-- `NvMealRow` (comida en lista), `NvFoodLine` (alimento · gramos · kcal), `NvDraftCard`, `NvPlanCard`, `NvCompareCard`, `NvTargetsCard`.
-- `NvSheet` (hoja inferior para editar), `NvSegmented` (selector de ritmo / día), `NvEmpty`, `NvSkeleton`.
-- `NvWeekBars`, `NvTrendChart` (con la librería de gráficas que ya usa Fuerza: Recharts).
-- Tokens de diseño (colores, radios, sombras, tiempos de animación) en un solo lugar, separados de los de Fuerza (`data-app="nutriverse"` en la página).
+## 6. Íconos y gráficos
 
-## 7. Datos que necesita el frontend (servidor)
-| Pantalla | Qué falta | Cambio |
+### 6.1 Estilo
+Íconos "objeto dentro de vidrio": un objeto con volumen (hoja, plato, mancuerna, gota, llama…) dentro de una cápsula o esfera de vidrio, con varias capas: sombra interior, cuerpo con degradado, reflejos, borde de luz. Detallados pero que se lean a 24 px.
+
+### 6.2 Cómo se fabrican
+- **Íconos de interfaz** (pestañas, acciones, listas, logros): SVG en capas hechos a mano, con degradados y brillos, en 3 tamaños; se pueden animar (por ejemplo, la hoja se mueve al activarse la pestaña).
+- **Burbujas de comida y logo** (lo más fotográfico de la referencia): imágenes de alta calidad con fondo transparente. Ver §11, pregunta de los recursos gráficos.
+- Todos en un solo "set" con la misma luz (de arriba a la izquierda), para que se vean de la misma familia.
+
+### 6.3 Burbujas de comida
+Una por momento (desayuno, almuerzo, cena, snack, fiesta/bebida) y por grupo de alimento (proteína, cereal, fruta, verdura, lácteo, bebida, rápida…), usadas en cápsulas, el detalle y el chat.
+
+## 7. Gráficas de vidrio
+- Velocímetro, anillos, barras, línea de peso y dona: dibujadas a medida (SVG + capa de brillo, y lente WebGL en las principales), con el mismo vidrio y animación de resorte.
+- No se usan gráficas genéricas: Recharts se puede usar solo para calcular escalas si conviene.
+
+## 8. Arquitectura del código del frontend
+- `src/app/(nutriverse)/…` pantallas; `src/components/nutriverse/glass/` el motor de vidrio:
+  - `GlassBackground` (Capa 0, WebGL) · `GlassSurface` (Capa 1, CSS; props: grosor, tinte, brillo) · `GlassLensLayer` + `useGlassLens()` (Capa 2, un solo lienzo WebGL, registro de lentes por posición) · `useSpring()` (física de resortes) · `useMotionPrefs()` (reducir movimiento/transparencia, ahorro de energía) · `useTilt()` (inclinación, opcional).
+  - Componentes: `NvGauge`, `NvTabBar`, `NvFab`, `NvCapsule`, `NvTube` (macro con líquido), `NvRing`, `NvBars`, `NvLine`, `NvDonut`, `NvSheet`, `NvSegmented`, `NvDraftCard`, `NvPlanCard`, `NvCompareCard`, `NvAchievement`, `NvIcon`.
+- Tokens de diseño (colores, grosores de vidrio, radios, sombras, resortes) en un archivo; Nutriverse no toca los estilos de Fuerza.
+- Sin librerías pesadas: WebGL propio (o una mini librería como OGL, ~30 KB) para los shaders; resortes propios.
+- Rutas de servidor nuevas: día por fecha, semana/mes/trimestre, progreso (pesos + medidas), detalle/borrado/duplicado de comida, agua, logros/puntos, perfil completo con vista previa de objetivos, tarjetas estructuradas en los mensajes del chat.
+
+## 9. Calidad y rendimiento
+- **Presupuesto**: 60 fps al hacer scroll y animar en iPhone 12 o posterior; primera pantalla en < 1,5 s con caché; el fondo y los lentes en un solo lienzo; nada de saltos de diseño.
+- **Pruebas en iPhone real** (Juan) en cada etapa: fluidez, calor/batería (sesión de 5 min), legibilidad al sol.
+- **Pruebas automáticas** (Playwright) de cada pantalla en tamaños 375/390/430 y en estados: vacío, normal, fiesta, volumen, perfil incompleto, error, "reducir movimiento".
+- **Medición** de cuadros por segundo con una herramienta de diagnóstico propia (solo en desarrollo).
+- Accesibilidad: contraste AA, botones ≥ 44 px, lector de pantalla en el velocímetro ("1.450 de 1.880 kcal, dentro del límite").
+
+## 10. Etapas
+
+| Etapa | Entrega | Cómo lo evalúa Juan |
 |---|---|---|
-| Chat | Que la respuesta traiga la tarjeta (borrador, plan, comparación, objetivos) además del texto | Guardar en cada mensaje del asistente un `card` con los datos de la herramienta |
-| Hoy | Sugerencia de la siguiente comida; navegar por días | `GET /api/comidas/day?date=` (generaliza `today`) + primer bloque de `plan_comidas` |
-| Detalle | Leer, borrar y duplicar una comida | `GET/DELETE /api/comidas/meals/[id]`, `POST …/duplicate` |
-| Semana | Totales por día y balance | `GET /api/comidas/week?end=` |
-| Progreso | Pesos, medidas, tendencia | `GET /api/comidas/progress` (pesos de Fuerza + medidas + tendencia) |
-| Perfil | Leer/editar todo el perfil y previsualizar objetivos | `GET/PUT /api/comidas/profile` (completo) + `POST …/preview` (calcula sin guardar) |
+| **4a · Laboratorio de vidrio** | Una página de prueba (enlace para abrir en el iPhone) con el fondo vivo, los 3 grosores de vidrio, el botón "+" con refracción, la barra de pestañas con lente arrastrable y el velocímetro animado. Dos variantes de intensidad del vidrio | Lo abre en su iPhone: ¿se siente como lo imagina? ¿va fluido? Elige intensidad y tipografía |
+| **4b · Prototipo de pantallas** | Las 6 pantallas (Inicio, Chat, Estadísticas, Planes, Perfil, Bienvenida) con datos de ejemplo, navegables, con el vidrio del laboratorio | Aprueba o pide cambios de diseño antes de conectarlas |
+| **4c · Íconos y recursos** | Set de íconos SVG en capas + burbujas de comida + logo e ícono de la app | Aprueba el set |
+| **4d · Inicio + "+"/Chat conectados** | Velocímetro con sus datos reales, cápsulas, macros, agua; chat en hoja de vidrio con tarjetas | Lo usa en localhost con su cuenta |
+| **4e · Estadísticas + Planes** | Semana/mes/trimestre, peso, balance de fiestas; plan del día y "¿qué pido?" | Lo usa |
+| **4f · Perfil + bienvenida** | Perfil con nivel, logros, datos, objetivo con vista previa; bienvenida | Lo usa |
+| **4g · Pulido y rendimiento** | Transiciones, accesibilidad, pruebas en tamaños de iPhone, ajuste de rendimiento | Aprueba la fase |
 
-## 8. Calidad
-- **iPhone primero**: 390 × 844 (iPhone 14/15) como referencia; probar también 375 (SE) y 430 (Pro Max); zonas seguras, teclado, pantalla completa.
-- **Accesibilidad**: contraste AA (importante en la opción clara con plata), textos ≥ 15 px, botones ≥ 44 px, lectores de pantalla en anillos y barras, "reducir movimiento".
-- **Rendimiento**: la pantalla Hoy se pinta desde caché al instante y se actualiza después (como Fuerza); nada de saltos de diseño.
-- **Pruebas visuales automáticas** (Playwright) de cada pantalla en tamaño iPhone, en estados: vacío, normal, fiesta, perfil incompleto, error.
-- Fuerza no cambia (salvo el menú del logo).
+Después: **Fase 6 · Validación** (1–2 semanas de uso real).
 
-## 9. Plan de trabajo
-
-| Etapa | Qué se entrega | Aprobación |
-|---|---|---|
-| **4a. Diseños** | Prototipo navegable (página web en tamaño iPhone) con las pantallas Hoy, Chat (con tarjeta de borrador), Semana, Progreso y Perfil, en **las dos paletas** (A grafito plateado / B plata clara), con datos de ejemplo realistas | Juan elige paleta y pide cambios |
-| **4b. Base visual** | Tokens de Nutriverse, logo, ícono, barra de pestañas de 5, componentes de §6 | — |
-| **4c. Hoy + Chat** | Anillo, macros, sugerencia, comidas por momento, navegación por días; tarjetas en el chat (borrador, plan, comparación) | Juan prueba en localhost |
-| **4d. Semana + Progreso** | Barras semanales, balance de fiestas, peso y medidas, formularios cortos | Juan prueba |
-| **4e. Perfil + bienvenida** | Objetivo visual con vista previa, datos editables, bienvenida de 3 pantallas | Juan prueba |
-| **4f. Pulido** | Animaciones, estados vacíos/errores, accesibilidad, pruebas visuales, revisión en iPhone | Juan aprueba la fase |
-
-Después de 4f: **Fase 6 (Validación)** — 1–2 semanas de uso real de Juan.
-
-## 10. Fuera de esta fase (ideas para la Fase 7)
-Foto de la comida, código de barras de productos, comidas favoritas/frecuentes con un toque, recordatorios (agua, proteína de la noche), exportar datos, TDEE adaptativo completo, modo "antes de la fiesta".
-
-## 11. Preguntas abiertas (se responden con los diseños)
-1. Paleta: **A (grafito plateado)** o **B (plata clara)**.
-2. ¿5 pestañas (Hoy · Chat · Semana · Progreso · Perfil) o 4 juntando Semana y Progreso?
-3. ¿El ícono del menú "Tus apps" debe tener el nombre completo "NUTRIVERSE" o solo "NUTRI"?
+## 11. Decisiones pendientes
+1. **Pestañas 2 y 4**: la referencia muestra *Recetas* y *Planes*. Propuesta: **Inicio · Estadísticas · (+) · Planes · Perfil**, con *Recetas* para la Fase 7 (necesita una base de recetas que hoy no tenemos).
+2. **Recursos gráficos** (burbujas de comida, logo, íconos 3D): **(a)** Juan los genera con la misma herramienta de IA con la que hizo las referencias, siguiendo una ficha que le preparo (tamaños, fondo transparente, luz, lista exacta); **(b)** los dibujo yo en SVG en capas (más ligeros y animables, menos fotográficos); **(c)** mezcla: íconos de interfaz en SVG y burbujas de comida/logo con su herramienta.
+3. **Foto de perfil**: subir foto propia (necesita guardarla) o avatar de vidrio con la inicial.
+4. **Nivel y puntos**: ¿se quedan (motivan) o solo logros sin puntos?
+5. **Ubicación** ("Bogotá, CO" en la referencia): ¿mostrarla? (pide permiso de ubicación; propuesta: no).
