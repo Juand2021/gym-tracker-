@@ -1,7 +1,22 @@
 # Traspaso — App de Comidas (para continuar en otra sesión / en la nube)
 
-> Última actualización: 2026-10-25 (sesión en la nube). Antes: 2026-10-24, al pasar de la sesión local a la nube.
+> Última actualización: 2026-10-25, al pasar de la sesión en la nube a **Claude Desktop (local)**. Antes: 2026-10-24, de local a la nube.
 > **Leer primero:** `README.md` (plan de fases), `00-discovery.md`, `01-investigacion.md`, `02-motor-alimentos.md`.
+
+## 0. Estado al pasar a Claude Desktop (2026-10-25)
+- Rama de trabajo: **`feat/nutricion-comidas-n0efxo`**, con todo subido. No hay pull request: Juan aprueba antes de publicar.
+- **Último trabajo:**
+  - Frontend completo de NutriVerse en `/comidas`. Ver `04-frontend.md` §12 (qué hay) y §13 (cómo verla en el iPhone).
+  - Código: `src/components/nutriverse/` (vidrio, resortes, velocímetro, gráficas, tarjetas, íconos), `src/app/comidas/` (pantallas y `nutriverse.css`) y `src/lib/nutrition/` (motor, objetivos, vistas, chat).
+- **Para revisar en el iPhone:** `npm run iphone`. Compila, arranca en modo producción en la red Wi-Fi y muestra la dirección `http://192.168.x.x:3000/comidas`. `npm run dev:iphone` es el modo desarrollo, con cambios en vivo.
+- **Qué sigue:**
+  1. Juan revisa en su iPhone y pide ajustes de diseño, animaciones y textos.
+  2. Fondo WebGL (capa 0) y lentes con refracción (capa 2), que Juan dejó para después.
+  3. Poner las imágenes de `04b-ficha-recursos.md` en `public/nutriverse/` y agregar sus nombres a `NV_ASSETS` (`NvBubble.tsx`).
+- **Cuidados:**
+  - Lo que se registre en el chat se guarda en el Firestore real de Juan. No crear datos de prueba ahí; para capturas usar datos simulados con `page.route` de Playwright.
+  - El lint de `src/app/ia`, `AppSettingsContext` e `IosInstallPrompt` ya tenía errores antes; no son de NutriVerse.
+- **En local hace falta `.env.local`** con `SITE_PIN`, `FIREBASE_SERVICE_ACCOUNT` (JSON en una línea) y `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` y `AZURE_OPENAI_DEPLOYMENT=gpt-5-mini`. Ver `.env.example`. La base de alimentos se lee de Firestore (`nutritionDb/current`), así que la app no necesita `.data/`. `.data/` solo hace falta para correr los scripts del motor y el benchmark (§4).
 
 ## 1. Reglas de trabajo acordadas con Juan
 - Trabajo **por fases**. Al entrar a cada fase: resumen de lo que se hará + preguntas → Juan aprueba → se ejecuta.
@@ -24,7 +39,7 @@
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.
 
-## 3. Lo construido en 2b/2c (sin commitear antes de este traspaso)
+## 3. Lo construido en 2b/2c (histórico: ya está todo commiteado)
 - `scripts/nutrition/parse_tcac.py` — extrae la tabla proximal de la TCAC 2015 (PyMuPDF) → **899 alimentos**, validado con Atwater (solo fallan 3 bebidas alcohólicas, esperado). Tildes correctas (en consola Windows se ven mal, es solo display).
 - `scripts/nutrition/build_fdc.py` — USDA FDC (Foundation 2026-04, SR Legacy, FNDDS 2024-10) → **13.035 alimentos** por 100 g; carbohidratos normalizados a "disponibles" (total − fibra) como la TCAC.
 - `scripts/nutrition/enrich_names.ts` — traduce nombres USDA al español y genera sinónimos colombianos con gpt-5-mini (Structured Outputs, por lotes, con caché reanudable `.data/nutrition-raw/names_cache.json`). **No se ha ejecutado** (ver bloqueo).
