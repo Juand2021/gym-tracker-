@@ -15,7 +15,7 @@
 |---|---|
 | 0 Discovery | ✅ `00-discovery.md` |
 | 1 Investigación nutricional | ✅ `01-investigacion.md` (reglas de cálculo, objetivos por fase, alcohol, TDEE adaptativo) |
-| 2 Motor de alimentos y precisión | 🟡 2a ✅ · 2b/2c ✅ construidos y medidos con el lector por reglas (`02-motor-alimentos.md` §6–7). **Falta la corrida con IA** (bloqueada por credenciales) |
+| 2 Motor de alimentos y precisión | ✅ Meta cumplida con IA en el set de prueba congelado (R9: 92 % / 86 %). Ver `02-motor-alimentos.md` §6–7 |
 | 3 Arquitectura · 4 Frontend · 5 Implementación · 6 Validación · 7 Mejoras | Pendientes |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.
@@ -46,24 +46,21 @@ python -I scripts/nutrition/build_fdc.py .data/nutrition-raw/fdc .data/nutrition
 ```
 Juan ya autorizó estas descargas (≈160 MB) y la del modelo de embeddings local.
 
-## 5. Bloqueo actual
-En la nube **no hay** `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` / `AZURE_OPENAI_DEPLOYMENT` (tampoco `OPENAI_API_KEY`). Juan debe agregarlas como variables del entorno de Claude Code en la nube (formato en `.env.example`: endpoint `https://<recurso>.services.ai.azure.com/openai/v1`, deployment `gpt-5-mini`). Nunca escribir la clave por él.
+## 5. Credenciales
+Azure ya está configurado en el entorno de la nube (`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT=gpt-5-mini`), verificado el 2026-10-25. Nunca escribir la clave.
 
-## 6. Próximos pasos (en orden)
-Hecho el 2026-10-25: datos regenerados (899 TCAC, 13.035 FDC), `build_db.ts`, `cross_check.ts` (sin alertas), motor completo (`text`, `search` BM25, `portions`, `compute`, `parse` IA, `rerank` IA, `parse-rules`, `pipeline`), 25 pruebas en `npm test`, set de referencia de 100 comidas × 2 descripciones, `benchmark.ts`. Embeddings locales probados y descartados (ver `02-motor-alimentos.md` §7).
-
-Comandos (después de regenerar los datos de la sección 4):
+## 6. Próximos pasos
+Fase 2 cerrada el 2026-10-25. Para regenerar todo en una sesión nueva (después de la sección 4):
 ```bash
+node --experimental-strip-types scripts/nutrition/enrich_names.ts   # usa el caché si existe; si no, ~45 min
+NUTRI_BATCH=8 node --experimental-strip-types scripts/nutrition/enrich_names.ts   # reintenta los lotes bloqueados por el filtro de Azure
 node --experimental-strip-types scripts/nutrition/build_db.ts
 node --experimental-strip-types scripts/nutrition/cross_check.ts
-node --experimental-strip-types scripts/nutrition/benchmark.ts --parser rules --set dev
+node --experimental-strip-types scripts/nutrition/benchmark.ts --parser llm --set dev   # dev = 1–100; test = 101–150 (ya usado en R9)
 ```
+Nota: `names_cache.json` vive en `.data/` (no se sube). Si se pierde, se regenera con `enrich_names.ts`.
 
-Pendiente, cuando haya credenciales:
-1. `node --experimental-strip-types scripts/nutrition/enrich_names.ts` (traduce nombres USDA; caché reanudable) → volver a correr `build_db.ts`.
-2. `benchmark.ts --parser llm --set dev`; iterar prompt/plantillas/porciones solo mirando el set dev; registrar cada ronda en `02-motor-alimentos.md` §7.
-3. Una sola corrida final `--parser llm --set test`. Meta: con gramos ≥90 % en ±10 %; vaga ≥80 % en ±20 %.
-4. Al pasar la meta: presentar resultados a Juan y entrar a la **Fase 3 (Arquitectura)** con resumen + preguntas (incluye decidir cómo servir `foods.json` en producción sin publicar datos TCAC en el repo público).
+**Siguiente: Fase 3 (Arquitectura)** — presentar resumen + preguntas a Juan y esperar aprobación (ver sección 8).
 
 ## 7. Pendientes para fases posteriores (ya acordados)
 - Perfil único en servidor compartido por Fuerza y Comidas (migrar `AppSettingsContext` de localStorage); medidas corporales (cintura, cuello, bíceps, pierna…) también visibles en Fuerza.
@@ -71,3 +68,9 @@ Pendiente, cuando haya credenciales:
 - Modo consulta "¿qué pido?" (comparar opciones de menú según calorías/macros restantes y fase).
 - Confirmación obligatoria antes de guardar cada comida.
 - Números provisionales de Juan mientras tanto: ~2.200 kcal, ~170 g proteína (supuesto 78 kg; recalcular con su peso real).
+
+## 8. Preguntas abiertas para la Fase 3 (presentadas a Juan el 2026-10-25)
+1. Dónde vive la base de alimentos en producción (7,2 MB; 0,9 MB comprimida) sin subir datos TCAC al repo público. Propuesta: archivo privado en Firebase Storage, cargado y guardado en memoria por el servidor.
+2. Cómo se registra una comida: pestaña nueva "Comidas" con caja de texto + tarjetas editables, o también desde el chat IA existente.
+3. ¿Laura también usa Comidas?
+4. Latencia de 3–9 s por comida: ¿aceptable, o probar `reasoning_effort: minimal` (más rápido, hay que volver a medir)?

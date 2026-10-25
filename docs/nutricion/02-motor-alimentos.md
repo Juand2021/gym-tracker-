@@ -1,6 +1,6 @@
 # Fase 2 — Motor de alimentos y precisión
 
-> Fecha: 2026-10-24 (actualizado 2026-10-25) · Estado: **2a cerrada · 2b/2c construidos · falta la corrida con IA**
+> Fecha: 2026-10-24 (actualizado 2026-10-25) · Estado: **✅ Fase 2 cerrada: meta cumplida en el set de prueba congelado (R9)**
 > Notas completas con fuentes: `research_notes/Motor de alimentos open source/`
 
 ## 1. Qué aprendimos
@@ -121,6 +121,12 @@ Meta: con gramos ≥ 90 % dentro de ±10 % · vaga ≥ 80 % dentro de ±20 %.
 | R8 | IA | **prueba** | 87,9 % ❌ | 72,7 % ❌ | Corrida única sobre el set congelado |
 
 **Lectura de R8 (prueba):** con gramos queda cerca; lo vago falla por errores generales: avena sin cantidad = 1 cucharada (6 g); la IA fuerza alimentos parecidos del catálogo (ensalada césar → ensalada de repollo, shawarma → sobrebarriga); "con patacones" = 1 patacón; en platos de afuera usa el peso de una pieza USDA (rollo de sushi = 30 g). Como el set de prueba ya se miró, pasa a ser de ajuste y se escribe un **set de prueba nuevo** (comidas 101–150) **antes** de corregir.
+
+| — | — | — | — | — | Set de prueba nuevo (comidas 101–150) escrito y congelado en git **antes** de corregir; dev pasa a ser 1–100 |
+| R9 | IA | dev (1–100) | 92,0 % ✅ | 92,0 % ✅ | Combos no nombrados quedan como alimento a buscar; `core_key` solo si es el mismo alimento; fuera del núcleo manda el estimado de gramos de la IA; plural sin cantidad = porción; avena = porción 40 g |
+| **R9** | **IA** | **prueba nueva (101–150)** | **92,0 % ✅** | **86,0 % ✅** | **Corrida única. Meta cumplida.** Error medio 3,5 % (gramos) y 9,5 % (vaga); sesgo ≈ −0,7 % (no se queda corto ni se pasa) |
+
+**Fallas de confiabilidad conocidas (para la Fase 6, no se corrigieron mirando la prueba):** en ~2 % de las descripciones el modelo devuelve un ítem vacío o pierde alimentos (#110 con gramos, #101 vaga). Mitigación ya acordada: **confirmación obligatoria** de cada comida antes de guardar. Otros errores típicos: "tajada de sandía" (42 g vs 300 g), tragos con "coca zero" leídos como coctel. Latencia: 3–9 s por comida con `reasoning_effort: low`.
 
 ### Traducción de nombres (2026-10-25)
 `enrich_names.ts` con gpt-5-mini: 13.846/13.934 nombres (99,4 %). 88 quedan en inglés porque el filtro de contenido de Azure bloquea esos lotes (falsos positivos con palabras de anatomía animal). Calidad buena: "Blood sausage" → "Morcilla" (sinónimo "rellena"), "Gyro sandwich" → "sándwich gyro".
