@@ -121,10 +121,16 @@ function momentFor(time: string): MealMoment {
 }
 
 function toStored(result: MealResult): { items: StoredItem[]; totals: MealTotals } {
-  const items = result.items.map(({ warnings: _w, nutrients, ...rest }) => ({
-    ...rest,
+  const items = result.items.map((item) => {
+    const { nutrients } = item;
+    const rest: Omit<typeof item, "warnings" | "nutrients"> & { warnings?: unknown; nutrients?: unknown } = { ...item };
+    delete rest.warnings;
+    delete rest.nutrients;
+    return {
+    ...(rest as Omit<typeof item, "warnings" | "nutrients">),
     nutrients: { kcal: nutrients.kcal, protein_g: nutrients.protein_g, fat_g: nutrients.fat_g, carb_g: nutrients.carb_g, fiber_g: nutrients.fiber_g, alcohol_g: nutrients.alcohol_g },
-  }));
+    };
+  });
   return { items, totals: sumTotals(items.map((i) => ({ totals: i.nutrients }))) };
 }
 
@@ -371,4 +377,4 @@ REGISTRO DE COMIDAS (solo para Juan):
 - Si pregunta cómo va, usa resumen_dia.
 - Fiestas: el alcohol cuenta en las kcal del día. Si hubo un día de fiesta esta semana, sugiere repartir el exceso en los 3–4 días siguientes bajando grasa y carbohidratos, NUNCA la proteína, y sin ayunar. Antes de salir: comida con proteína; durante: agua; después: comida proteica en vez de domicilio.
 - Si Juan solo pregunta por un alimento ("¿cuánta proteína tiene un huevo?"), responde sin crear borradores.
-- Respuestas cortas y en español simple. Usa números redondos.`;
+- Respuestas cortas y en español simple. Usa números redondos (sin decimales en kcal ni en proteína). Nunca muestres kcal negativas: si se pasa, di "te pasarías X kcal".`;

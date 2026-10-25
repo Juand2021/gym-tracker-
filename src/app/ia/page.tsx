@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AiAnalysis } from "@/components/AiAnalysis";
+import { NutritionTodayStrip } from "@/components/NutritionTodayStrip";
 import { formatShortDate } from "@/lib/exercise-history";
 import type { ChatMessage, ChatThread, ChatThreadSummary } from "@/lib/types";
 import {
@@ -25,6 +26,13 @@ const ICONS: Record<string, ReactNode> = {
   swap: <path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />,
   bolt: <path d="M13 2L4 14h7l-1 8 9-12h-7z" />,
   stack: <path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" />,
+  plate: (
+    <>
+      <circle cx="13" cy="12" r="7" />
+      <circle cx="13" cy="12" r="3.5" />
+      <path d="M3 3v6a2 2 0 0 0 2 2M5 3v18M7 3v6a2 2 0 0 1-2 2" />
+    </>
+  ),
   heart: <path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z" />,
 };
 
@@ -43,11 +51,18 @@ const SUGGESTIONS: Array<{ tag: string; icon: keyof typeof ICONS; text: string }
   { tag: "Variantes", icon: "swap", text: "¿Debería rotar o sustituir algún ejercicio de espalda?" },
 ];
 
+/** Solo si el módulo Comidas está activo para el perfil. */
+const FOOD_SUGGESTION = { tag: "Comida", icon: "plate" as const, text: "Almorcé un corrientazo de cerdo con jugo de mora" };
+
 const CAPABILITIES: Array<{ icon: keyof typeof ICONS; title: string; text: string }> = [
   { icon: "bolt", title: "1RM y marcas", text: "Fuerza estimada por ejercicio" },
   { icon: "stack", title: "Volumen", text: "Carga semanal por músculo" },
   { icon: "heart", title: "Recuperación", text: "Frecuencia y descargas" },
 ];
+
+/** Respuestas rápidas cuando el Coach pregunta si guarda una comida o borra algo. */
+const CONFIRM_REPLIES = ["Sí, guárdalo", "No lo guardes"];
+const DELETE_REPLIES = ["Sí, bórrala", "No, déjala"];
 
 const FOLLOW_UPS = [
   "Sí, genera el plan detallado",
@@ -113,6 +128,9 @@ export default function IaPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Sube después de cada respuesta para que la franja "Hoy" se actualice.
+  const [nutritionRefresh, setNutritionRefresh] = useState(0);
+  const [nutritionOn, setNutritionOn] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -296,6 +314,7 @@ export default function IaPage() {
       setError(err instanceof Error ? err.message : "Error al enviar mensaje");
     } finally {
       setSending(false);
+      setNutritionRefresh((n) => n + 1);
     }
   }
 
@@ -308,6 +327,12 @@ export default function IaPage() {
 
   const lastIsAssistant =
     messages.length > 0 && !sending && messages[messages.length - 1].role === "assistant";
+  const lastText = lastIsAssistant ? messages[messages.length - 1].content : "";
+  const quickReplies = /¿\s*lo guardo\s*\?/i.test(lastText)
+    ? CONFIRM_REPLIES
+    : /¿\s*(la|lo) borro\s*\?|¿\s*de verdad la borro/i.test(lastText)
+      ? DELETE_REPLIES
+      : null;
 
   return (
     <div className="ia-page">
@@ -328,6 +353,8 @@ export default function IaPage() {
           </button>
         </div>
       </header>
+
+      <NutritionTodayStrip refreshKey={nutritionRefresh} onEnabled={setNutritionOn} />
 
       {/* Historial de conversaciones */}
       {isSidebarOpen ? (
@@ -431,7 +458,7 @@ export default function IaPage() {
 
             <p className="ia-section-label">Prueba con</p>
             <div className="ia-suggest-grid">
-              {SUGGESTIONS.map((item, i) => (
+              {(nutritionOn ? [FOOD_SUGGESTION, ...SUGGESTIONS.slice(0, 3)] : SUGGESTIONS).map((item, i) => (
                 <button
                   key={item.text}
                   type="button"
@@ -485,12 +512,20 @@ export default function IaPage() {
                     <i />
                     <i />
                   </span>
-                  Analizando historial y métricas…
+                  Pensando…
                 </div>
               </div>
             ) : null}
 
-            {lastIsAssistant ? (
+            {quickReplies ? (
+              <div className="ia-followups nt-quick" aria-label="Respuestas rápidas">
+                {quickReplies.map((f, i) => (
+                  <button key={f} type="button" className={`ia-chip ${i === 0 ? "is-confirm" : ""}`} onClick={() => sendMessage(f)}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+            ) : lastIsAssistant ? (
               <div>
                 <p className="ia-section-label">Sugerencias de seguimiento</p>
                 <div className="ia-followups">
@@ -520,7 +555,7 @@ export default function IaPage() {
             ref={textareaRef}
             className="ia-input"
             rows={1}
-            placeholder="Escribe tu consulta al Coach…"
+            placeholder={nutritionOn ? "Pregunta o cuenta qué comiste…" : "Escribe tu consulta al Coach…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

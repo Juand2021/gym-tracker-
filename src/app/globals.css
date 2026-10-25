@@ -6092,3 +6092,98 @@ button.en-last:active {
 .en-recover-actions .pg-pill {
   justify-content: center;
 }
+
+
+/* ───────── Comidas: franja "Hoy" y respuestas rápidas en el chat ───────── */
+.nt-strip {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem 0.9rem 0.85rem;
+}
+
+.nt-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.nt-left {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+
+.nt-metric {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.nt-metric-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.nt-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nt-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.nt-value.is-over {
+  color: #ffb36b;
+}
+
+.nt-target {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.nt-track {
+  position: relative;
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.nt-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(90deg, #ff8a55, var(--accent));
+  box-shadow: 0 0 10px rgba(255, 106, 44, 0.45);
+  transition: width 0.5s cubic-bezier(0.3, 1.2, 0.5, 1);
+}
+
+.nt-fill.is-over {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(90deg, #ffb36b, #ffd2b0);
+}
+
+.ia-chip.is-confirm {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(135deg, #ff8a55, var(--accent));
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.65),
+    0 6px 18px rgba(255, 77, 26, 0.35);
+}
