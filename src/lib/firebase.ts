@@ -1,5 +1,5 @@
-import { App, cert, getApps, initializeApp } from "firebase-admin/app";
-import { Firestore, getFirestore } from "firebase-admin/firestore";
+import { type App, cert, getApps, initializeApp } from "firebase-admin/app";
+import { type Firestore, getFirestore } from "firebase-admin/firestore";
 
 let app: App | undefined;
 let db: Firestore | undefined;

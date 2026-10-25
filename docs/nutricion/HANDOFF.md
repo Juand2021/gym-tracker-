@@ -52,6 +52,14 @@ Juan ya autorizó estas descargas (≈160 MB) y la del modelo de embeddings loca
 ## 5. Credenciales
 Azure ya está configurado en el entorno de la nube (`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT=gpt-5-mini`), verificado el 2026-10-25. Nunca escribir la clave.
 
+## 5b. Firebase (conectado el 2026-10-25)
+- La llave de servicio vive solo en `.env.local` (ignorado por git) de este entorno. **Nunca subirla.** En producción ya está en Vercel.
+- Proyecto `gym-tracker-fd03b`. Colecciones de Fuerza (no tocar): `workouts`, `bodyWeight`, `chatThreads`, `users/laura/*`.
+- Colecciones de Comidas: `profile/main` (perfil, creado), `nutritionDb/current` (+ `chunks/0..1`, base de 13.951 alimentos, subida con `upload_db.ts`), `meals`, `mealDrafts`, `comidasChats`, `bodyMeasurements`.
+- Objetivos con datos reales (peso 76,3 kg del 2026-10-03, 14 entrenos en 28 días): **1.880 kcal, 183 g proteína, 52 g grasa, 169 g carbohidratos**.
+- Prueba de punta a punta con Firebase: analizar 12 s (incluye la primera carga de la base), guardar 4 s. Datos de prueba borrados.
+- Scripts: `node --env-file=.env.local --experimental-strip-types scripts/nutrition/<script>.ts`.
+
 ## 6. Próximos pasos
 Fase 2 cerrada el 2026-10-25. Para regenerar todo en una sesión nueva (después de la sección 4):
 ```bash
