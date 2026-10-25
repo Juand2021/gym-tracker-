@@ -7,6 +7,7 @@ import { PageHero } from "@/components/ui/PageHero";
 import { dateParts, groupByMonth } from "@/lib/history-summary";
 import { DAY_OPTIONS, getDayLabel, type DayType } from "@/lib/routines";
 import type { Workout } from "@/lib/types";
+import { fetchJsonCached, readCachedJson, readSession, writeSession } from "@/lib/client-cache";
 
 type Filter = "todos" | DayType;
 
@@ -17,14 +18,19 @@ export default function HistorialPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    type WData = { workouts?: Workout[]; error?: string };
     async function load() {
+      // Recordar el filtro y pintar al instante lo último cargado
+      const savedFilter = readSession<Filter>("historial:filter");
+      if (savedFilter) setFilter(savedFilter);
+      const cached = readCachedJson<WData>("/api/workouts");
+      if (cached) {
+        setWorkouts(cached.workouts ?? []);
+        setLoading(false);
+      }
       try {
-        const res = await fetch("/api/workouts");
-        const data = (await res.json()) as {
-          workouts?: Workout[];
-          error?: string;
-        };
-        if (!res.ok) throw new Error(data.error || "Error");
+        const { ok, data } = await fetchJsonCached<WData>("/api/workouts");
+        if (!ok) throw new Error(data.error || "Error");
         setWorkouts(data.workouts ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error");
@@ -69,7 +75,10 @@ export default function HistorialPage() {
             role="tab"
             aria-selected={filter === opt.id}
             className={`pg-filter ${filter === opt.id ? "is-active" : ""}`}
-            onClick={() => setFilter(opt.id)}
+            onClick={() => {
+              setFilter(opt.id);
+              writeSession("historial:filter", opt.id);
+            }}
           >
             {opt.label}
           </button>

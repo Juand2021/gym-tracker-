@@ -6,9 +6,13 @@ import { Sparkline } from "@/components/ui/Sparkline";
 import { dateParts, weightStats } from "@/lib/history-summary";
 import { isValidWeight, parseDecimal } from "@/lib/numbers";
 import type { BodyWeightEntry } from "@/lib/types";
+import { fetchJsonCached, invalidateCachedJson, readCachedJson } from "@/lib/client-cache";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  // Fecha local del teléfono: toISOString() usa UTC y en Colombia, desde las
+  // 7 p. m., ya marcaba el día siguiente.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** Pasos del ajuste rápido (kg). */
@@ -34,15 +38,17 @@ export default function PesoPage() {
 
   useEffect(() => {
     let active = true;
+    type BData = { entries?: BodyWeightEntry[]; error?: string };
     async function load() {
+      const cached = readCachedJson<BData>("/api/body-weight");
+      if (cached) {
+        setEntries(cached.entries ?? []);
+        setLoading(false);
+      }
       try {
-        const res = await fetch("/api/body-weight");
-        const data = (await res.json()) as {
-          entries?: BodyWeightEntry[];
-          error?: string;
-        };
+        const { ok, data } = await fetchJsonCached<BData>("/api/body-weight");
         if (!active) return;
-        if (!res.ok) throw new Error(data.error || "Error");
+        if (!ok) throw new Error(data.error || "Error");
         setEntries(data.entries ?? []);
         setError("");
       } catch (err) {
@@ -76,6 +82,7 @@ export default function PesoPage() {
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
+      invalidateCachedJson("/api/body-weight");
       setWeightKg("");
       setVersion((v) => v + 1);
     } catch (err) {
@@ -91,6 +98,7 @@ export default function PesoPage() {
       const res = await fetch(`/api/body-weight?id=${id}`, { method: "DELETE" });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "No se pudo borrar");
+      invalidateCachedJson("/api/body-weight");
       setVersion((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");

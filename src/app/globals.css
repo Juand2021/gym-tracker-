@@ -1743,6 +1743,17 @@ input[type="date"].field {
   z-index: 30;
   padding-inline: 0.75rem;
   pointer-events: none;
+  /* Corrección de iOS calculada en ViewportGuard */
+  translate: 0 var(--vv-shift, 0px);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+/* Con el teclado abierto la barra se oculta para no flotar sobre el contenido */
+html.kb-open .app-tabbar {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .lg-bar {
@@ -2921,11 +2932,6 @@ input[type="date"].field {
    de la pantalla. Al abrir o navegar, iOS a veces calcula el alto como si
    existiera la barra de Safari y la barra flotaba más arriba durante un instante. */
 @media (display-mode: standalone) {
-  .app-tabbar {
-    bottom: auto;
-    top: calc(100lvh - 3.5rem - max(0.55rem, env(safe-area-inset-bottom) - 0.35rem));
-  }
-
   /* Más aire bajo la isla dinámica */
   .app-topbar > div {
     padding-top: 0.95rem;
@@ -6063,4 +6069,26 @@ button.en-last:active {
   .pf-switch span {
     transition: none;
   }
+}
+
+/* Recuperar un entreno sin guardar */
+.en-recover {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.45),
+    0 0 0 1px rgba(255, 138, 85, 0.35),
+    0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.en-recover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.en-recover-actions .pg-pill {
+  justify-content: center;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { clearSession } from "@/lib/client-cache";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LiquidTabBar } from "@/components/LiquidTabBar";
@@ -49,6 +50,7 @@ export function AppNav() {
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearSession();
     router.push("/login");
     router.refresh();
   }

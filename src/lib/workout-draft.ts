@@ -21,6 +21,13 @@ export type WorkoutDraft = {
 };
 
 const STORAGE_KEY = "fuerza_workout_draft_v1";
+/**
+ * Copia de seguridad del último borrador que tuvo series. No se borra al
+ * descartar ni si el borrador se vacía por error: solo al guardar el entreno.
+ */
+const BACKUP_KEY = "fuerza_workout_draft_backup_v1";
+/** Una copia más vieja que esto ya no se ofrece para recuperar. */
+const BACKUP_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 const DRAFT_CHANGE_EVENT = "fuerza_workout_draft_changed";
 
 let cachedDraftRaw: string | null = null;
@@ -55,6 +62,7 @@ export function saveWorkoutDraft(draft: WorkoutDraft): void {
   try {
     const raw = JSON.stringify(draft);
     localStorage.setItem(STORAGE_KEY, raw);
+    if (draft.sets?.length > 0) localStorage.setItem(BACKUP_KEY, raw);
     cachedDraftRaw = raw;
     cachedDraft = draft;
     if (typeof window !== "undefined") {
@@ -65,12 +73,17 @@ export function saveWorkoutDraft(draft: WorkoutDraft): void {
   }
 }
 
-export function clearWorkoutDraft(): void {
+/**
+ * Borra el borrador en curso. La copia de seguridad se conserva salvo que se
+ * pida `dropBackup` (después de guardar el entreno con éxito).
+ */
+export function clearWorkoutDraft(options: { dropBackup?: boolean } = {}): void {
   if (typeof window === "undefined" && typeof localStorage === "undefined") {
     return;
   }
   try {
     localStorage.removeItem(STORAGE_KEY);
+    if (options.dropBackup) localStorage.removeItem(BACKUP_KEY);
     cachedDraftRaw = null;
     cachedDraft = null;
     if (typeof window !== "undefined") {
@@ -78,6 +91,28 @@ export function clearWorkoutDraft(): void {
     }
   } catch {
     // Manejo silencioso
+  }
+}
+
+/** Último borrador con series (reciente), para ofrecer recuperarlo si se perdió. */
+export function getDraftBackup(now = Date.now()): WorkoutDraft | null {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    const backup = JSON.parse(raw) as WorkoutDraft;
+    if (!backup.sets?.length) return null;
+    if (typeof backup.updatedAt === "number" && now - backup.updatedAt > BACKUP_MAX_AGE_MS) return null;
+    return backup;
+  } catch {
+    return null;
+  }
+}
+
+export function discardDraftBackup(): void {
+  try {
+    localStorage.removeItem(BACKUP_KEY);
+  } catch {
+    // Ignorar
   }
 }
 

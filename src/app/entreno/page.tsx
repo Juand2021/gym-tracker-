@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { BarbellPlatePicker } from "@/components/BarbellPlatePicker";
 import { PageHero } from "@/components/ui/PageHero";
+import { fetchJsonCached, invalidateCachedJson, readCachedJson } from "@/lib/client-cache";
 import { CatalogExercisePicker } from "@/components/CatalogExercisePicker";
 import { DumbbellRackPicker } from "@/components/DumbbellRackPicker";
 import { EzBarPlatePicker } from "@/components/EzBarPlatePicker";
@@ -42,13 +43,19 @@ import { MuscleGroupIcon } from "@/components/MuscleGroupIcon";
 import type { Workout } from "@/lib/types";
 import {
   clearWorkoutDraft,
+  discardDraftBackup,
+  getDraftBackup,
   getWorkoutDraft,
   saveWorkoutDraft,
+  type WorkoutDraft,
   type DraftSet,
 } from "@/lib/workout-draft";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  // Fecha local del teléfono: toISOString() usa UTC y en Colombia, desde las
+  // 7 p. m., ya marcaba el día siguiente.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function isDayType(value: string | null): value is DayType {
@@ -418,6 +425,7 @@ function EntrenoForm() {
     return [];
   });
 
+  const [backup, setBackup] = useState<WorkoutDraft | null>(() => getDraftBackup());
   const [customExercise, setCustomExercise] = useState("");
   const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
   const [pastWorkouts, setPastWorkouts] = useState<Workout[]>([]);
@@ -428,10 +436,11 @@ function EntrenoForm() {
   useEffect(() => {
     let active = true;
     async function loadPastWorkouts() {
+      const cached = readCachedJson<{ workouts?: Workout[] }>("/api/workouts");
+      if (cached?.workouts) setPastWorkouts(cached.workouts);
       try {
-        const res = await fetch("/api/workouts");
-        if (!res.ok) return;
-        const data = (await res.json()) as { workouts?: Workout[] };
+        const { ok, data } = await fetchJsonCached<{ workouts?: Workout[] }>("/api/workouts");
+        if (!ok) return;
         if (active && Array.isArray(data.workouts)) {
           setPastWorkouts(data.workouts);
         }
@@ -654,6 +663,12 @@ function EntrenoForm() {
   }, []);
 
   function selectDay(day: DayType) {
+    // Mismo día que el entreno en curso: retomarlo tal cual (antes se borraban las series)
+    if (dayType === day && (sets.length > 0 || exerciseOrder.length > 0)) {
+      setError("");
+      setStep(day === "hombro" && !armFocus ? "arms" : "log");
+      return;
+    }
     if (dayType && dayType !== day && sets.length > 0) {
       const confirmChange = window.confirm(
         `Tienes ${sets.length} serie${sets.length > 1 ? "s" : ""} en curso de ${getDayLabel(dayType)}. ¿Iniciar ${getDayLabel(day)} y reiniciar las series actuales?`,
@@ -675,6 +690,10 @@ function EntrenoForm() {
   }
 
   function selectArms(focus: ArmFocus) {
+    if (armFocus === focus) {
+      setStep("log");
+      return;
+    }
     if (armFocus && armFocus !== focus && sets.length > 0) {
       const confirmChange = window.confirm(
         `Tienes ${sets.length} serie${sets.length > 1 ? "s" : ""} en curso. ¿Deseas cambiar a ${focus === "biceps" ? "Bíceps" : "Tríceps"} y reiniciar las series?`,
@@ -696,6 +715,8 @@ function EntrenoForm() {
       if (!confirmDiscard) return;
     }
     clearWorkoutDraft();
+    // La copia queda disponible como "deshacer" en la pantalla de elegir día
+    setBackup(getDraftBackup());
     setStep("day");
     setDayType(null);
     setArmFocus(null);
@@ -705,6 +726,20 @@ function EntrenoForm() {
     setNotes("");
     setError("");
     router.replace("/entreno");
+  }
+
+  /** Restaura el último entreno con series que quedó en la copia de seguridad. */
+  function restoreBackup() {
+    if (!backup) return;
+    setDayType(backup.dayType);
+    setArmFocus(backup.armFocus);
+    setDate(backup.date || todayIso());
+    setNotes(backup.notes || "");
+    setSets(backup.sets);
+    setExtraExercises(backup.extraExercises ?? []);
+    setExerciseOrder(backup.exerciseOrder ?? []);
+    setError("");
+    setStep("log");
   }
 
   function handleBackStep() {
@@ -827,8 +862,9 @@ function EntrenoForm() {
       const data = (await res.json()) as { error?: string; workout?: { id: string } };
       if (!res.ok) throw new Error(data.error || "No se pudo guardar");
 
-      // Limpiar el borrador local tras guardar exitosamente
-      clearWorkoutDraft();
+      // Limpiar el borrador local (y su copia de seguridad) tras guardar exitosamente
+      clearWorkoutDraft({ dropBackup: true });
+      invalidateCachedJson("/api/workouts");
 
       router.push(`/historial/${data.workout?.id ?? ""}`);
       router.refresh();
@@ -862,6 +898,49 @@ function EntrenoForm() {
           title="¿Qué toca hoy?"
           description="Elige tu rutina para cargar los ejercicios previstos."
         />
+
+        {dayType && sets.length > 0 ? (
+          <button type="button" className="glass-panel hm-draft text-left" onClick={() => selectDay(dayType)}>
+            <span className="hm-live-dot" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="hm-draft-kicker">Entreno en curso</span>
+              <span className="hm-draft-title">
+                {getDayLabel(dayType)}
+                {armFocus ? ` · ${armFocus === "biceps" ? "Bíceps" : "Tríceps"}` : ""}
+              </span>
+              <span className="hm-draft-meta">
+                {sets.length} serie{sets.length === 1 ? "" : "s"} registrada{sets.length === 1 ? "" : "s"}
+              </span>
+            </span>
+            <span className="hm-draft-go">Retomar →</span>
+          </button>
+        ) : backup && sets.length === 0 ? (
+          <div className="glass-panel en-recover">
+            <span className="min-w-0 flex-1">
+              <span className="hm-draft-kicker">Entreno sin guardar</span>
+              <span className="hm-draft-title">
+                {backup.dayType ? getDayLabel(backup.dayType) : "Sesión"} · {backup.sets.length} serie
+                {backup.sets.length === 1 ? "" : "s"}
+              </span>
+              <span className="hm-draft-meta">Se encontró una copia de tu último entreno.</span>
+            </span>
+            <span className="en-recover-actions">
+              <button type="button" className="pg-pill" onClick={restoreBackup}>
+                Recuperar
+              </button>
+              <button
+                type="button"
+                className="pg-pill is-danger"
+                onClick={() => {
+                  discardDraftBackup();
+                  setBackup(null);
+                }}
+              >
+                Descartar
+              </button>
+            </span>
+          </div>
+        ) : null}
 
         <div className="hm-days">
           {DAY_OPTIONS.map((opt, i) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { clearSession } from "@/lib/client-cache";
 import { useRouter } from "next/navigation";
 import { useAppSettings } from "@/context/AppSettingsContext";
 import {
@@ -164,6 +165,7 @@ export function UserProfileDrawer({
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearSession();
     onClose();
     router.push("/login");
     router.refresh();

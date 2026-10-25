@@ -26,6 +26,7 @@ import {
 import { getExerciseImage } from "@/lib/exercise-images";
 import { getLoadHint } from "@/lib/exercises";
 import { loadCustomRoutines } from "@/lib/custom-routines";
+import { fetchJsonCached, readCachedJson, readSession, writeSession } from "@/lib/client-cache";
 import { computeExercisePrs } from "@/lib/metrics";
 import type { BodyWeightEntry, Workout } from "@/lib/types";
 
@@ -46,44 +47,61 @@ export default function MetricasPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [wRes, bRes] = await Promise.all([
-          fetch("/api/workouts"),
-          fetch("/api/body-weight"),
-        ]);
-        const wData = (await wRes.json()) as {
-          workouts?: Workout[];
-          error?: string;
-        };
-        const bData = (await bRes.json()) as {
-          entries?: BodyWeightEntry[];
-          error?: string;
-        };
-        if (!wRes.ok) throw new Error(wData.error || "Error");
-        if (!bRes.ok) throw new Error(bData.error || "Error");
-        const list = wData.workouts ?? [];
-        setWorkouts(list);
-        setWeights(bData.entries ?? []);
-        setRoutineExercises([...new Set(Object.values(loadCustomRoutines()).flat())]);
+    type WData = { workouts?: Workout[]; error?: string };
+    type BData = { entries?: BodyWeightEntry[]; error?: string };
 
-        const preferred = [
-          "Press banca",
-          "Sentadilla libre",
-          "Peso muerto rumano",
-          "Press militar con mancuernas",
-          "Dominadas",
-        ];
-        const names = new Set(
-          list.flatMap((w) => w.sets.map((s) => s.exercise)),
-        );
-        const firstPreferred = preferred.find((name) => names.has(name));
-        const firstAny = list
-          .flatMap((w) => w.sets.map((s) => s.exercise))
-          .find(Boolean);
-        if (firstPreferred || firstAny) {
-          setExercise(firstPreferred || firstAny || "");
-        }
+    // Ejercicio a mostrar: el que tenías elegido en esta sesión, o uno de los principales
+    function pickExercise(list: Workout[], routineNames: string[]) {
+      const names = new Set(list.flatMap((w) => w.sets.map((s) => s.exercise)));
+      const saved = readSession<string>("metricas:exercise");
+      if (saved && (names.has(saved) || routineNames.includes(saved))) {
+        setExercise(saved);
+        return;
+      }
+
+      const preferred = [
+        "Press banca",
+        "Sentadilla libre",
+        "Peso muerto rumano",
+        "Press militar con mancuernas",
+        "Dominadas",
+      ];
+      const firstPreferred = preferred.find((name) => names.has(name));
+      const firstAny = list.flatMap((w) => w.sets.map((s) => s.exercise)).find(Boolean);
+      if (firstPreferred || firstAny) {
+        setExercise(firstPreferred || firstAny || "");
+      }
+    }
+
+    async function load() {
+      // Filtros de la sesión anterior
+      const savedRange = readSession<TimeRange>("metricas:range");
+      if (savedRange) setTimeRange(savedRange);
+      const savedPrecise = readSession<boolean>("metricas:precise");
+      if (typeof savedPrecise === "boolean") setFilterHighReps(savedPrecise);
+
+      const routineNames = [...new Set(Object.values(loadCustomRoutines()).flat())];
+      const cw = readCachedJson<WData>("/api/workouts");
+      const cb = readCachedJson<BData>("/api/body-weight");
+      if (cw && cb) {
+        setWorkouts(cw.workouts ?? []);
+        setWeights(cb.entries ?? []);
+        setRoutineExercises(routineNames);
+        pickExercise(cw.workouts ?? [], routineNames);
+        setLoading(false);
+      }
+      try {
+        const [w, b] = await Promise.all([
+          fetchJsonCached<WData>("/api/workouts"),
+          fetchJsonCached<BData>("/api/body-weight"),
+        ]);
+        if (!w.ok) throw new Error(w.data.error || "Error");
+        if (!b.ok) throw new Error(b.data.error || "Error");
+        const list = w.data.workouts ?? [];
+        setWorkouts(list);
+        setWeights(b.data.entries ?? []);
+        setRoutineExercises(routineNames);
+        if (!cw) pickExercise(list, routineNames);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error");
       } finally {
@@ -92,6 +110,21 @@ export default function MetricasPage() {
     }
     void load();
   }, []);
+
+  // Recordar lo que el usuario elige mientras la app siga abierta.
+  // Se guarda al elegir (no en un efecto, que pisaría lo guardado con los valores por defecto).
+  function chooseExercise(name: string) {
+    setExercise(name);
+    writeSession("metricas:exercise", name);
+  }
+  function chooseRange(range: TimeRange) {
+    setTimeRange(range);
+    writeSession("metricas:range", range);
+  }
+  function choosePrecise(value: boolean) {
+    setFilterHighReps(value);
+    writeSession("metricas:precise", value);
+  }
 
   const loggedExercises = useMemo(() => {
     return [
@@ -245,7 +278,7 @@ export default function MetricasPage() {
                     <select
                       id="exercise-select"
                       value={exercise}
-                      onChange={(e) => setExercise(e.target.value)}
+                      onChange={(e) => chooseExercise(e.target.value)}
                       disabled={exerciseOptions.length === 0}
                       className="field mt-select"
                     >
@@ -300,7 +333,7 @@ export default function MetricasPage() {
                     <button
                       key={range.id}
                       type="button"
-                      onClick={() => setTimeRange(range.id)}
+                      onClick={() => chooseRange(range.id)}
                       className={`mt-range-btn ${timeRange === range.id ? "is-active" : ""}`}
                     >
                       {range.label}
@@ -331,7 +364,7 @@ export default function MetricasPage() {
                 <input
                   type="checkbox"
                   checked={filterHighReps}
-                  onChange={(e) => setFilterHighReps(e.target.checked)}
+                  onChange={(e) => choosePrecise(e.target.checked)}
                   className="rounded border-[var(--line)] bg-[#111] accent-[var(--accent)]"
                 />
                 <span>Filtro de precisión 1RM (≤20 reps)</span>
@@ -413,7 +446,7 @@ export default function MetricasPage() {
                   return (
                     <div
                       key={pr.exercise}
-                      onClick={() => setExercise(pr.exercise)}
+                      onClick={() => chooseExercise(pr.exercise)}
                       className={`mt-pr ${isSelected ? "is-selected" : ""}`}
                     >
                       <div className="flex min-w-0 items-center gap-3">
@@ -567,7 +600,7 @@ export default function MetricasPage() {
         open={isCatalogOpen}
         activeExercises={[]}
         onSelect={(name) => {
-          setExercise(name);
+          chooseExercise(name);
           setIsCatalogOpen(false);
         }}
         onClose={() => setIsCatalogOpen(false)}
