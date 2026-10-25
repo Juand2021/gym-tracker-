@@ -173,14 +173,21 @@ export function expandDish(
     .filter((c) => !opts.omit?.includes(c.slot))
     .map((c) => {
       const key = opts.overrides?.[c.slot] ?? c.coreKey;
+      const core = CORE_BY_KEY.get(key);
+      // Si cambió el componente (papa en vez de maduro), se usa la porción típica del nuevo alimento.
+      const swapped =
+        key !== c.coreKey && core
+          ? (core.portions.find((p) => p.unit === "porcion") ?? core.portions.find((p) => p.unit === core.defaultUnit) ?? core.portions[0])
+          : undefined;
+      const baseGrams = swapped && core?.defaultUnit !== "cucharadita" ? swapped.grams : c.grams;
       return {
-        name: CORE_BY_KEY.get(key)?.name ?? key,
+        name: core?.name ?? key,
         core_key: key,
-        grams: opts.grams?.[c.slot] ?? Math.round(c.grams * factor),
+        grams: opts.grams?.[c.slot] ?? Math.round(baseGrams * factor),
         grams_from: opts.grams?.[c.slot] ? ("said" as const) : ("template" as const),
         from_dish: dish.key,
         confidence: 0.7,
-        assumption: opts.grams?.[c.slot] ? null : `${c.slot}: porción típica de ${dish.name.toLowerCase()}`,
+        assumption: opts.grams?.[c.slot] ? null : `${c.slot}: porción típica del plato`,
       };
     });
 }
