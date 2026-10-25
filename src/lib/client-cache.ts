@@ -65,15 +65,33 @@ export function readCachedJson<T>(url: string): T | undefined {
   return readSession<T>(dataKey(url));
 }
 
+/** Una copia más nueva que esto no se vuelve a pedir al servidor (ahorra lecturas de la base). */
+export const FRESH_MS = 60 * 1000;
+
+/** Hora en que se guardó la copia. Empieza igual que la clave de datos, así se invalida junto con ella. */
+const atKey = (url: string) => `${dataKey(url)}#at`;
+
+/** ¿La copia guardada de esta URL tiene menos de `maxAgeMs`? */
+export function isCachedFresh(url: string, maxAgeMs = FRESH_MS, now = Date.now()): boolean {
+  const at = readSession<number>(atKey(url));
+  return typeof at === "number" && readCachedJson(url) !== undefined && now - at < maxAgeMs;
+}
+
 /**
  * GET con caché de sesión: si la respuesta es correcta se guarda para que la
- * próxima visita a la pantalla la pinte sin esperar.
+ * próxima visita a la pantalla la pinte sin esperar. Si la copia es reciente
+ * (menos de 60 s), ni siquiera se pide: pasar de una pantalla a otra no vuelve a leer la base.
+ * Tras guardar o borrar se llama invalidateCachedJson, así que lo nuevo aparece enseguida.
  */
-export async function fetchJsonCached<T>(url: string): Promise<{ ok: boolean; data: T }> {
+export async function fetchJsonCached<T>(url: string, opts: { maxAgeMs?: number } = {}): Promise<{ ok: boolean; data: T; status?: number; fromCache?: boolean }> {
+  if (isCachedFresh(url, opts.maxAgeMs)) return { ok: true, data: readCachedJson<T>(url)!, fromCache: true };
   const res = await fetch(url);
   const data = (await res.json()) as T;
-  if (res.ok) writeSession(dataKey(url), data);
-  return { ok: res.ok, data };
+  if (res.ok) {
+    writeSession(dataKey(url), data);
+    writeSession(atKey(url), Date.now());
+  }
+  return { ok: res.ok, data, status: res.status };
 }
 
 /** Tras guardar o borrar algo, la copia de esa URL deja de ser válida. */

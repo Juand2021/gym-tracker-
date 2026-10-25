@@ -32,5 +32,7 @@ if (ips.length) {
 console.log("  El iPhone debe estar en la misma red Wi-Fi que este computador.");
 console.log("  Para verla como app: Compartir → Agregar a inicio.\n");
 
-const child = spawn("npx", ["next", prod ? "start" : "dev", "-H", "0.0.0.0", "-p", port], { stdio: "inherit", shell });
+// En local se registra cuántas lecturas de Firestore hace cada parte ([firestore] … → N lecturas).
+const env = { ...process.env, FIRESTORE_LOG_READS: process.env.FIRESTORE_LOG_READS ?? "1" };
+const child = spawn("npx", ["next", prod ? "start" : "dev", "-H", "0.0.0.0", "-p", port], { stdio: "inherit", shell, env });
 child.on("exit", (code) => process.exit(code ?? 0));

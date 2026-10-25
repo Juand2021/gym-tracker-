@@ -15,7 +15,7 @@ const store = new Map<string, string>();
   },
 };
 
-const { clearSession, invalidateCachedJson, readCachedJson, readSession, writeSession } = await import(
+const { clearSession, fetchJsonCached, invalidateCachedJson, isCachedFresh, readCachedJson, readSession, writeSession } = await import(
   "./client-cache.ts"
 );
 
@@ -41,5 +41,32 @@ describe("client-cache", () => {
     clearSession();
     assert.equal(readSession("ia:thread"), undefined);
     assert.equal(store.size, 0);
+  });
+
+  it("no vuelve a pedir una URL guardada hace menos de 60 s, y sí después de invalidarla", async () => {
+    clearSession();
+    let calls = 0;
+    (globalThis as unknown as { fetch: unknown }).fetch = async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => ({ workouts: [calls] }) };
+    };
+    const a = await fetchJsonCached<{ workouts: number[] }>("/api/workouts");
+    const b = await fetchJsonCached<{ workouts: number[] }>("/api/workouts");
+    assert.equal(calls, 1);
+    assert.equal(b.fromCache, true);
+    assert.deepEqual(b.data, a.data);
+    assert.equal(isCachedFresh("/api/workouts", 60_000, Date.now() + 61_000), false);
+    invalidateCachedJson("/api/workouts");
+    await fetchJsonCached("/api/workouts");
+    assert.equal(calls, 2);
+  });
+
+  it("si el servidor falla no guarda la respuesta de error", async () => {
+    clearSession();
+    (globalThis as unknown as { fetch: unknown }).fetch = async () => ({ ok: false, status: 503, json: async () => ({ error: "límite" }) });
+    const r = await fetchJsonCached("/api/body-weight");
+    assert.equal(r.ok, false);
+    assert.equal(r.status, 503);
+    assert.equal(readCachedJson("/api/body-weight"), undefined);
   });
 });

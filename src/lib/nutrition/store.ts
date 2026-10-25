@@ -1,3 +1,4 @@
+import { countReads } from "../firestore-usage.ts";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -173,9 +174,12 @@ export function createLocalStore(file = path.join(process.cwd(), ".data", "nutri
 export type CollectionLike = {
   doc(id: string): { get(): Promise<{ exists: boolean; data(): unknown }>; set(data: unknown): Promise<unknown>; delete(): Promise<unknown> };
   where(field: string, op: string, value: unknown): FirestoreQuery;
+  orderBy(field: string, dir?: "asc" | "desc"): FirestoreQuery;
 };
 type FirestoreQuery = {
   where(field: string, op: string, value: unknown): FirestoreQuery;
+  orderBy(field: string, dir?: "asc" | "desc"): FirestoreQuery;
+  limit(n: number): FirestoreQuery;
   get(): Promise<{ docs: { data(): unknown }[] }>;
 };
 
@@ -183,6 +187,7 @@ type FirestoreQuery = {
 export function createFirestoreStore(col: (name: string) => CollectionLike): NutritionStore {
   const get = async <T>(name: string, id: string) => {
     const snap = await col(name).doc(id).get();
+    countReads(`comidas: ${name}`, 1);
     return snap.exists ? (snap.data() as T) : null;
   };
   return {
@@ -194,6 +199,7 @@ export function createFirestoreStore(col: (name: string) => CollectionLike): Nut
     },
     async listMeals(from, to) {
       const snap = await col("meals").where("date", ">=", from).where("date", "<=", to).get();
+      countReads("comidas: meals", snap.docs.length);
       return snap.docs.map((d) => d.data() as Meal).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     },
     async getMeal(id) {
@@ -211,6 +217,7 @@ export function createFirestoreStore(col: (name: string) => CollectionLike): Nut
     },
     async listDrafts(threadId) {
       const snap = await col("mealDrafts").where("chatThreadId", "==", threadId).get();
+      countReads("comidas: mealDrafts", snap.docs.length);
       return snap.docs
         .map((d) => d.data() as MealDraft)
         .filter(alive)
@@ -224,6 +231,7 @@ export function createFirestoreStore(col: (name: string) => CollectionLike): Nut
     },
     async listMeasurements() {
       const snap = await col("bodyMeasurements").where("date", ">=", "0000").get();
+      countReads("comidas: bodyMeasurements", snap.docs.length);
       return snap.docs.map((d) => d.data() as BodyMeasurement).sort((a, b) => a.date.localeCompare(b.date));
     },
     async saveMeasurement(m) {
@@ -236,7 +244,9 @@ export function createFirestoreStore(col: (name: string) => CollectionLike): Nut
       await col("water").doc(date).set({ date, ml: Math.max(0, Math.round(ml)) });
     },
     async listChats() {
-      const snap = await col("comidasChats").where("updatedAt", ">=", "0000").get();
+      // Solo las 30 más recientes: cada conversación es una lectura.
+      const snap = await col("comidasChats").orderBy("updatedAt", "desc").limit(30).get();
+      countReads("comidas: comidasChats", snap.docs.length);
       return snap.docs.map((d) => d.data() as ComidasChat).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
     async getChat(id) {

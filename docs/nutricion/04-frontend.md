@@ -1,6 +1,6 @@
 # Fase 4 — Frontend de Nutriverse (v2: Liquid Glass plateado)
 
-> Fecha: 2026-10-25 · Estado: **frontend implementado (§12), pendiente de revisión de Juan en su iPhone**
+> Fecha: 2026-10-25 · Estado: **frontend implementado (§12) y revisado por Juan (§12b: vidrio Cristal y 60 fps)**
 > Reemplaza el plan v1 del mismo día. Base: las 3 imágenes de identidad que hizo Juan (`docs/nutricion/referencias/`) y `03-arquitectura.md`.
 
 ## 1. La visión (en palabras de Juan)
@@ -223,6 +223,26 @@ Juan pidió implementar todo el frontend y dejar el fondo WebGL para después.
 - Capa 0 (fondo WebGL) y capa 2 (lentes con refracción real), que Juan dejó para después.
 - Imágenes de `04b-ficha-recursos.md`: copiarlas a `public/nutriverse/` y agregar su nombre a `NV_ASSETS` en `NvBubble.tsx`.
 - Pruebas en iPhone real: fluidez, batería y legibilidad al sol.
+
+## 12b. Revisión 1 de Juan (2026-10-25)
+
+Detalle en `reports/2026-10-25-revision-1.md`.
+
+- **Vidrio "Cristal"**, elegido en un laboratorio entre Actual, Cristal y Gota:
+  - cuerpo transparente con grosor;
+  - bisel doble (borde de luz y línea oscura interior);
+  - media luna de luz arriba y cáustica abajo;
+  - borde con arcoíris.
+  - Los controles son más transparentes y las tarjetas tienen más cuerpo para leer bien.
+- **Luz que sigue el dedo y presión de gelatina** en todos los botones (`useGlassPress`, `glass/motion.ts`).
+- **60 fps**:
+  - entradas sin `filter: blur`;
+  - velocímetro en capas (dial fijo + aguja en capa HTML con `transform`);
+  - aguja más ágil, que recuerda su posición;
+  - fondo sin filtros y en pausa al navegar o hacer scroll;
+  - halo del "+" sin `box-shadow` animado;
+  - olas en pausa fuera de pantalla.
+- La fluidez se juzga en **modo producción** (`npm run iphone`). El modo desarrollo es más lento por naturaleza.
 
 ## 13. Verla en el iPhone (red Wi-Fi)
 

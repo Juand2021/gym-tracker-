@@ -26,10 +26,11 @@ Regla de trabajo: **al entrar a cada fase, Claude resume lo que hará y hace pre
   - Restricciones: solo fuentes gratuitas/open source; foto queda para Fase 7.
   - 2c. Prototipo del pipeline + **banco de pruebas automatizado** que mida el error contra el set de referencia; iterar prompts, porciones por defecto y búsqueda hasta alcanzar la meta.
   - Entregable: `docs/nutricion/02-motor-alimentos.md` + resultados del benchmark.
-- **Fase 3 — Arquitectura** (aprobación de Juan): perfil único, medidas, modelo de datos, pipeline, modos fiesta/consulta, integración con Coach IA. `docs/nutricion/03-arquitectura.md`.
-- **Fase 4 — Frontend**: requerimientos de Juan + mockups Liquid Glass/iPhone. `docs/nutricion/04-frontend.md`.
-- **Fase 5 — Implementación** por sub-fases probadas: perfil+medidas → objetivos/TDEE → motor de alimentos productivo → chat de registro → pantalla del día → modo fiesta → modo consulta → historial/TDEE adaptativo → integración con Fuerza.
-- **Fase 6 — Validación real** (1–2 semanas de uso en iPhone, recalibración).
+- **Fase 3 — Arquitectura** ✅ aprobada el 2026-10-25. `docs/nutricion/03-arquitectura.md`.
+- **Fase 4 — Frontend** ✅ NutriVerse implementado y revisado por Juan (vidrio Cristal, 60 fps). `docs/nutricion/04-frontend.md` §12–12b.
+- **Fase 5 — Implementación** ✅ perfil y medidas, objetivos, motor productivo, chat de registro, pantalla del día, fiestas, "¿qué pido?", estadísticas y perfil compartido con Fuerza. Pendiente: **TDEE adaptativo** (ajustar las calorías con el peso real).
+- **Cuota de Firebase** 🟡 arreglo publicado; falta la migración y la medición. `docs/nutricion/05-firebase-cuota.md`.
+- **Fase 6 — Validación real** ⏳ siguiente: 1–2 semanas de uso en el iPhone y recalibración. Registro de revisiones en `docs/nutricion/reports/`.
 - **Fase 7 — Mejoras** (foto, código de barras, comidas frecuentes, transición de fases).
 
 ## Reutilizar

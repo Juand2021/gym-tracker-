@@ -54,6 +54,8 @@ Borrador guardado en Firestore (mealDrafts)  ──►  el chat responde:
 
 ## 3. Datos en Firestore
 
+> **Actualización 2026-10-25 (cuota):** los entrenos guardan sus series dentro del documento (campo `sets`), hay caché de 60 s en el servidor y en el navegador, y los objetivos leen solo las fechas de entreno. Ver `05-firebase-cuota.md`.
+
 Se sigue el patrón actual: Juan usa colecciones en la raíz (`dataRoot: "legacy"`); si algún día Laura usa Comidas, sus datos irían en `users/laura/...` con el mismo esquema.
 
 ### 3.1 Perfil único (compartido por Fuerza y Comidas)

@@ -430,6 +430,8 @@ function EntrenoForm() {
   const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
   const [pastWorkouts, setPastWorkouts] = useState<Workout[]>([]);
   const [error, setError] = useState("");
+  // La base llegó a su límite: el borrador sigue en el teléfono y el botón ofrece reintentar.
+  const [canRetry, setCanRetry] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Cargar entrenamientos históricos para consultar sesiones anteriores de cada ejercicio
@@ -859,8 +861,12 @@ function EntrenoForm() {
           sets: payloadSets,
         }),
       });
-      const data = (await res.json()) as { error?: string; workout?: { id: string } };
-      if (!res.ok) throw new Error(data.error || "No se pudo guardar");
+      const data = (await res.json().catch(() => ({}))) as { error?: string; quota?: boolean; workout?: { id: string } };
+      if (!res.ok) {
+        setCanRetry(res.status === 503 || !!data.quota);
+        throw new Error(data.error || "No se pudo guardar");
+      }
+      setCanRetry(false);
 
       // Limpiar el borrador local (y su copia de seguridad) tras guardar exitosamente
       clearWorkoutDraft({ dropBackup: true });
@@ -1219,7 +1225,7 @@ function EntrenoForm() {
           >
             {saving
               ? "Guardando…"
-              : `Guardar (${sets.length} serie${sets.length === 1 ? "" : "s"})`}
+              : `${canRetry ? "Reintentar guardar" : "Guardar"} (${sets.length} serie${sets.length === 1 ? "" : "s"})`}
           </button>
         </div>
       </form>

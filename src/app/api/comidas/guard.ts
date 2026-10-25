@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import { nutritionEnabled } from "@/lib/nutrition/server";
 import type { Profile } from "@/lib/profiles";
 import { profileFromRequest, unauthorized } from "@/lib/request-profile";
@@ -12,6 +13,8 @@ export function comidasProfile(request: NextRequest): Profile | NextResponse {
 }
 
 export function errorResponse(error: unknown, fallback: string, status = 500) {
+  const quota = quotaResponse(error);
+  if (quota) return quota;
   const message = error instanceof Error ? error.message : fallback;
   const code = typeof (error as { status?: unknown })?.status === "number" ? (error as { status: number }).status : status;
   return NextResponse.json({ error: message }, { status: code });

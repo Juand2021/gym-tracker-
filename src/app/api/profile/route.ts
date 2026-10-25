@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import { getNutritionStore } from "@/lib/nutrition/server";
 import { ageOn, applyProfilePatch, todayInBogota, type ProfilePatch } from "@/lib/nutrition/profile";
 import { profileFromRequest, unauthorized } from "@/lib/request-profile";
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
     const p = await getNutritionStore(profile).getProfile();
     return NextResponse.json({ profile: p, age: p?.birthDate ? ageOn(p.birthDate, todayInBogota()) : null });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al leer el perfil";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -46,6 +49,8 @@ export async function PUT(request: NextRequest) {
     await store.saveProfile(next);
     return NextResponse.json({ profile: next, age: next.birthDate ? ageOn(next.birthDate, today) : null });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al guardar el perfil";
     return NextResponse.json({ error: message }, { status: 500 });
   }

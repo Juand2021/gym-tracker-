@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type OpenAI from "openai";
+import { isQuotaError } from "@/lib/firebase";
 import type { Profile } from "@/lib/profiles";
 import { getNutritionAiClient, type AiClient } from "./ai-client.ts";
 import { NUTRITION_PROMPT, NUTRITION_TOOLS, buildNutritionContext, runNutritionTool, type ToolContext } from "./chat-tools.ts";
@@ -51,6 +52,8 @@ async function runWithTools(ai: AiClient, messages: ChatMsg[], toolCtx: ToolCont
         args = JSON.parse(call.function.arguments || "{}");
         result = await runNutritionTool(call.function.name, args, toolCtx);
       } catch (err) {
+        // Si la base llegó a su límite del día no tiene sentido seguir: la ruta responde con un mensaje claro.
+        if (isQuotaError(err)) throw err;
         result = { error: err instanceof Error ? err.message : "Error en la herramienta" };
       }
       events.push({ name: call.function.name, args, result });

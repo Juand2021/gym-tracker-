@@ -1,22 +1,39 @@
 # Traspaso — App de Comidas (para continuar en otra sesión / en la nube)
 
-> Última actualización: 2026-10-25, al pasar de la sesión en la nube a **Claude Desktop (local)**. Antes: 2026-10-24, de local a la nube.
-> **Leer primero:** `README.md` (plan de fases), `00-discovery.md`, `01-investigacion.md`, `02-motor-alimentos.md`.
+> Última actualización: **2026-10-25 (noche), sesión local en Claude Desktop**: revisión 1 del frontend, vidrio Cristal, 60 fps y arreglo de la cuota de Firebase. **Publicado en `main` / Vercel.**
+> **Leer primero:** `README.md` (plan de fases), `reports/2026-10-25-revision-1.md` (lo último), `05-firebase-cuota.md`, `04-frontend.md`.
 
-## 0. Estado al pasar a Claude Desktop (2026-10-25)
-- Rama de trabajo: **`feat/nutricion-comidas-n0efxo`**, con todo subido. No hay pull request: Juan aprueba antes de publicar.
-- **Último trabajo:**
-  - Frontend completo de NutriVerse en `/comidas`. Ver `04-frontend.md` §12 (qué hay) y §13 (cómo verla en el iPhone).
-  - Código: `src/components/nutriverse/` (vidrio, resortes, velocímetro, gráficas, tarjetas, íconos), `src/app/comidas/` (pantallas y `nutriverse.css`) y `src/lib/nutrition/` (motor, objetivos, vistas, chat).
-- **Para revisar en el iPhone:** `npm run iphone`. Compila, arranca en modo producción en la red Wi-Fi y muestra la dirección `http://192.168.x.x:3000/comidas`. `npm run dev:iphone` es el modo desarrollo, con cambios en vivo.
-- **Qué sigue:**
-  1. Juan revisa en su iPhone y pide ajustes de diseño, animaciones y textos.
-  2. Fondo WebGL (capa 0) y lentes con refracción (capa 2), que Juan dejó para después.
-  3. Poner las imágenes de `04b-ficha-recursos.md` en `public/nutriverse/` y agregar sus nombres a `NV_ASSETS` (`NvBubble.tsx`).
-- **Cuidados:**
-  - Lo que se registre en el chat se guarda en el Firestore real de Juan. No crear datos de prueba ahí; para capturas usar datos simulados con `page.route` de Playwright.
-  - El lint de `src/app/ia`, `AppSettingsContext` e `IosInstallPrompt` ya tenía errores antes; no son de NutriVerse.
-- **En local hace falta `.env.local`** con `SITE_PIN`, `FIREBASE_SERVICE_ACCOUNT` (JSON en una línea) y `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` y `AZURE_OPENAI_DEPLOYMENT=gpt-5-mini`. Ver `.env.example`. La base de alimentos se lee de Firestore (`nutritionDb/current`), así que la app no necesita `.data/`. `.data/` solo hace falta para correr los scripts del motor y el benchmark (§4).
+## 0. Estado actual (2026-10-25, noche)
+- **Rama**: todo el trabajo de NutriVerse se unió a **`main`** por pull request y Vercel publica esa versión. Para trabajo nuevo: crear una rama desde `main`.
+- **Último trabajo** (detalle en `reports/2026-10-25-revision-1.md`):
+  - Vidrio **Cristal** en toda la app, con luz que sigue el dedo y presión de gelatina (`04-frontend.md` §12b).
+  - **Fluidez a 60 fps**:
+    - entradas sin desenfoque;
+    - velocímetro en capas y aguja ágil que recuerda su posición;
+    - fondo y olas en pausa cuando no hacen falta.
+  - **Cuota de Firebase** (`05-firebase-cuota.md`):
+    - series dentro del entreno;
+    - caché de 60 s en el servidor y en el navegador;
+    - 503 con mensaje claro y "Reintentar guardar";
+    - contador de lecturas;
+    - script de migración.
+- **Pendiente inmediato** (con la cuota reiniciada, después de las ~2:00 a. m. de Colombia):
+  1. Correr la migración. Primero el modo de prueba y después `--write` (`05-firebase-cuota.md` §5).
+  2. Medir las lecturas reales de cada pantalla con los registros `[firestore]` y confirmar que un día normal queda por debajo del 10 % de la cuota.
+  3. Juan decide si activa el plan **Blaze** con alerta de presupuesto de US$1. Es la única forma de que la base nunca se bloquee.
+- **Ver la app en el iPhone por Wi-Fi**:
+  - `npm run iphone` (producción, para juzgar la fluidez) o `npm run dev:iphone` (cambios en vivo). En el panel de vista previa de Claude están las entradas `nutriverse-iphone` y `nutriverse-wifi` de `.claude/launch.json`.
+  - Dirección: `http://<IP del PC>:3000/comidas`.
+- **`.env.local`** (ignorado por git), con todo ya configurado en el PC de Juan:
+  - `SITE_PIN`, `SITE_PIN_LAURA`;
+  - `FIREBASE_SERVICE_ACCOUNT`: JSON en una línea;
+  - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`: de la empresa; Juan no tiene acceso al portal de Azure;
+  - `AZURE_OPENAI_DEPLOYMENT=gpt-5-mini`.
+  - Vercel no deja descargar las claves sensibles; `scripts/merge-env.mjs` copia solo las que faltan.
+- **Cuidados**:
+  - Lo que se registra en el chat se guarda en el Firestore real de Juan; no crear datos de prueba ahí.
+  - El lint de `src/app/ia`, `AppSettingsContext`, `IosInstallPrompt`, `RestTimerContext` y las gráficas de analytics ya tenía errores antes; no son de NutriVerse.
+  - Para leer Firestore siempre se usan funciones que no traigan series de más (`listWorkoutDates` para fechas). Se miran los registros `[firestore]` antes de agregar lecturas nuevas.
 
 ## 1. Reglas de trabajo acordadas con Juan
 - Trabajo **por fases**. Al entrar a cada fase: resumen de lo que se hará + preguntas → Juan aprueba → se ejecuta.
@@ -34,7 +51,8 @@
 | 3 Arquitectura | ✅ Aprobada el 2026-10-25 (`03-arquitectura.md`) |
 | 4 Frontend mínimo | ✅ **Comidas es una app aparte** (corrección de Juan): selector de apps en el logo, `/comidas` (Hoy) y `/comidas/chat` (asistente propio). El Coach `/ia` de Fuerza quedó como estaba |
 | 5 Implementación | ✅ Lista para cualquier persona (ver `03-arquitectura.md` §0b): perfil completo y validado, bienvenida guiada, cambio de objetivo, peso, medidas, plan de comidas, perfil compartido con Fuerza, Firebase conectado. Probado: persona nueva de punta a punta (local) y Juan con datos reales (Firebase) |
-| 4b Frontend de **NutriVerse** | 🟢 Implementado (ver `04-frontend.md` §12): Inicio con velocímetro, chat con tarjetas, detalle de comida, Estadísticas, Planes, Perfil y Bienvenida, en vidrio CSS con resortes propios. Pendiente: fondo WebGL y lentes con refracción (Juan los dejó para después), imágenes de `04b-ficha-recursos.md` y prueba en iPhone real |
+| 4b Frontend de **NutriVerse** | ✅ Implementado (`04-frontend.md` §12) y **revisado por Juan** (§12b): vidrio Cristal, luz del dedo, 60 fps. Pendiente: fondo WebGL y lentes con refracción (para después) e imágenes de `04b-ficha-recursos.md` |
+| Cuota de Firebase | 🟡 Arreglo publicado (`05-firebase-cuota.md`); falta la migración de entrenos y medir con la cuota reiniciada |
 | 6 Validación · 7 Mejoras | Pendientes |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.
@@ -87,7 +105,7 @@ node --experimental-strip-types scripts/nutrition/benchmark.ts --parser llm --se
 ```
 Nota: `names_cache.json` vive en `.data/` (no se sube). Si se pierde, se regenera con `enrich_names.ts`.
 
-**Estado 2026-10-25:** todo queda en la rama, **sin pull request ni publicación** hasta que Juan apruebe (lo verá en localhost).
+**Estado 2026-10-25 (tarde, histórico):** el trabajo de la nube quedó en la rama; esa noche Juan lo revisó y se publicó en `main` (ver §0).
 - Probar en local: `.env.local` con `SITE_PIN` (+ variables de Azure) → `npx next dev` → tocar el logo → Comidas → Chat → "almorcé…".
 - Sin Firebase, Comidas guarda en `.data/nutrition-store.json` y lee la base de `.data/nutrition/foods.json`.
 - Con Firebase: `node --env-file=.env.local --experimental-strip-types scripts/nutrition/upload_db.ts` sube la base a `nutritionDb/current`.

@@ -1,6 +1,7 @@
 import path from "node:path";
-import { createBodyWeight, listBodyWeight, listWorkouts } from "@/lib/data";
+import { createBodyWeight, listBodyWeight, listWorkoutDates } from "@/lib/data";
 import { getDb, isFirebaseConfigured } from "@/lib/firebase";
+import { cachedRead, forgetCached } from "@/lib/server-cache";
 import type { Profile } from "@/lib/profiles";
 import { getNutritionAiClient } from "./ai-client.ts";
 import type { ToolContext } from "./chat-tools.ts";
@@ -49,19 +50,25 @@ export function getNutritionStore(profile: Profile): NutritionStore {
   return store;
 }
 
+/** Últimos pesajes reales (sin los de demostración de Fuerza). */
+function recentWeights(profile: Profile) {
+  return cachedRead(`${profile.id}:weights30`, async () => (await listBodyWeight(profile, 30)).filter((w) => !w.id.startsWith("demo-")));
+}
+
+/** Días con entreno en los 28 días previos a `date` (solo fechas: 1 lectura por entreno, sin series). */
+function trainingDates(profile: Profile, date: string) {
+  const from = shiftDate(date, -28);
+  return cachedRead(`${profile.id}:train:${from}`, () => listWorkoutDates(profile, from));
+}
 
 /** Objetivos del día con el último pesaje (Fuerza) o el peso declarado, y los entrenos de los 28 días previos. */
 export async function targetsFor(profile: Profile, date: string): Promise<TargetsLookup> {
-  const [nprofile, weights, workouts] = await Promise.all([getNutritionStore(profile).getProfile(), listBodyWeight(profile, 30), listWorkouts(profile, 60)]);
-  // Los datos de demostración de Fuerza (ids "demo-…") nunca cuentan.
-  const latest = weights.filter((w) => !w.id.startsWith("demo-") && w.date <= date).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const [nprofile, weights, trained] = await Promise.all([getNutritionStore(profile).getProfile(), recentWeights(profile), trainingDates(profile, date)]);
+  const latest = weights.filter((w) => w.date <= date).sort((a, b) => b.date.localeCompare(a.date))[0];
   const missing = missingForTargets(nprofile, !!latest);
   if (missing.length || !nprofile) return { ok: false, missing, profile: nprofile };
   const from = shiftDate(date, -28);
-  const dates = workouts
-    .filter((w) => !w.id.startsWith("demo-"))
-    .map((w) => w.date.slice(0, 10))
-    .filter((d) => d > from && d <= date);
+  const dates = trained.filter((d) => d > from && d <= date);
   const targets = computeTargets({
     profile: nprofile,
     weightKg: latest?.weightKg ?? nprofile.weightKg!,
@@ -86,6 +93,7 @@ export async function makeToolContext(profile: Profile, threadId: string | null,
     nutrientsOf: (key) => foodDb.resolveCore(key)?.per100g,
     logWeight: async (date, weightKg) => {
       await createBodyWeight(profile, { date, weightKg });
+      forgetCached(profile.id);
     },
     threadId,
     turnId,
@@ -244,12 +252,11 @@ export async function previewTargets(profile: Profile, patch: ProfilePatch) {
   const current = await getNutritionStore(profile).getProfile();
   const { profile: next, errors } = applyProfilePatch(current, patch, today);
   if (errors.length) return { ok: false as const, errors };
-  const weights = (await listBodyWeight(profile, 30)).filter((w) => !w.id.startsWith("demo-")).sort((a, b) => b.date.localeCompare(a.date));
+  const weights = [...(await recentWeights(profile))].sort((a, b) => b.date.localeCompare(a.date));
   const missing = missingForTargets(next, weights.length > 0);
   if (missing.length) return { ok: false as const, errors: [`Faltan: ${missing.join(", ")}`] };
-  const workouts = await listWorkouts(profile, 60);
   const from = shiftDate(today, -28);
-  const dates = workouts.filter((w) => !w.id.startsWith("demo-")).map((w) => w.date.slice(0, 10)).filter((d) => d > from && d <= today);
+  const dates = (await trainingDates(profile, today)).filter((d) => d > from && d <= today);
   const weightKg = weights[0]?.weightKg ?? next.weightKg!;
   const targets = computeTargets({ profile: next, weightKg, workoutDates: dates, today });
   const kgPerWeek = next.phase && next.phase.type !== "mantenimiento" && next.phase.type !== "recomposicion" ? Math.round(((next.phase.ratePctPerWeek / 100) * weightKg) * 100) / 100 : 0;

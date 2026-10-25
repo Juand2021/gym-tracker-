@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { quotaResponse } from "@/lib/api-errors";
 import { deleteWorkout, getWorkout, updateWorkout } from "@/lib/data";
 import {
   isValidReps,
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
     return NextResponse.json({ workout });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -74,6 +77,8 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ workout });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error al guardar";
     const status =
       message === "No encontrado"
@@ -94,6 +99,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     await deleteWorkout(profile, id);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    const quota = quotaResponse(error);
+    if (quota) return quota;
     const message = error instanceof Error ? error.message : "Error";
     const status = message.includes("demostración") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });

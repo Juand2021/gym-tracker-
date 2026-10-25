@@ -1,12 +1,15 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { memo, useId, useRef, useState } from "react";
 import type { Gauge, GaugeZone } from "@/lib/nutrition/views";
-import { fmt, SPRINGS, useCountUp, useSpringEffect } from "./glass/motion";
+import { fmt, lastShownValue, rememberShown, SPRINGS, useCountUp, useSpringEffect } from "./glass/motion";
 
 /**
  * Velocímetro de calorías (§5.1). 220° de recorrido pasando por arriba.
- * La aguja y el arco de progreso se mueven con el mismo resorte, escribiendo en el DOM.
+ * Va en capas para que se mueva a 60 fps:
+ *  - el dial (bisel, zonas con resplandor, escala) es un SVG fijo que no se vuelve a pintar;
+ *  - la aguja es una capa HTML que gira con `transform` (la mueve la tarjeta gráfica);
+ *  - el brillo de progreso es un SVG pequeño aparte, sin filtros.
  */
 
 const CX = 160;
@@ -29,28 +32,103 @@ export const TONE_COLOR: Record<GaugeZone["tone"], [string, string]> = {
   over: ["#f59a86", "#e0573f"],
 };
 
+const angleFor = (v: number, max: number) => START + SWEEP * Math.max(0, Math.min(1.015, v / max));
+
+/** Clave para recordar dónde quedó la aguja al salir del Inicio. */
+const NEEDLE_KEY = "gauge:kcal";
+
 export function NvGauge({ gauge, kcal, alcoholKcal = 0, status }: { gauge: Gauge; kcal: number; alcoholKcal?: number; status: { tone: GaugeZone["tone"]; text: string } | null }) {
   const id = `nvg${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const needleRef = useRef<SVGGElement>(null);
+  const needleRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<SVGPathElement>(null);
-  const kcalRef = useCountUp(kcal);
-  const angleOf = (v: number) => START + SWEEP * Math.max(0, Math.min(1.015, v / gauge.max));
+  // Primera vez: sube desde 0 tras un instante (deja entrar las tarjetas). Al volver: sigue desde donde quedó.
+  const [from] = useState(() => lastShownValue(NEEDLE_KEY, 0));
+  const delay = from === 0 ? 160 : 0;
+  const kcalRef = useCountUp(kcal, undefined, from, delay);
+  const angleOf = (v: number) => angleFor(v, gauge.max);
 
-  useSpringEffect(kcal, SPRINGS.needle, (v) => {
-    const a = angleOf(v);
-    needleRef.current?.setAttribute("transform", `rotate(${a.toFixed(2)} ${CX} ${CY})`);
-    if (fillRef.current) fillRef.current.style.strokeDashoffset = String(1000 * (1 - Math.max(0, Math.min(1, v / gauge.max))));
-  }, 0);
+  useSpringEffect(
+    kcal,
+    SPRINGS.needle,
+    (v) => {
+      rememberShown(NEEDLE_KEY, v);
+      if (needleRef.current) needleRef.current.style.transform = `rotate(${angleOf(v).toFixed(2)}deg)`;
+      if (fillRef.current) fillRef.current.style.strokeDashoffset = (1000 * (1 - Math.max(0, Math.min(1, v / gauge.max)))).toFixed(1);
+    },
+    from,
+    delay,
+  );
 
-  const labelEvery = gauge.max > 3000 ? 1000 : 500;
-  const [lx, ly] = polar(150, angleOf(gauge.target));
-  const [tx1, ty1] = polar(140, angleOf(gauge.target));
-  const [tx0, ty0] = polar(96, angleOf(gauge.target));
-  const limitRight = lx > CX;
   const toneLabel = status?.tone === "ok" ? "dentro de la meta" : status?.tone === "warn" ? "cerca del límite" : "fuera de la meta";
 
   return (
     <div className="nv-gauge" role="img" aria-label={`${fmt(kcal)} de ${fmt(gauge.target)} kcal, ${toneLabel}`}>
+      <div className="nv-gauge-dial">
+        <GaugeDial gauge={gauge} id={id} />
+
+        <svg viewBox="0 0 320 226" className="nv-gauge-layer" aria-hidden="true">
+          <path ref={fillRef} d={arcPath(118, START, START + SWEEP)} pathLength={1000} fill="none" stroke="rgba(255,255,255,.62)" strokeWidth="5" strokeLinecap="round" strokeDasharray="1000" style={{ strokeDashoffset: 1000 }} />
+          {/* Alcohol del día: franja violeta antes de la aguja */}
+          {alcoholKcal > 0 ? <path d={arcPath(104, angleOf(Math.max(0, kcal - alcoholKcal)), angleOf(kcal))} fill="none" stroke="#a796ec" strokeWidth="6" strokeLinecap="round" opacity="0.9" /> : null}
+        </svg>
+
+        {/* Aguja de vidrio dibujada apuntando a 0°; la capa entera gira alrededor del centro del dial */}
+        <div ref={needleRef} className="nv-gauge-needle" style={{ transform: `rotate(${angleOf(from).toFixed(2)}deg)` }} aria-hidden="true">
+          <svg viewBox="0 0 320 226" className="nv-gauge-layer">
+            <defs>
+              <linearGradient id={`${id}needle`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#ffffff" />
+                <stop offset="0.5" stopColor="#dfe5ea" />
+                <stop offset="1" stopColor="#9aa3ad" />
+              </linearGradient>
+              <radialGradient id={`${id}tip`}>
+                <stop offset="0" stopColor="#fff" stopOpacity="1" />
+                <stop offset="0.5" stopColor="#fff" stopOpacity="0.6" />
+                <stop offset="1" stopColor="#fff" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <circle cx={CX + 118} cy={CY} r="16" fill={`url(#${id}tip)`} />
+            <path d={`M${CX + 90} ${CY - 2.2} L${CX + 120} ${CY - 5.2} Q${CX + 127} ${CY} ${CX + 120} ${CY + 5.2} L${CX + 90} ${CY + 2.2} Q${CX + 86} ${CY} ${CX + 90} ${CY - 2.2}Z`} fill={`url(#${id}needle)`} stroke="rgba(70,80,92,.55)" strokeWidth="0.8" />
+            <path d={`M${CX + 94} ${CY - 1.2} L${CX + 118} ${CY - 3}`} stroke="#fff" strokeWidth="1.3" strokeLinecap="round" />
+            <circle cx={CX + 118} cy={CY} r="3" fill="#2e9e5b" stroke="#fff" strokeWidth="1" />
+          </svg>
+        </div>
+      </div>
+
+      <div className="nv-gauge-center">
+        <p className="nv-gauge-kcal">
+          <span ref={kcalRef} className="nv-num">
+            {fmt(from)}
+          </span>
+        </p>
+        <p className="nv-gauge-of">/ {fmt(gauge.target)} kcal</p>
+      </div>
+      <p className="nv-gauge-limitlabel">
+        <span className={`nv-dot is-${gauge.mode === "over" ? "warn" : "ink"}`} /> {gauge.limitLabel} · {fmt(gauge.target)} kcal
+      </p>
+      {status ? (
+        <p className={`nv-chip is-${status.tone}`}>
+          <span className="nv-chip-dot" />
+          {status.text}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Dial fijo: bisel, zonas con resplandor, escala y límite. Solo se vuelve a dibujar si cambian
+ * las zonas o el objetivo, nunca mientras se mueve la aguja.
+ */
+const GaugeDial = memo(
+  function GaugeDial({ gauge, id }: { gauge: Gauge; id: string }) {
+    const angleOf = (v: number) => angleFor(v, gauge.max);
+    const labelEvery = gauge.max > 3000 ? 1000 : 500;
+    const [lx, ly] = polar(150, angleOf(gauge.target));
+    const [tx1, ty1] = polar(140, angleOf(gauge.target));
+    const [tx0, ty0] = polar(96, angleOf(gauge.target));
+    const limitRight = lx > CX;
+    return (
       <svg viewBox="0 0 320 226" className="nv-gauge-svg" aria-hidden="true">
         <defs>
           <linearGradient id={`${id}bezel`} x1="0" y1="0" x2="1" y2="1">
@@ -69,20 +147,15 @@ export function NvGauge({ gauge, kcal, alcoholKcal = 0, status }: { gauge: Gauge
               <stop offset="1" stopColor={TONE_COLOR[z.tone][1]} />
             </linearGradient>
           ))}
-          <linearGradient id={`${id}needle`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#ffffff" />
-            <stop offset="0.5" stopColor="#dfe5ea" />
-            <stop offset="1" stopColor="#9aa3ad" />
-          </linearGradient>
           <filter id={`${id}glow`} x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="4" />
           </filter>
         </defs>
 
         {/* Cristal del dial */}
-        <path d={`${arcPath(146, START, START + SWEEP)}`} fill="none" stroke={`url(#${id}bezel)`} strokeWidth="26" strokeLinecap="round" />
-        <path d={`${arcPath(157.5, START + 2, START + SWEEP - 2)}`} fill="none" stroke="rgba(255,255,255,.95)" strokeWidth="1.6" strokeLinecap="round" />
-        <path d={`${arcPath(134.5, START + 2, START + SWEEP - 2)}`} fill="none" stroke="rgba(110,122,136,.28)" strokeWidth="1.2" strokeLinecap="round" />
+        <path d={arcPath(146, START, START + SWEEP)} fill="none" stroke={`url(#${id}bezel)`} strokeWidth="26" strokeLinecap="round" />
+        <path d={arcPath(157.5, START + 2, START + SWEEP - 2)} fill="none" stroke="rgba(255,255,255,.95)" strokeWidth="1.6" strokeLinecap="round" />
+        <path d={arcPath(134.5, START + 2, START + SWEEP - 2)} fill="none" stroke="rgba(110,122,136,.28)" strokeWidth="1.2" strokeLinecap="round" />
         <path d={`${arcPath(124, START, START + SWEEP)} L${CX} ${CY}Z`} fill={`url(#${id}face)`} opacity="0.75" />
 
         {/* Zonas (verde / ámbar / rojo) con resplandor */}
@@ -95,12 +168,6 @@ export function NvGauge({ gauge, kcal, alcoholKcal = 0, status }: { gauge: Gauge
           <path key={i} d={arcPath(118, angleOf(z.from) + (i ? 0.6 : 0), angleOf(z.to) - (i < gauge.zones.length - 1 ? 0.6 : 0))} fill="none" stroke={`url(#${id}z${i})`} strokeWidth="12" strokeLinecap={i === 0 || i === gauge.zones.length - 1 ? "round" : "butt"} />
         ))}
         <path d={arcPath(122.5, START + 1, START + SWEEP - 1)} fill="none" stroke="rgba(255,255,255,.8)" strokeWidth="1.4" />
-
-        {/* Progreso: brillo blanco que recorre la escala hasta las kcal de hoy */}
-        <path ref={fillRef} d={arcPath(118, START, START + SWEEP)} pathLength={1000} fill="none" stroke="rgba(255,255,255,.62)" strokeWidth="5" strokeLinecap="round" strokeDasharray="1000" style={{ strokeDashoffset: 1000 }} />
-
-        {/* Alcohol del día: franja violeta antes de la aguja */}
-        {alcoholKcal > 0 ? <path d={arcPath(104, angleOf(Math.max(0, kcal - alcoholKcal)), angleOf(kcal))} fill="none" stroke="#a796ec" strokeWidth="6" strokeLinecap="round" opacity="0.9" /> : null}
 
         {/* Escala */}
         {gauge.ticks.map((t) => {
@@ -128,36 +195,11 @@ export function NvGauge({ gauge, kcal, alcoholKcal = 0, status }: { gauge: Gauge
             {fmt(gauge.target)}
           </text>
         </g>
-
-        {/* Aguja de vidrio: un puntero que recorre el borde y deja libre el centro para los números */}
-        <g ref={needleRef} transform={`rotate(${START} ${CX} ${CY})`}>
-          <circle cx={CX + 118} cy={CY} r="10" fill="#fff" filter={`url(#${id}glow)`} opacity="0.95" />
-          <path d={`M${CX + 90} ${CY - 2.2} L${CX + 120} ${CY - 5.2} Q${CX + 127} ${CY} ${CX + 120} ${CY + 5.2} L${CX + 90} ${CY + 2.2} Q${CX + 86} ${CY} ${CX + 90} ${CY - 2.2}Z`} fill={`url(#${id}needle)`} stroke="rgba(70,80,92,.55)" strokeWidth="0.8" />
-          <path d={`M${CX + 94} ${CY - 1.2} L${CX + 118} ${CY - 3}`} stroke="#fff" strokeWidth="1.3" strokeLinecap="round" />
-          <circle cx={CX + 118} cy={CY} r="3" fill="#2e9e5b" stroke="#fff" strokeWidth="1" />
-        </g>
       </svg>
-
-      <div className="nv-gauge-center">
-        <p className="nv-gauge-kcal">
-          <span ref={kcalRef} className="nv-num">0</span>
-        </p>
-        <p className="nv-gauge-of">
-          / {fmt(gauge.target)} kcal
-        </p>
-      </div>
-      <p className="nv-gauge-limitlabel">
-        <span className={`nv-dot is-${gauge.mode === "over" ? "warn" : "ink"}`} /> {gauge.limitLabel} · {fmt(gauge.target)} kcal
-      </p>
-      {status ? (
-        <p className={`nv-chip is-${status.tone}`}>
-          <span className="nv-chip-dot" />
-          {status.text}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+    );
+  },
+  (a, b) => a.id === b.id && JSON.stringify(a.gauge) === JSON.stringify(b.gauge),
+);
 
 /** Mini velocímetro para la tarjeta de borrador del chat: dónde quedaría el día si se guarda. */
 export function NvMiniGauge({ value, target, mode = "under" }: { value: number; target: number; mode?: Gauge["mode"] }) {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useRef } from "react";
-import { fmt, SPRINGS, useCountUp, useSpringEffect } from "./glass/motion";
+import { useId, useRef, useState } from "react";
+import { fmt, lastShownValue, rememberShown, SPRINGS, useCountUp, usePauseOffscreen, useSpringEffect } from "./glass/motion";
 import { NvIcon, type IconName } from "./NvIcon";
 
 const uid = (raw: string) => raw.replace(/[^a-zA-Z0-9_-]/g, "");
@@ -9,13 +9,19 @@ const uid = (raw: string) => raw.replace(/[^a-zA-Z0-9_-]/g, "");
 /** Tubo de vidrio con líquido que sube con resorte y una ola en la superficie (macros). */
 export function NvTube({ label, value, target, unit = "g", color, icon }: { label: string; value: number; target: number | null; unit?: string; color: "green" | "amber" | "sky"; icon: IconName }) {
   const liquid = useRef<HTMLSpanElement>(null);
+  const box = usePauseOffscreen<HTMLDivElement>();
   const pct = target ? value / target : 0;
-  const count = useCountUp(value);
+  // Al volver a la pantalla siguen desde donde quedaron (no vuelven a subir desde 0).
+  const [start] = useState(() => ({ p: lastShownValue(`tube:${label}`), v: lastShownValue(`tubev:${label}`) }));
+  const delay = start.p === 0 ? 160 : 0;
+  const count = useCountUp(value, undefined, start.v, delay);
   useSpringEffect(Math.min(1.08, pct), SPRINGS.soft, (p) => {
-    if (liquid.current) liquid.current.style.transform = `translate3d(0, ${(1 - Math.min(1, p)) * 100}%, 0)`;
-  }, 0);
+    rememberShown(`tube:${label}`, p);
+    if (liquid.current) liquid.current.style.transform = `translate3d(0, ${((1 - Math.min(1, p)) * 100).toFixed(2)}%, 0)`;
+  }, start.p, delay);
+  rememberShown(`tubev:${label}`, value);
   return (
-    <div className={`nv-tube is-${color}`}>
+    <div ref={box} className={`nv-tube is-${color}`}>
       <div className="nv-tube-glass nv-glass is-thin">
         <span ref={liquid} className="nv-tube-liquid">
           <span className="nv-tube-wave" />
@@ -27,7 +33,9 @@ export function NvTube({ label, value, target, unit = "g", color, icon }: { labe
       </div>
       <p className="nv-tube-label">{label}</p>
       <p className="nv-tube-val">
-        <span ref={count} className="nv-num">0</span>
+        <span ref={count} className="nv-num">
+          {fmt(start.v)}
+        </span>
         <span className="nv-tube-of">
           {target ? ` / ${fmt(target)}` : ""} {unit}
         </span>
@@ -39,13 +47,19 @@ export function NvTube({ label, value, target, unit = "g", color, icon }: { labe
 /** Barra de agua: vidrio con líquido que se mueve; tocar suma un vaso (250 ml). */
 export function NvWater({ ml, target, onAdd, onRemove, busy }: { ml: number; target: number; onAdd: () => void; onRemove: () => void; busy?: boolean }) {
   const liquid = useRef<HTMLSpanElement>(null);
-  const count = useCountUp(ml / 1000, (n) => n.toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  const box = usePauseOffscreen<HTMLDivElement>();
+  const liters = (n: number) => n.toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const [start] = useState(() => ({ p: lastShownValue("water:p"), l: lastShownValue("water:l") }));
+  const delay = start.p === 0 ? 160 : 0;
+  const count = useCountUp(ml / 1000, liters, start.l, delay);
   useSpringEffect(Math.min(1, ml / Math.max(1, target)), SPRINGS.soft, (p) => {
-    if (liquid.current) liquid.current.style.transform = `translate3d(${(p - 1) * 100}%, 0, 0)`;
-  }, 0);
+    rememberShown("water:p", p);
+    if (liquid.current) liquid.current.style.transform = `translate3d(${((p - 1) * 100).toFixed(2)}%, 0, 0)`;
+  }, start.p, delay);
+  rememberShown("water:l", ml / 1000);
   const glasses = Math.round(ml / 250);
   return (
-    <div className="nv-water nv-glass">
+    <div ref={box} className="nv-water nv-glass">
       <span className="nv-water-ico">
         <NvIcon name="water" size={28} />
       </span>
@@ -53,7 +67,10 @@ export function NvWater({ ml, target, onAdd, onRemove, busy }: { ml: number; tar
         <p className="nv-water-top">
           <span>Agua</span>
           <span>
-            <span ref={count} className="nv-num">0</span> / {(target / 1000).toLocaleString("es-CO", { maximumFractionDigits: 1 })} L
+            <span ref={count} className="nv-num">
+              {liters(start.l)}
+            </span>{" "}
+            / {(target / 1000).toLocaleString("es-CO", { maximumFractionDigits: 1 })} L
           </span>
         </p>
         <button type="button" className="nv-water-bar nv-press" onClick={onAdd} disabled={busy} aria-label={`Agua: ${glasses} vasos. Sumar un vaso`}>

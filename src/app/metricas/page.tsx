@@ -255,7 +255,8 @@ export default function MetricasPage() {
         </div>
       ) : null}
 
-      {!loading && !error ? (
+      {/* Con un error (p. ej. la base llegó a su límite del día) se sigue mostrando la última copia guardada. */}
+      {!loading && (!error || workouts.length > 0) ? (
         <>
           {/* Barra de Filtros y Selectores */}
           <section className="card space-y-4 p-4 sm:p-5">

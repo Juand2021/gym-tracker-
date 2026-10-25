@@ -207,7 +207,8 @@ export default function HomePage() {
       {loading ? <div className="glass-panel hm-note">Cargando resumen…</div> : null}
       {error ? <div className="glass-panel hm-note is-error">{error}</div> : null}
 
-      {!loading && !error ? (
+      {/* Con un error (p. ej. la base llegó a su límite del día) se sigue mostrando la última copia guardada. */}
+      {!loading && (!error || workouts.length > 0) ? (
         <>
           <SectionHeader title="Tu progreso" />
           <section className="hm-kpis">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { readSession, writeSession } from "@/lib/client-cache";
 import type { Gauge, GaugeZone, Gamification, DayTotals, StatsSummary } from "@/lib/nutrition/views";
 import type { NutritionProfile, Phase } from "@/lib/nutrition/profile";
@@ -65,6 +65,8 @@ export type ProfileData = {
 };
 
 const CACHE = "nv:";
+/** Una copia más nueva que esto se muestra sin volver a pedirla (ahorra lecturas de la base). */
+const FRESH_MS = 60 * 1000;
 
 /**
  * Lee una ruta de la API: pinta al instante lo que había en la sesión y actualiza en segundo plano.
@@ -84,6 +86,7 @@ export function useNv<T>(url: string | null, key: unknown = 0) {
       const body = (await res.json()) as T & { error?: string };
       if (!res.ok) throw new Error(body.error ?? "No se pudo cargar");
       writeSession(CACHE + url, body);
+      writeSession(`${CACHE}${url}#at`, Date.now());
       setData(body);
       setError(null);
     } catch (e) {
@@ -93,15 +96,27 @@ export function useNv<T>(url: string | null, key: unknown = 0) {
     }
   }, [url]);
 
+  const lastKey = useRef(key);
   useEffect(() => {
     if (!url) return;
+    // Si `key` cambió (se guardó algo), se pide de nuevo aunque la copia sea reciente.
+    const forced = lastKey.current !== key;
+    lastKey.current = key;
     const cached = readSession<T>(CACHE + url);
+    const at = readSession<number>(`${CACHE}${url}#at`);
+    const fresh = !forced && cached !== undefined && typeof at === "number" && Date.now() - at < FRESH_MS;
     const t = window.setTimeout(() => {
       if (cached) setData(cached);
-      void load();
+      if (fresh) setLoading(false);
+      else void load();
     }, 0);
     return () => window.clearTimeout(t);
   }, [url, key, load]);
+
+  // Cambios locales (p. ej. sumar agua) también quedan en la copia, para no mostrar algo viejo al volver.
+  useEffect(() => {
+    if (url && data !== undefined) writeSession(CACHE + url, data);
+  }, [url, data]);
 
   return { data, error, loading, reload: load, setData };
 }

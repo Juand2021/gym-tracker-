@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { APPS, type AppId } from "@/components/AppSwitcher";
 import { NvIcon, type IconName } from "./NvIcon";
 import { NvLeaves, NvLogo } from "./NvLogo";
-import { animateSpring, SPRINGS } from "./glass/motion";
+import { animateSpring, SPRINGS, useGlassPress, useQuietWhileBusy } from "./glass/motion";
 
 /** Pestañas (decisión de Juan): Inicio · Estadísticas · (+) · Planes · Perfil. */
 const TABS: { href: string; label: string; icon: IconName }[] = [
@@ -273,6 +273,10 @@ export function NvShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const full = FULL.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const [me, setMe] = useState<{ name: string; apps: AppId[] }>({ name: "", apps: ["comidas"] });
+  // Fondo y decoración en pausa al cambiar de pantalla o hacer scroll (el vidrio no re-desenfoca).
+  useQuietWhileBusy(pathname);
+  // Vidrio que responde al dedo en todos los botones (luz que sigue el toque + presión de gelatina).
+  useGlassPress(".nv-press");
 
   useEffect(() => {
     try {
