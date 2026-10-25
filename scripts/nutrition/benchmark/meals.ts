@@ -7,8 +7,11 @@
  *  - grams: descripción con gramos, como la escribiría alguien que pesó o leyó la etiqueta.
  *  - vague: descripción vaga, como habla Juan ("un plato de arroz", "un corrientazo").
  *
- * Las comidas con número múltiplo de 3 forman el set de PRUEBA congelado; el resto es el set DEV
- * con el que se ajusta el motor. No ajustar el motor mirando el set de prueba.
+ * Sets:
+ *  - DEV = comidas 1–100. Con ellas se ajusta el motor. (Hasta la ronda R8, las múltiplo de 3
+ *    eran el set de prueba; después de mirarlas en R8 pasaron a ser de ajuste.)
+ *  - PRUEBA = comidas 101–150 (`REF_MEALS_TEST`), escritas el 2026-10-25 ANTES de las correcciones
+ *    posteriores a R8 y congeladas. No ajustar el motor mirándolas; se corren una sola vez.
  */
 
 export type MealCategory = "desayuno" | "almuerzo" | "cena" | "domicilio" | "snack" | "fiesta";
@@ -133,4 +136,69 @@ export const REF_MEALS: RefMeal[] = [
   { id: 98, cat: "fiesta", items: [["cerveza", 1320], ["papas_fritas", 250], ["salchicha", 100], ["salsas_rapidas", 30], ["queso_mozzarella", 30]], grams: "4 cervezas de 330 ml y salchipapa: papas 250 g, salchicha 100 g, salsas 30 g, queso 30 g", vague: "4 cervezas y al final una salchipapa" },
   { id: 99, cat: "fiesta", items: [["aguardiente", 375], ["chicharron", 100], ["arepa_blanca", 70]], grams: "aguardiente 375 ml, chicharrón 100 g y arepa 70 g", vague: "media de aguardiente y después un chicharrón con arepa" },
   { id: 100, cat: "fiesta", items: [["bebida_energetica", 380], ["whisky", 120]], grams: "un energizante de 380 ml con 120 ml de vodka", vague: "un red bull con cuatro tragos de vodka" },
+];
+
+/** Set de prueba congelado (comidas 101–150). */
+export const REF_MEALS_TEST: RefMeal[] = [
+  // ───────── Desayunos ─────────
+  { id: 101, cat: "desayuno", items: [["huevos_revueltos", 120], ["arepa_blanca", 70], ["tinto", 120], ["azucar", 5]], grams: "huevos revueltos 120 g, arepa 70 g y un tinto de 120 ml con 5 g de azúcar", vague: "huevos revueltos con arepa y un tintico con azúcar" },
+  { id: 102, cat: "desayuno", items: [["pan_tajado", 75], ["queso_mozzarella", 40], ["jamon", 40], ["jugo_naranja", 250]], grams: "3 tajadas de pan (75 g) con 40 g de queso y 40 g de jamón, y 250 ml de jugo de naranja", vague: "un sándwich de tres panes con queso y jamón y un jugo de naranja" },
+  { id: 103, cat: "desayuno", items: [["avena_hojuelas", 40], ["leche_descremada", 250], ["fresas", 100], ["mantequilla_mani", 16]], grams: "avena 40 g con 250 ml de leche descremada, 100 g de fresas y 16 g de mantequilla de maní", vague: "avena con leche descremada, fresas y una cucharada de mantequilla de maní" },
+  { id: 104, cat: "desayuno", items: [["pandebono", 120], ["chocolate_bebida", 240]], grams: "2 pandebonos (120 g) y chocolate 240 ml", vague: "dos pandebonos con chocolate" },
+  { id: 105, cat: "desayuno", items: [["huevo_cocido", 100], ["banano", 120], ["tinto", 120]], grams: "2 huevos cocidos (100 g), un banano de 120 g y un tinto de 120 ml", vague: "dos huevos duros, un banano y un tinto" },
+  { id: 106, cat: "desayuno", items: [["FDC-2708342", 120], ["arequipe", 20], ["fresas", 80], ["FDC-2710386", 300]], grams: "crepe 120 g con 20 g de arequipe y 80 g de fresas, y un latte de 300 ml", vague: "un crepe con arequipe y fresas y un latte" },
+  { id: 107, cat: "desayuno", items: [["arepa_con_queso", 260], ["leche_entera", 250]], grams: "2 arepas de queso (260 g) y 250 ml de leche", vague: "dos arepas boyacenses y un vaso de leche" },
+  { id: 108, cat: "desayuno", items: [["arroz_blanco", 120], ["frijoles", 120], ["chorizo", 80], ["arepa_blanca", 70]], grams: "calentado de 120 g de arroz y 120 g de frijoles, con un chorizo de 80 g y arepa de 70 g", vague: "un calentado con chorizo y arepa, sin huevo" },
+  { id: 109, cat: "desayuno", items: [["yogurt", 200], ["FDC-2707829", 100]], grams: "yogurt 200 g y un muffin de 100 g", vague: "un yogurt y un muffin" },
+
+  // ───────── Almuerzos ─────────
+  { id: 110, cat: "almuerzo", items: [["sopa_dia", 300], ["arroz_blanco", 180], ["lentejas", 150], ["res_asada", 130], ["patacon", 80], ["ensalada", 70], ["jugo_fruta_agua", 250], ["azucar", 15]], grams: "sopa 300 g, arroz 180 g, lentejas 150 g, carne asada 130 g, patacones 80 g, ensalada 70 g, jugo de guayaba 250 ml con 15 g de azúcar", vague: "corrientazo de carne asada con lentejas, patacones y jugo de guayaba" },
+  { id: 111, cat: "almuerzo", items: [["arroz_blanco", 180], ["frijoles", 150], ["carne_molida", 100], ["chicharron", 100], ["maduro_frito", 80], ["huevo_frito", 50], ["arepa_blanca", 70], ["aguacate", 50]], grams: "arroz 180 g, frijoles 150 g, carne molida 100 g, chicharrón 100 g, maduro 80 g, huevo frito 50 g, arepa 70 g y aguacate 50 g", vague: "un plato con arroz, frijoles, carne molida, chicharrón, maduro, huevo frito, arepa y aguacate" },
+  { id: 112, cat: "almuerzo", items: [["pescado_frito", 250], ["arroz_blanco", 180], ["patacon", 80]], grams: "mojarra frita 250 g, arroz 180 g y patacones 80 g", vague: "una mojarra frita con arroz y patacones" },
+  { id: 113, cat: "almuerzo", items: [["ajiaco", 650], ["arroz_blanco", 100], ["aguacate", 50]], grams: "ajiaco 650 g, arroz 100 g y aguacate 50 g", vague: "un ajiaco con poquito arroz y aguacate" },
+  { id: 114, cat: "almuerzo", items: [["arroz_blanco", 180], ["pechuga_asada", 130], ["frijoles", 150], ["ensalada", 70], ["gaseosa_zero", 400]], grams: "arroz 180 g, pechuga asada 130 g, frijoles 150 g, ensalada 70 g y coca cola zero 400 ml", vague: "arroz, pechuga asada, frijoles, ensalada y una coca zero" },
+  { id: 115, cat: "almuerzo", items: [["FDC-2708953", 350], ["gaseosa", 400]], grams: "arroz frito con pollo 350 g y gaseosa 400 ml", vague: "un arroz chino con pollo y una gaseosa" },
+  { id: 116, cat: "almuerzo", items: [["FDC-2708758", 350], ["pan_blanco", 50]], grams: "lasaña 350 g y pan 50 g", vague: "una porción de lasaña con pan" },
+  { id: 117, cat: "almuerzo", items: [["sobrebarriga", 130], ["papa_criolla", 108], ["arroz_blanco", 180], ["ensalada", 70], ["jugo_fruta_agua", 250]], grams: "sobrebarriga 130 g, papa criolla 108 g, arroz 180 g, ensalada 70 g y jugo natural sin azúcar 250 ml", vague: "sobrebarriga en salsa con papa criolla, arroz, ensalada y jugo sin azúcar" },
+  { id: 118, cat: "almuerzo", items: [["pechuga_asada", 200], ["arroz_blanco", 180], ["brocoli", 80], ["zanahoria", 50]], grams: "pechuga a la plancha 200 g, arroz 180 g, brócoli 80 g y zanahoria 50 g", vague: "una pechuga grande a la plancha con arroz, brócoli y zanahoria" },
+  { id: 119, cat: "almuerzo", items: [["FDC-2706463", 250], ["patacon", 80], ["cerveza", 330]], grams: "ceviche de camarón 250 g, patacones 80 g y una cerveza de 330 ml", vague: "un ceviche con patacones y una cerveza" },
+  { id: 120, cat: "almuerzo", items: [["costilla_cerdo", 150], ["papa_cocida", 130], ["maiz_tierno", 150], ["ensalada", 70]], grams: "costilla de cerdo 150 g, papa 130 g, mazorca 150 g y ensalada 70 g", vague: "costillas de cerdo con papa, una mazorca y ensalada" },
+  { id: 121, cat: "almuerzo", items: [["pasta_cocida", 250], ["pechuga_asada", 130], ["crema_leche", 30]], grams: "pasta 250 g con pollo 130 g y 30 g de crema de leche", vague: "un plato de pasta en salsa blanca con pollo" },
+
+  // ───────── Cenas ─────────
+  { id: 122, cat: "cena", items: [["arepa_blanca", 140], ["huevo_frito", 100]], grams: "2 arepas (140 g) con 2 huevos fritos (100 g)", vague: "dos arepas con dos huevos fritos" },
+  { id: 123, cat: "cena", items: [["pechuga_asada", 130], ["verduras_mixtas", 100], ["aceite", 4], ["papa_criolla", 108]], grams: "pechuga 130 g, verduras salteadas 100 g (con 4 g de aceite) y papa criolla 108 g", vague: "pechuga con verduras salteadas y papitas criollas" },
+  { id: 124, cat: "cena", items: [["FDC-2708593", 200], ["salsa_tomate", 15]], grams: "quesadilla de pollo 200 g con 15 g de salsa", vague: "una quesadilla de pollo con salsa" },
+  { id: 125, cat: "cena", items: [["atun_agua", 120], ["galletas_soda", 30], ["tomate", 100]], grams: "atún 120 g, galletas de soda 30 g y un tomate de 100 g", vague: "una lata de atún con saltinas y un tomate" },
+  { id: 126, cat: "cena", items: [["sopa_dia", 300], ["arepa_blanca", 70], ["queso_campesino", 30]], grams: "sopa 300 g, arepa 70 g y queso 30 g", vague: "un plato de sopa con arepa y quesito" },
+  { id: 127, cat: "cena", items: [["yogurt_griego", 150], ["banano", 120], ["mani", 15]], grams: "yogurt griego 150 g, banano 120 g y 15 g de maní", vague: "un griego con banano y un poquito de maní" },
+  { id: 128, cat: "cena", items: [["hamburguesa_carne", 120], ["pan_blanco", 50], ["queso_mozzarella", 20], ["ensalada", 70]], grams: "carne de hamburguesa 120 g, pan 50 g, queso 20 g y ensalada 70 g", vague: "una hamburguesa casera con queso y ensalada" },
+  { id: 129, cat: "cena", items: [["arroz_blanco", 150], ["pollo_sudado", 130], ["maduro_cocido", 100]], grams: "arroz 150 g, pollo sudado 130 g y maduro asado 100 g", vague: "lo que quedó del almuerzo: arroz, una presa de pollo sudado y medio maduro asado" },
+  { id: 130, cat: "cena", items: [["leche_entera", 250], ["milo_polvo", 20], ["galletas_dulces", 40]], grams: "250 ml de leche con 20 g de milo y 40 g de galletas", vague: "un milo en leche con un paquete de galletas" },
+
+  // ───────── Domicilios ─────────
+  { id: 131, cat: "domicilio", items: [["hamburguesa", 250], ["papas_fritas", 130], ["gaseosa_zero", 400]], grams: "hamburguesa 250 g, papas 130 g y gaseosa zero 400 ml", vague: "una hamburguesa del corral con papas y coca zero" },
+  { id: 132, cat: "domicilio", items: [["pizza", 440]], grams: "4 porciones de pizza (440 g)", vague: "cuatro tajadas de pizza" },
+  { id: 133, cat: "domicilio", items: [["pollo_asado_cuarto", 200], ["papas_fritas", 130], ["arepa_blanca", 70]], grams: "cuarto de pollo asado 200 g, papas a la francesa 130 g y arepa 70 g", vague: "un cuarto de pollo asado con papas a la francesa y arepa" },
+  { id: 134, cat: "domicilio", items: [["perro_caliente", 500], ["gaseosa", 400]], grams: "2 perros calientes (500 g) y gaseosa 400 ml", vague: "dos perros con todo y una gaseosa" },
+  { id: 135, cat: "domicilio", items: [["FDC-2707483", 250]], grams: "sándwich de falafel 250 g", vague: "un sándwich de falafel" },
+  { id: 136, cat: "domicilio", items: [["alitas", 350], ["gaseosa", 400]], grams: "10 alitas (350 g) y gaseosa 400 ml", vague: "diez alitas con una gaseosa" },
+  { id: 137, cat: "domicilio", items: [["burrito", 250], ["FDC-2708576", 100]], grams: "burrito 250 g y nachos 100 g", vague: "un burrito y unos nachos" },
+  { id: 138, cat: "domicilio", items: [["empanada", 280], ["salsa_tomate", 30]], grams: "4 empanadas (280 g) con 30 g de salsa", vague: "cuatro empanadas con ají y salsa" },
+
+  // ───────── Snacks ─────────
+  { id: 139, cat: "snack", items: [["FDC-174992", 60]], grams: "una dona glaseada de 60 g", vague: "una donut glaseada" },
+  { id: 140, cat: "snack", items: [["FDC-167765", 300]], grams: "sandía 300 g", vague: "una tajada grande de sandía" },
+  { id: 141, cat: "snack", items: [["proteina_whey", 30], ["leche_descremada", 300]], grams: "30 g de whey con 300 ml de leche descremada", vague: "un scoop de proteína con leche descremada" },
+  { id: 142, cat: "snack", items: [["papaya", 150], ["pina", 150]], grams: "papaya 150 g y piña 150 g", vague: "un plato de papaya con piña" },
+  { id: 143, cat: "snack", items: [["helado", 100], ["galletas_dulces", 20]], grams: "un cono de helado de 100 g y 20 g de galletas", vague: "un cono de helado y dos galletas" },
+  { id: 144, cat: "snack", items: [["FDC-174289", 60], ["zanahoria", 80]], grams: "hummus 60 g con 80 g de zanahoria", vague: "hummus con palitos de zanahoria" },
+  { id: 145, cat: "snack", items: [["bocadillo", 30], ["queso_campesino", 30]], grams: "bocadillo 30 g con queso 30 g", vague: "un bocadillo con queso" },
+
+  // ───────── Fiestas ─────────
+  { id: 146, cat: "fiesta", items: [["cerveza", 2640]], grams: "8 cervezas de 330 ml (2.640 ml)", vague: "ocho polas" },
+  { id: 147, cat: "fiesta", items: [["aguardiente", 375], ["gaseosa", 400], ["agua", 600]], grams: "375 ml de aguardiente, 400 ml de gaseosa y 600 ml de agua", vague: "media de guaro, una gaseosa y una botella de agua" },
+  { id: 148, cat: "fiesta", items: [["ron", 300], ["gaseosa_zero", 1000]], grams: "300 ml de ron con 1 litro de coca cola zero", vague: "diez tragos de ron con coca zero" },
+  { id: 149, cat: "fiesta", items: [["vino", 750]], grams: "una botella de vino de 750 ml", vague: "una botella de vino" },
+  { id: 150, cat: "fiesta", items: [["cerveza", 990], ["perro_caliente", 250]], grams: "3 cervezas de 330 ml y un perro caliente de 250 g", vague: "tres cervezas y un perro a la salida" },
 ];

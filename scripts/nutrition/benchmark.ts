@@ -15,7 +15,7 @@ import { makeLlmParser } from "../../src/lib/nutrition/engine/parse.ts";
 import { parseWithRules } from "../../src/lib/nutrition/engine/parse-rules.ts";
 import { analyzeMeal, type MealParser, type PipelineDeps } from "../../src/lib/nutrition/engine/pipeline.ts";
 import { makeLlmReranker } from "../../src/lib/nutrition/engine/rerank.ts";
-import { REF_MEALS, type RefMeal } from "./benchmark/meals.ts";
+import { REF_MEALS, REF_MEALS_TEST, type RefMeal } from "./benchmark/meals.ts";
 
 const args = process.argv.slice(2);
 const arg = (name: string, def: string) => {
@@ -40,7 +40,13 @@ function truthOf(meal: RefMeal) {
   return { kcal, protein };
 }
 
-const meals = REF_MEALS.filter((m) => (setName === "all" ? true : setName === "test" ? m.id % 3 === 0 : m.id % 3 !== 0));
+// dev = comidas 1–100 (ajuste) · test = 101–150 (congelado) · all = ambas.
+const meals = setName === "all" ? [...REF_MEALS, ...REF_MEALS_TEST] : setName === "test" ? REF_MEALS_TEST : REF_MEALS;
+for (const m of meals) truthOf(m); // falla antes de gastar llamadas si una clave no existe
+if (args.includes("--check")) {
+  console.log(`OK: ${meals.length} comidas con verdad válida`);
+  process.exit(0);
+}
 
 let deps: PipelineDeps;
 if (parserName === "llm") {
