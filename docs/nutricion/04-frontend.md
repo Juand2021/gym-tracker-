@@ -1,6 +1,6 @@
 # Fase 4 — Frontend de Nutriverse (v2: Liquid Glass plateado)
 
-> Fecha: 2026-10-25 · Estado: **plan v2, pendiente de aprobación de Juan**
+> Fecha: 2026-10-25 · Estado: **plan v2 con decisiones de Juan (§11); pendiente su visto bueno para empezar la etapa 4a**
 > Reemplaza el plan v1 del mismo día. Base: las 3 imágenes de identidad que hizo Juan (`docs/nutricion/referencias/`) y `03-arquitectura.md`.
 
 ## 1. La visión (en palabras de Juan)
@@ -91,7 +91,7 @@ Para las piezas protagonistas, un "lente" dibujado con un shader que dobla el fo
 
 ## 5. Pantallas
 
-**Pestañas** (como en la referencia, 5 lugares con el botón central): **Inicio · [Pestaña 2] · ( + ) · [Pestaña 4] · Perfil** — las pestañas 2 y 4 se deciden en §11.
+**Pestañas**: **Inicio · Estadísticas · ( + ) · Planes · Perfil** (decisión de Juan, §11).
 El **"+"** central abre el **chat de registro** como una hoja de vidrio que sube desde abajo, con el teclado listo: es la acción más usada.
 
 ### 5.1 Inicio — el velocímetro
@@ -192,9 +192,9 @@ Una por momento (desayuno, almuerzo, cena, snack, fiesta/bebida) y por grupo de 
 
 Después: **Fase 6 · Validación** (1–2 semanas de uso real).
 
-## 11. Decisiones pendientes
-1. **Pestañas 2 y 4**: la referencia muestra *Recetas* y *Planes*. Propuesta: **Inicio · Estadísticas · (+) · Planes · Perfil**, con *Recetas* para la Fase 7 (necesita una base de recetas que hoy no tenemos).
-2. **Recursos gráficos** (burbujas de comida, logo, íconos 3D): **(a)** Juan los genera con la misma herramienta de IA con la que hizo las referencias, siguiendo una ficha que le preparo (tamaños, fondo transparente, luz, lista exacta); **(b)** los dibujo yo en SVG en capas (más ligeros y animables, menos fotográficos); **(c)** mezcla: íconos de interfaz en SVG y burbujas de comida/logo con su herramienta.
-3. **Foto de perfil**: subir foto propia (necesita guardarla) o avatar de vidrio con la inicial.
-4. **Nivel y puntos**: ¿se quedan (motivan) o solo logros sin puntos?
-5. **Ubicación** ("Bogotá, CO" en la referencia): ¿mostrarla? (pide permiso de ubicación; propuesta: no).
+## 11. Decisiones de Juan sobre el plan v2 (2026-10-25)
+1. **Pestañas**: **Inicio · Estadísticas · (+) · Planes · Perfil**. *Recetas* queda para la Fase 7.
+2. **Recursos gráficos**: **mezcla** — íconos de interfaz en SVG con capas (los hago yo); burbujas de comida y logo los genera Juan con su herramienta de IA siguiendo `04b-ficha-recursos.md`.
+3. **Perfil**: **nivel + puntos + logros** (puntos por registrar y por cumplir; sin castigos).
+4. **Foto**: **avatar de vidrio con la inicial** (sin subir fotos).
+5. **Ubicación**: no se muestra (no se pide permiso de ubicación).
