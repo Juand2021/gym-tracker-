@@ -114,6 +114,17 @@ Meta: con gramos ≥ 90 % dentro de ±10 % · vaga ≥ 80 % dentro de ±20 %.
 
 **Lectura de R4:** el lector por reglas pasa la meta en el set con el que se ajustó, pero **no generaliza**: en el set de prueba falla justo en alimentos que nunca vio (shawarma, chontaduro, sushi, ensalada césar, avena en leche). Esto confirma el diseño: hace falta el lector con IA + la base con nombres en español. No se ajustó nada mirando el set de prueba.
 
+| R5 | IA | dev | 91,0 % ✅ | 86,6 % ✅ | Primera corrida con gpt-5-mini (nombres USDA aún en inglés) |
+| R6 | IA | dev | 89,6 % | 86,6 % | La IA indica el plato y sus cambios; el código expande la plantilla. Falla: la IA inventaba platos no mencionados |
+| R7 | IA | dev | 89,6 % | 85,1 % | Protección: solo se aceptan platos nombrados. Falla: tamal/mute/sancocho iban como "plato" y se perdían |
+| R8 | IA | dev | **95,5 %** ✅ | **94,0 %** ✅ | "Combos" explícitos en el prompt + nombres USDA traducidos al español (12.947/13.035) |
+| R8 | IA | **prueba** | 87,9 % ❌ | 72,7 % ❌ | Corrida única sobre el set congelado |
+
+**Lectura de R8 (prueba):** con gramos queda cerca; lo vago falla por errores generales: avena sin cantidad = 1 cucharada (6 g); la IA fuerza alimentos parecidos del catálogo (ensalada césar → ensalada de repollo, shawarma → sobrebarriga); "con patacones" = 1 patacón; en platos de afuera usa el peso de una pieza USDA (rollo de sushi = 30 g). Como el set de prueba ya se miró, pasa a ser de ajuste y se escribe un **set de prueba nuevo** (comidas 101–150) **antes** de corregir.
+
+### Traducción de nombres (2026-10-25)
+`enrich_names.ts` con gpt-5-mini: 13.846/13.934 nombres (99,4 %). 88 quedan en inglés porque el filtro de contenido de Azure bloquea esos lotes (falsos positivos con palabras de anatomía animal). Calidad buena: "Blood sausage" → "Morcilla" (sinónimo "rellena"), "Gyro sandwich" → "sándwich gyro".
+
 ### Embeddings locales: descartados por ahora
 Se probaron 3 modelos multilingües locales (`multilingual-e5-small`, `multilingual-e5-base`, `paraphrase-multilingual-MiniLM-L12-v2`) en 5 casos español→inglés ("almendras" → "Nuts, almonds"; "shawarma" → "Gyro sandwich"…). Acertaron **0/5, 0/5 y 1/5**: prefieren el texto que comparte palabras en el mismo idioma ("almendras" → "Chigua, almendra"). La solución es **traducir los nombres USDA al español** (`enrich_names.ts`, una sola vez con gpt-5-mini) y dejar que el modelo elija entre candidatos. Se puede volver a probar con nombres ya traducidos (español↔español).
 
