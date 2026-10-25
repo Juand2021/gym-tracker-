@@ -1,66 +1,75 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AiAnalysis } from "@/components/AiAnalysis";
-import { TodaySummary, useComidasToday } from "@/components/comidas/TodaySummary";
+import type { ChatCard } from "@/lib/nutrition/cards";
 import { readSession, writeSession } from "@/lib/client-cache";
+import { NvCompareCard, NvDraftCard, NvPlanCard, NvTargetsCard } from "@/components/nutriverse/NvCards";
+import { NvIcon } from "@/components/nutriverse/NvIcon";
+import { NvLeaves } from "@/components/nutriverse/NvLogo";
+import { NvSheet } from "@/components/nutriverse/NvUi";
+import { CHAT_AUTOSEND, CHAT_PREFILL, invalidateNv } from "@/components/nutriverse/data";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
+type Msg = { id: string; role: "user" | "assistant"; content: string; createdAt: string; cards?: ChatCard[] };
 type Chat = { id: string; title: string; messages: Msg[]; createdAt: string; updatedAt: string };
 type ChatSummary = { id: string; title: string; updatedAt: string; messageCount: number; lastMessageSnippet: string };
 
-const SESSION_KEY = "comidas:chat";
-/** Mensaje inicial que deja la pantalla "Hoy" al tocar "Empezar". */
-const STARTER_KEY = "comidas:starter";
+const SESSION_KEY = "nv:chat";
 
-const EXAMPLES = [
-  "¿Qué como hoy?",
-  "Almorcé un corrientazo de cerdo con jugo de mora",
-  "Desayuné 2 arepas con huevos pericos y un tinto",
-  "¿Cómo voy hoy?",
-  "Quiero cambiar mi objetivo a volumen",
-];
+const STARTERS = ["¿Qué como ahora?", "Almorcé un corrientazo de cerdo con jugo de mora", "Desayuné 2 arepas con huevos pericos y un tinto", "¿Cómo voy hoy?", "¿Qué pido: hamburguesa o wrap de pollo?"];
 
-/** Respuestas rápidas cuando el asistente pregunta si guarda o borra algo. */
+/** Frases que cambian mientras el asistente piensa (~10 s). */
+const THINKING = ["Leyendo lo que comiste…", "Buscando los alimentos…", "Calculando porciones…", "Sumando calorías y proteína…", "Casi listo…"];
+
+/** Respuestas rápidas cuando el asistente pregunta algo de sí/no. */
 function quickRepliesFor(text: string): string[] | null {
-  if (/¿\s*lo guardo\s*\?/i.test(text)) return ["Sí, guárdalo", "No lo guardes"];
   if (/¿\s*(la|lo) borro\s*\?|¿\s*de verdad la borro/i.test(text)) return ["Sí, bórrala", "No, déjala"];
   return null;
 }
 
 function timeLabel(iso: string) {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 }
 
-/** Caja de escritura encima de la barra de pestañas o del teclado (igual que en Fuerza). */
-function useComposerOffset(): number | null {
-  const [offset, setOffset] = useState<number | null>(null);
+/** Alto del teclado del iPhone (para subir la caja de escritura). */
+function useKeyboard(): number {
+  const [kb, setKb] = useState(0);
   useLayoutEffect(() => {
     const vv = window.visualViewport;
-    const update = () => {
-      const layoutH = window.innerHeight;
-      const keyboard = vv ? Math.max(0, layoutH - (vv.height + vv.offsetTop)) : 0;
-      if (keyboard > 80) return setOffset(keyboard + 8);
-      const barTop = document.querySelector(".lg-bar")?.getBoundingClientRect().top;
-      setOffset(barTop ? Math.max(8, layoutH - barTop + 10) : null);
-    };
+    if (!vv) return;
+    const update = () => setKb(Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)));
     update();
-    vv?.addEventListener("resize", update);
-    vv?.addEventListener("scroll", update);
-    window.addEventListener("resize", update);
-    const late = window.setTimeout(update, 600);
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
     return () => {
-      vv?.removeEventListener("resize", update);
-      vv?.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.clearTimeout(late);
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
     };
   }, []);
-  return offset;
+  return kb > 80 ? kb : 0;
 }
 
-export default function ComidasChatPage() {
+function Thinking() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setI((n) => Math.min(THINKING.length - 1, n + 1)), 2200);
+    return () => window.clearInterval(t);
+  }, []);
+  return (
+    <div className="nv-msg is-assistant">
+      <div className="nv-bubble-msg nv-glass nv-thinking" role="status" aria-live="polite">
+        <span className="nv-thinking-orb" aria-hidden="true" />
+        <span key={i} className="nv-thinking-text">
+          {THINKING[i]}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export default function NutriVerseChat() {
+  const router = useRouter();
   const [chat, setChat] = useState<Chat | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [input, setInput] = useState("");
@@ -68,16 +77,15 @@ export default function ComidasChatPage() {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [refresh, setRefresh] = useState(0);
-  const { data: today } = useComidasToday(refresh);
+  const [closing, setClosing] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
-  const composerOffset = useComposerOffset();
+  const keyboard = useKeyboard();
 
   const messages = chat?.messages ?? [];
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length, sending]);
 
   useLayoutEffect(() => {
@@ -87,35 +95,41 @@ export default function ComidasChatPage() {
     ta.style.height = `${Math.min(ta.scrollHeight, 132)}px`;
   }, [input]);
 
-  // Desde "Configura tu perfil": conversación nueva con el mensaje ya escrito.
+  // Abrir: retomar la conversación de la sesión, o empezar con el texto que dejó otra pantalla.
   useEffect(() => {
-    const starter = readSession<string>(STARTER_KEY);
-    if (!starter) return;
-    writeSession(SESSION_KEY, "new");
-    const t = window.setTimeout(() => {
-      // Se borra aquí (no antes) porque en desarrollo React monta los efectos dos veces.
-      writeSession(STARTER_KEY, "");
-      setChat(null);
-      setInput(starter);
-      taRef.current?.focus();
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  // Volver a la conversación abierta y cargar el historial.
-  useEffect(() => {
+    const prefill = readSession<string>(CHAT_PREFILL);
+    const autosend = readSession<string>(CHAT_AUTOSEND);
     const saved = readSession<string>(SESSION_KEY);
+    const t = window.setTimeout(() => {
+      // Se borran aquí (no antes) porque en desarrollo React monta los efectos dos veces.
+      if (prefill) {
+        writeSession(CHAT_PREFILL, "");
+        setInput(prefill);
+        taRef.current?.focus();
+      }
+      if (autosend) {
+        writeSession(CHAT_AUTOSEND, "");
+        void send(autosend, saved && saved !== "new" ? saved : undefined);
+      }
+    }, 0);
     if (saved && saved !== "new") {
       fetch(`/api/comidas/chats/${saved}`)
         .then((r) => (r.ok ? (r.json() as Promise<{ chat: Chat }>) : null))
-        .then((d) => d && setChat(d.chat))
+        .then((d) => d && setChat((c) => c ?? d.chat))
         .catch(() => undefined);
     }
     fetch("/api/comidas/chats")
       .then((r) => (r.ok ? (r.json() as Promise<{ chats: ChatSummary[] }>) : { chats: [] }))
       .then((d) => setChats(d.chats))
       .catch(() => undefined);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function close() {
+    setClosing(true);
+    window.setTimeout(() => (window.history.length > 1 ? router.back() : router.push("/comidas")), 260);
+  }
 
   async function openChat(id: string) {
     setHistoryOpen(false);
@@ -138,10 +152,10 @@ export default function ComidasChatPage() {
     if (chat?.id === id) newChat();
   }
 
-  async function send(textToSend?: string) {
+  async function send(textToSend?: string, chatId?: string) {
     const text = (textToSend ?? input).trim();
     if (!text || sending) return;
-    setInput("");
+    if (textToSend === undefined) setInput("");
     setError(null);
     setPending(text);
     setSending(true);
@@ -149,7 +163,7 @@ export default function ComidasChatPage() {
       const res = await fetch("/api/comidas/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId: chat?.id, message: text }),
+        body: JSON.stringify({ chatId: chatId ?? chat?.id, message: text }),
       });
       const data = (await res.json()) as { chat?: Chat; error?: string };
       if (!res.ok || !data.chat) throw new Error(data.error ?? "No se pudo enviar el mensaje");
@@ -160,191 +174,178 @@ export default function ComidasChatPage() {
         { id: updated.id, title: updated.title, updatedAt: updated.updatedAt, messageCount: updated.messages.length, lastMessageSnippet: text.slice(0, 90) },
         ...prev.filter((c) => c.id !== updated.id),
       ]);
+      // Lo guardado en el chat se ve al volver al Inicio y a las estadísticas.
+      invalidateNv("/api/comidas/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo enviar el mensaje");
-      setInput(text);
+      if (textToSend === undefined) setInput(text);
     } finally {
       setPending(null);
       setSending(false);
-      setRefresh((n) => n + 1);
     }
+  }
+
+  function prefill(text: string) {
+    setInput(text);
+    window.setTimeout(() => {
+      const ta = taRef.current;
+      if (!ta) return;
+      ta.focus();
+      ta.setSelectionRange(text.length, text.length);
+    }, 0);
   }
 
   const last = messages[messages.length - 1];
   const quick = !sending && last?.role === "assistant" ? quickRepliesFor(last.content) : null;
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
 
   return (
-    <div className="ia-page">
-      <header className="ia-glass ia-hero">
-        <span className="as-icon is-comidas" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
-          </svg>
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="ia-kicker">Asistente de nutrición</p>
-          <h1 className="ia-title">{chat ? chat.title : "Nueva conversación"}</h1>
-        </div>
-        <div className="ia-hero-actions">
-          <button type="button" className="ia-pill" onClick={() => setHistoryOpen(true)}>
-            Historial
-            {chats.length > 0 ? <span className="ia-badge">{chats.length}</span> : null}
+    <div className={`nv-chat ${closing ? "is-closing" : ""}`}>
+      <div className="nv-chat-sheet nv-glass is-thick">
+        <header className="nv-chat-head">
+          <button type="button" className="nv-icon-btn nv-press" onClick={close} aria-label="Cerrar el chat">
+            <NvIcon name="close" size={30} />
           </button>
-          <button type="button" className="ia-pill is-primary" onClick={newChat}>
-            + Nuevo
+          <div className="nv-chat-title">
+            <p className="nv-kicker">Asistente NutriVerse</p>
+            <h1 className="nv-h2">{chat ? chat.title : "Nueva conversación"}</h1>
+          </div>
+          <button type="button" className="nv-icon-btn nv-press nv-has-badge" onClick={() => setHistoryOpen(true)} aria-label="Conversaciones anteriores">
+            <NvIcon name="history" size={28} />
+            {chats.length ? <span className="nv-badge">{chats.length}</span> : null}
           </button>
-        </div>
-      </header>
+          <button type="button" className="nv-icon-btn nv-press" onClick={newChat} aria-label="Conversación nueva">
+            <NvIcon name="edit" size={26} />
+          </button>
+        </header>
 
-      {today ? <TodaySummary data={today} /> : null}
-
-      {historyOpen ? (
-        <div className="ia-drawer-overlay" onClick={() => setHistoryOpen(false)}>
-          <aside className="ia-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="ia-drawer-head">
-              <div>
-                <p className="ia-kicker">Comidas</p>
-                <p className="ia-drawer-title">Conversaciones</p>
-              </div>
-              <button type="button" className="rt-icon-btn" onClick={() => setHistoryOpen(false)} aria-label="Cerrar historial">
-                ✕
-              </button>
-            </div>
-            <button type="button" className="ia-pill is-primary w-full" onClick={newChat}>
-              + Nueva conversación
-            </button>
-            <div className="ia-thread-list">
-              {chats.length === 0 ? (
-                <p className="ia-empty-text">Todavía no hay conversaciones.</p>
-              ) : (
-                chats.map((c) => (
-                  <div
-                    key={c.id}
-                    role="button"
-                    tabIndex={0}
-                    className={`ia-glass ia-thread ${c.id === chat?.id ? "is-active" : ""}`}
-                    onClick={() => openChat(c.id)}
-                    onKeyDown={(e) => e.key === "Enter" && openChat(c.id)}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="ia-thread-title">{c.title}</p>
-                      {c.lastMessageSnippet ? <p className="ia-thread-snippet">{c.lastMessageSnippet}</p> : null}
-                    </div>
-                    <button
-                      type="button"
-                      className="ia-thread-delete"
-                      aria-label="Eliminar conversación"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void deleteChat(c.id);
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-                      </svg>
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </aside>
-        </div>
-      ) : null}
-
-      <section className="ia-feed">
-        {messages.length === 0 && !pending ? (
-          <>
-            <div className="ia-glass ia-welcome">
-              <h2 className="ia-welcome-title">¿Qué comiste?</h2>
-              <p className="ia-welcome-text">
-                Cuéntamelo como hablas. Te muestro las calorías y la proteína, y solo lo guardo cuando me digas que sí.
-              </p>
-            </div>
-            <p className="ia-section-label">Prueba con</p>
-            <div className="ia-followups cm-examples">
-              {EXAMPLES.map((e) => (
-                <button key={e} type="button" className="ia-chip" onClick={() => send(e)}>
-                  {e}
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="ia-thread-feed">
-            {messages.map((m) => (
-              <div key={m.id} className={`ia-msg ${m.role === "user" ? "is-user" : "is-coach"}`}>
-                <div className="ia-msg-meta">
-                  <span className="ia-msg-author">{m.role === "user" ? "Tú" : "Asistente"}</span>
-                  <span className="ia-msg-time">{timeLabel(m.createdAt)}</span>
-                </div>
-                <div className={`ia-bubble ${m.role === "user" ? "is-user" : "ia-glass"}`}>
-                  {m.role === "user" ? <p className="whitespace-pre-wrap text-[0.95rem] leading-relaxed">{m.content}</p> : <AiAnalysis content={m.content} />}
-                </div>
-              </div>
-            ))}
-            {pending ? (
-              <>
-                <div className="ia-msg is-user">
-                  <div className="ia-bubble is-user">
-                    <p className="whitespace-pre-wrap text-[0.95rem] leading-relaxed">{pending}</p>
-                  </div>
-                </div>
-                <div className="ia-msg is-coach">
-                  <div className="ia-bubble ia-glass ia-typing">
-                    <span className="ia-dots" aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                    Calculando…
-                  </div>
-                </div>
-              </>
-            ) : null}
-            {quick ? (
-              <div className="ia-followups" aria-label="Respuestas rápidas">
-                {quick.map((q, i) => (
-                  <button key={q} type="button" className={`ia-chip ${i === 0 ? "is-confirm" : ""}`} onClick={() => send(q)}>
-                    {q}
+        <div className="nv-chat-scroll" style={{ paddingBottom: `calc(${keyboard}px + 6.5rem + env(safe-area-inset-bottom))` }}>
+          {messages.length === 0 && !pending ? (
+            <div className="nv-chat-empty nv-rise">
+              <span className="nv-chat-empty-logo nv-glass is-thick">
+                <NvLeaves size={54} animated />
+              </span>
+              <h2 className="nv-title">Cuéntame qué comiste</h2>
+              <p className="nv-sub">Escríbelo como lo dirías. Yo calculo las calorías y te pregunto antes de guardar.</p>
+              <div className="nv-chips">
+                {STARTERS.map((s, i) => (
+                  <button key={s} type="button" className="nv-chip-btn nv-glass is-thin nv-press nv-rise" style={{ ["--i" as string]: i + 1 }} onClick={() => void send(s)}>
+                    {s}
                   </button>
                 ))}
               </div>
-            ) : null}
-            <div ref={endRef} />
-          </div>
-        )}
-        {error ? <div className="ia-error">{error}</div> : null}
-      </section>
+            </div>
+          ) : null}
 
-      <footer className="ia-composer-wrap" style={composerOffset != null ? { bottom: `${composerOffset}px` } : undefined}>
-        <div className="ia-composer">
+          {messages.map((m) => (
+            <div key={m.id} className={`nv-msg is-${m.role}`}>
+              {m.content ? (
+                <div className={`nv-bubble-msg nv-glass ${m.role === "user" ? "is-green is-user" : "is-read"}`}>
+                  <p>{m.content}</p>
+                  <span className="nv-msg-time">{timeLabel(m.createdAt)}</span>
+                </div>
+              ) : null}
+              {m.cards?.map((c, i) => (
+                <div key={i} className="nv-msg-card">
+                  {c.type === "draft" ? (
+                    <NvDraftCard
+                      card={c}
+                      latest={m === lastAssistant}
+                      busy={sending}
+                      onSave={() => void send("Sí, guárdalo")}
+                      onFix={() => prefill("Corrige: ")}
+                      onDiscard={() => void send("No lo guardes")}
+                    />
+                  ) : c.type === "plan" ? (
+                    <NvPlanCard card={c} onPick={(t) => prefill(`Comí ${t}`)} />
+                  ) : c.type === "compare" ? (
+                    <NvCompareCard card={c} />
+                  ) : (
+                    <NvTargetsCard card={c} />
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {pending ? (
+            <>
+              <div className="nv-msg is-user">
+                <div className="nv-bubble-msg nv-glass is-green is-user is-pending">
+                  <p>{pending}</p>
+                </div>
+              </div>
+              <Thinking />
+            </>
+          ) : null}
+
+          {quick ? (
+            <div className="nv-chips is-quick">
+              {quick.map((q) => (
+                <button key={q} type="button" className="nv-chip-btn nv-glass is-thin nv-press" onClick={() => void send(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {error ? (
+            <p className="nv-chat-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div ref={endRef} />
+        </div>
+
+        <form
+          className="nv-composer nv-glass is-thick"
+          style={{ bottom: `calc(${keyboard ? `${keyboard + 8}px` : "0.75rem + env(safe-area-inset-bottom)"})` }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
           <textarea
             ref={taRef}
-            className="ia-input"
-            rows={1}
-            placeholder="Cuéntame qué comiste…"
             value={input}
+            rows={1}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 void send();
               }
             }}
-            disabled={sending}
+            placeholder="Ej.: almorcé arroz, pollo y ensalada"
+            aria-label="Mensaje"
+            className="nv-composer-input"
             enterKeyHint="send"
           />
-          <button type="button" className="ia-send" onClick={() => send()} disabled={!input.trim() || sending} aria-label="Enviar">
-            {sending ? (
-              <span className="ia-spinner" />
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 19V5M5 12l7-7 7 7" />
-              </svg>
-            )}
+          <button type="submit" className="nv-send nv-glass is-green nv-press" disabled={!input.trim() || sending} aria-label="Enviar">
+            <NvIcon name="send" size={22} tone="white" />
           </button>
+        </form>
+      </div>
+
+      <NvSheet open={historyOpen} onClose={() => setHistoryOpen(false)} title="Conversaciones">
+        <button type="button" className="nv-btn nv-glass is-green nv-press nv-block" onClick={newChat}>
+          <NvIcon name="plus" size={18} tone="white" /> Nueva conversación
+        </button>
+        <div className="nv-list">
+          {chats.length === 0 ? <p className="nv-sub">Todavía no hay conversaciones.</p> : null}
+          {chats.map((c) => (
+            <div key={c.id} className={`nv-list-item nv-glass is-thin ${c.id === chat?.id ? "is-on" : ""}`}>
+              <button type="button" className="nv-list-main nv-press" onClick={() => void openChat(c.id)}>
+                <span className="nv-list-title">{c.title}</span>
+                {c.lastMessageSnippet ? <span className="nv-list-sub">{c.lastMessageSnippet}</span> : null}
+              </button>
+              <button type="button" className="nv-icon-btn nv-press" aria-label="Borrar conversación" onClick={() => void deleteChat(c.id)}>
+                <NvIcon name="trash" size={22} />
+              </button>
+            </div>
+          ))}
         </div>
-      </footer>
+      </NvSheet>
     </div>
   );
 }

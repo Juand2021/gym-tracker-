@@ -17,12 +17,6 @@ const links = [
   { href: "/ia", label: "IA", short: "IA" },
 ];
 
-/** Pestañas de la app de Comidas (la Fase de frontend dedicada las ampliará). */
-const comidasLinks = [
-  { href: "/comidas", label: "Hoy", short: "Hoy" },
-  { href: "/comidas/chat", label: "Chat", short: "Chat" },
-];
-
 export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -58,6 +52,8 @@ export function AppNav() {
   if (pathname === "/login") return null;
 
   const currentApp = appFromPath(pathname);
+  // NutriVerse dibuja su propio encabezado y pestañas (src/components/nutriverse/NvShell.tsx).
+  if (currentApp === "comidas") return null;
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -74,10 +70,10 @@ export function AppNav() {
 
           {/* Cápsula de vidrio con descanso, perfil y salida */}
           <div className="hd-cluster">
-            {currentApp === "fuerza" ? <RestTimerButton /> : null}
+            <RestTimerButton />
             {displayName ? (
               <>
-                {currentApp === "fuerza" ? <span className="hd-divider" aria-hidden="true" /> : null}
+                <span className="hd-divider" aria-hidden="true" />
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(true)}
@@ -125,7 +121,7 @@ export function AppNav() {
         displayName={displayName}
       />
 
-      <LiquidTabBar links={currentApp === "comidas" ? comidasLinks : links} />
+      <LiquidTabBar links={links} />
     </>
   );
 }

@@ -8,7 +8,7 @@ export type AppId = "fuerza" | "comidas";
 
 export const APPS: Record<AppId, { name: string; home: string; tagline: string }> = {
   fuerza: { name: "FUERZA", home: "/", tagline: "Entreno y progreso" },
-  comidas: { name: "COMIDAS", home: "/comidas", tagline: "Comida saludable" },
+  comidas: { name: "NutriVerse", home: "/comidas", tagline: "Nutrición y comidas" },
 };
 
 export function appFromPath(pathname: string): AppId {
@@ -37,7 +37,7 @@ function AppIcon({ app }: { app: AppId }) {
 
 /**
  * Logo de la app actual. Si el perfil tiene más de una app, al tocarlo se abre
- * un menú para cambiar entre Fuerza y Comidas (apps distintas que comparten sesión).
+ * un menú para cambiar entre Fuerza y NutriVerse (apps distintas que comparten sesión).
  */
 export function AppSwitcher({ current, available }: { current: AppId; available: AppId[] }) {
   const [open, setOpen] = useState(false);

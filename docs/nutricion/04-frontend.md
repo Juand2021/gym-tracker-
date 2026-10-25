@@ -1,6 +1,6 @@
 # Fase 4 — Frontend de Nutriverse (v2: Liquid Glass plateado)
 
-> Fecha: 2026-10-25 · Estado: **plan v2 con decisiones de Juan (§11); pendiente su visto bueno para empezar la etapa 4a**
+> Fecha: 2026-10-25 · Estado: **frontend implementado (§12), pendiente de revisión de Juan en su iPhone**
 > Reemplaza el plan v1 del mismo día. Base: las 3 imágenes de identidad que hizo Juan (`docs/nutricion/referencias/`) y `03-arquitectura.md`.
 
 ## 1. La visión (en palabras de Juan)
@@ -198,3 +198,28 @@ Después: **Fase 6 · Validación** (1–2 semanas de uso real).
 3. **Perfil**: **nivel + puntos + logros** (puntos por registrar y por cumplir; sin castigos).
 4. **Foto**: **avatar de vidrio con la inicial** (sin subir fotos).
 5. **Ubicación**: no se muestra (no se pide permiso de ubicación).
+
+## 12. Implementación (2026-10-25)
+
+Juan pidió implementar todo el frontend y dejar el fondo WebGL para después.
+
+**Hecho**
+- Rutas (`src/app/comidas/`): Inicio (`/comidas`), Estadísticas, Planes, Perfil, Chat (hoja a pantalla completa desde el "+"), detalle de comida (`/comidas/comida/[id]`) y Bienvenida (sale una vez si el perfil está incompleto).
+- `layout.tsx` carga la fuente Outfit y `nutriverse.css`. Todos los estilos van dentro de `.nv-root` / `html:has(.nv-root)`, así que no tocan Fuerza. La barra y el aviso de instalación de Fuerza no aparecen en NutriVerse.
+- Motor de vidrio, capa 1 en CSS: 3 grosores, borde de luz con tinte cromático, brillo especular, grano, sombras, vidrio verde y presión tipo gelatina. Para rendir, el vidrio anidado no vuelve a desenfocar.
+- Movimiento (`components/nutriverse/glass/motion.ts`): resortes propios que escriben directo en el DOM (aguja, lente de pestañas, píldora del selector, hojas, números que cuentan, líquidos). Se respetan "reducir movimiento", "reducir transparencia" y el interruptor propio del Perfil.
+- Componentes en `components/nutriverse/`:
+  - `NvShell`: fondo, encabezado con cambio de app y avatar, y barra con lente arrastrable que se estira con la velocidad.
+  - `NvGauge`: velocímetro por fase con aguja de vidrio, zonas, franja de alcohol y mini velocímetro.
+  - `NvCharts`: tubos de macros, agua, anillo, barras con límite y fiestas, línea de peso con tendencia, dona y progreso.
+  - `NvUi`: hoja que se arrastra, selector segmentado y cápsulas.
+  - `NvCards`: borrador, plan, comparación y objetivos.
+  - `NvIcon`: 38 íconos SVG en capas.
+  - `NvBubble`: burbujas de comida dibujadas.
+  - `NvLogo`.
+- Fondo provisional en CSS: ondas plateadas lentas, gotas y hojas desenfocadas.
+
+**Pendiente**
+- Capa 0 (fondo WebGL) y capa 2 (lentes con refracción real), que Juan dejó para después.
+- Imágenes de `04b-ficha-recursos.md`: copiarlas a `public/nutriverse/` y agregar su nombre a `NV_ASSETS` en `NvBubble.tsx`.
+- Pruebas en iPhone real: fluidez, batería y legibilidad al sol.
