@@ -9,7 +9,7 @@ import { getNutritionAiClient, structuredCompletion } from "../../src/lib/nutrit
 
 const RAW = ".data/nutrition-raw";
 const CACHE = `${RAW}/names_cache.json`;
-const BATCH = 60;
+const BATCH = Number(process.env.NUTRI_BATCH ?? 60);
 const CONCURRENCY = 6;
 
 type Cache = Record<string, { es?: string; en?: string; aliases: string[] }>;
