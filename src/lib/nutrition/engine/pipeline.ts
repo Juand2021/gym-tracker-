@@ -3,6 +3,7 @@ import { ZERO, round, scale, sum, validateItem, type Warning } from "./compute.t
 import type { FoodDb } from "./db.ts";
 import { resolveGrams, type GramsBasis } from "./portions.ts";
 import { searchFoods, type SearchHit } from "./search.ts";
+import { normalize } from "./text.ts";
 import type { CoreFood, FoodRecord, Nutrients, PortionUnit } from "./types.ts";
 
 /** Un ítem tal como lo entiende el lector (LLM o reglas), antes de buscarlo en la base. */
@@ -104,8 +105,11 @@ export async function analyzeMeal(text: string, deps: PipelineDeps): Promise<Mea
 
   for (const it of parsed) {
     const { record, core } = await matchRecord(it, deps);
+    // "con patacones" (plural, sin cantidad) = una porción, no una unidad.
+    const plural = /s$/.test(normalize(it.name).split(" ").pop() ?? "");
+    const unit = !it.unit && it.quantity == null && !it.grams && plural && core?.portions.some((p) => p.unit === "porcion") ? "porcion" : it.unit;
     const portion = resolveGrams(
-      { grams: it.grams, gramsFrom: it.grams_from ?? "said", quantity: it.quantity, unit: it.unit, size: it.size, llmGrams: it.llm_grams },
+      { grams: it.grams, gramsFrom: it.grams_from ?? "said", quantity: it.quantity, unit, size: it.size, llmGrams: it.llm_grams },
       core,
       record ?? undefined,
     );

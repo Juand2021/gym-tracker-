@@ -97,7 +97,7 @@ Recibes lo que comió, escrito como habla (español de Colombia), y lo separas e
 
 Reglas:
 1. Un ítem por alimento o bebida. No inventes alimentos que no dijo.
-2. core_key: usa la clave del catálogo si el alimento corresponde (aunque lo diga distinto). Si nada encaja, null y escribe name_en al estilo USDA (ej. "Chicken thigh, fried") y llm_grams con tu mejor estimado.
+2. core_key: usa la clave del catálogo solo si es EL MISMO alimento (aunque lo diga distinto: "pola" = cerveza, "tajadas" = maduro_frito). Si solo se parece, NO uses la clave: una ensalada césar no es "ensalada" de repollo, un shawarma no es sobrebarriga, un croissant no es pan_blanco. En ese caso core_key = null, name en español claro, name_en al estilo USDA (ej. "Caesar salad", "Gyro sandwich") y llm_grams = gramos totales de lo que comió (ej. un rollo de sushi ≈ 220 g, un croissant ≈ 60 g).
 3. Cantidades:
    - grams solo si la persona dijo gramos o ml (1 ml = 1 g). Entonces quantity y unit = null.
    - Si no dijo gramos: quantity + unit (unidades del catálogo: unidad, porcion, plato, vaso, pocillo, cucharada, tajada, presa, botella, trago, media…). No conviertas tú a gramos; el código lo hace. grams = null.
@@ -149,11 +149,15 @@ export function makeLlmParser(ai: AiClient): MealParser {
     // Protección: solo platos que la persona nombró de verdad, y cada uno una sola vez.
     const said = normalize(text);
     const seen = new Set<string>();
+    // Un combo que la persona no nombró no se expande: queda como alimento a buscar en la base
+    // (así no se inventan platos, pero tampoco se pierde lo que sí comió, p. ej. "latte").
+    const unnamed: ParsedItem[] = [];
     const dishes = res.combos.filter((d) => {
       const dish = DISH_TEMPLATES.find((t) => t.key === d.dish_key);
       if (!dish || seen.has(d.dish_key)) return false;
+      seen.add(d.dish_key);
       const named = [dish.key.replace(/_/g, " "), ...dish.aliases].some((a) => said.includes(normalize(a)));
-      if (named) seen.add(d.dish_key);
+      if (!named) unnamed.push({ name: dish.name, core_key: null, quantity: d.quantity, confidence: 0.5 });
       return named;
     });
     const fromDishes = dishes.flatMap((d) =>
@@ -165,6 +169,6 @@ export function makeLlmParser(ai: AiClient): MealParser {
       }),
     );
     const items = res.items.map((it) => ({ ...it, grams_from: "said" as const, confidence: Math.max(0, Math.min(1, it.confidence ?? 0.7)) }));
-    return [...fromDishes, ...items];
+    return [...fromDishes, ...items, ...unnamed];
   };
 }

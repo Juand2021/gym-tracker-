@@ -84,6 +84,12 @@ export function resolveGrams(req: PortionRequest, core?: CoreFood, record?: Food
     }
   }
 
+  // Fuera del núcleo, el estimado de la IA conoce el plato ("un rollo de sushi") mejor que
+  // la pieza genérica del USDA ("1 piece" = 30 g).
+  if (!core && req.llmGrams && req.llmGrams > 0 && (!unit || unit === "unidad" || unit === "porcion" || unit === "plato")) {
+    return { grams: r(req.llmGrams), basis: "llm", note: "Cantidad estimada por la IA" };
+  }
+
   if (record && (unit || req.quantity)) {
     const usda = unit
       ? record.portions.find((p) => p.unit === unit)

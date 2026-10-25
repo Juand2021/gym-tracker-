@@ -150,7 +150,7 @@ export const CORE_FOODS: CoreFood[] = [
     name: "Avena en hojuelas (seca)",
     aliases: ["avena", "avena en hojuelas", "avena quaker", "hojuelas de avena"],
     ref: "TCAC-14",
-    defaultUnit: "cucharada",
+    defaultUnit: "porcion",
     portions: [p("cucharada", 6, "GABA"), p("porcion", 40), p("taza", 80)],
     category: "cereal",
   },
