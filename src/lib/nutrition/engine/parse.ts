@@ -19,9 +19,9 @@ const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type:
 export const PARSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["dishes", "items"],
+  required: ["combos", "items"],
   properties: {
-    dishes: {
+    combos: {
       type: "array",
       items: {
         type: "object",
@@ -104,13 +104,16 @@ Reglas:
    - "media de aguardiente" = quantity 1, unit "media". "media taza" = quantity 0.5, unit "taza". "2 huevos" = quantity 2, unit "unidad".
    - Si NO dijo cantidad ("con aguacate", "arroz con frijoles"), deja quantity = null y unit = null: el código usa la porción típica colombiana. No pongas "1 unidad" por tu cuenta.
    - size: pequeno/mediano/grande solo si lo dijo (o "poquito" = pequeno, "harto" = grande).
-4. "dishes" va VACÍO ([]) salvo que la persona nombre uno de los platos de la lista con su nombre (corrientazo, almuerzo corriente, calentado, salchipapa, milo en leche…). Nunca agregues un plato que no dijo. Si lo nombra, NO lo descompongas tú. Ponlos en "dishes" con su dish_key; el código agrega los componentes de la plantilla (incluidos los opcionales).
+4. "combos" son SOLO estas plantillas: ${DISH_TEMPLATES.map((d) => `${d.key} ("${d.aliases[0]}")`).join(", ")}.
+   - combos va VACÍO ([]) salvo que la persona nombre uno de esos combos. Nunca agregues un combo que no dijo.
+   - Ajiaco, sancocho, tamal, mute, lechona, sopa, sándwich, hamburguesa, pizza, empanada… NO son combos: son alimentos del catálogo y van en "items" con su core_key.
+   - Si nombra un combo, NO lo descompongas tú. Ponlo en "combos" con su dish_key; el código agrega los componentes de la plantilla (incluidos los opcionales).
    - swaps: si cambia un componente ("corrientazo de cerdo" → slot proteina = cerdo_asado; "con lentejas" → principio = lentejas; "jugo de lulo" sigue siendo jugo_fruta_agua).
    - omit: componentes que dijo que no hubo ("sin sopa" → sopa; "jugo sin azúcar" → azucar_jugo).
    - grams_said: solo si dio gramos de un componente.
    - quantity: número de platos (null = 1).
    - Lo que pidió aparte del plato (una gaseosa extra, un postre) va en "items".
-   - Si la persona enumera todos los ingredientes con sus gramos, ponlos como ítems normales y no uses "dishes".
+   - Si la persona enumera todos los ingredientes con sus gramos, ponlos como ítems normales y no uses "combos".
 5. method: solo si lo dijo o el nombre lo implica (frito, apanado, salteado, asado, plancha, sudado…). NO agregues aceite como ítem aparte: el código lo suma según el método. Sí agrega salsas, aderezos, azúcar o aceite si la persona los menciona.
 6. "sin azúcar", "sin X": no incluyas X.
 7. confidence 0–1: qué tan seguro estás del alimento y la cantidad. assumption: frase corta en español simple si supusiste algo importante (ej. "Supuse arroz blanco"), o null.
@@ -118,7 +121,7 @@ Reglas:
 Catálogo de alimentos (clave: nombre | cómo lo dicen | porciones):
 ${coreCatalog()}
 
-Platos (componentes con gramos por defecto):
+Combos (componentes con gramos por defecto):
 ${dishCatalog()}`;
 
 type RawItem = Omit<ParsedItem, "core_key"> & { core_key: string | null };
@@ -133,7 +136,7 @@ type RawDish = {
 export function makeLlmParser(ai: AiClient): MealParser {
   return async (text) => {
     const ask = () =>
-      structuredCompletion<{ dishes: RawDish[]; items: RawItem[] }>(ai, {
+      structuredCompletion<{ combos: RawDish[]; items: RawItem[] }>(ai, {
         system: PARSE_SYSTEM,
         user: text,
         schemaName: "meal_items",
@@ -142,11 +145,11 @@ export function makeLlmParser(ai: AiClient): MealParser {
       });
     let res = await ask();
     // A veces el modelo devuelve todo vacío: se reintenta una vez.
-    if (!res.items.length && !res.dishes.length && text.trim()) res = await ask();
+    if (!res.items.length && !res.combos.length && text.trim()) res = await ask();
     // Protección: solo platos que la persona nombró de verdad, y cada uno una sola vez.
     const said = normalize(text);
     const seen = new Set<string>();
-    const dishes = res.dishes.filter((d) => {
+    const dishes = res.combos.filter((d) => {
       const dish = DISH_TEMPLATES.find((t) => t.key === d.dish_key);
       if (!dish || seen.has(d.dish_key)) return false;
       const named = [dish.key.replace(/_/g, " "), ...dish.aliases].some((a) => said.includes(normalize(a)));
