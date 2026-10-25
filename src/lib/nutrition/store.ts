@@ -1,0 +1,203 @@
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import type { MealItemResult } from "./engine/pipeline.ts";
+import type { Nutrients } from "./engine/types.ts";
+import { JUAN_DEFAULT_PROFILE, type NutritionProfile } from "./profile.ts";
+
+/**
+ * Datos de Comidas (docs/nutricion/03-arquitectura.md §3): perfil, comidas, borradores y medidas.
+ * Dos implementaciones con la misma interfaz: archivo local (.data/, sin Firebase) y Firestore.
+ */
+
+export type MealMoment = "desayuno" | "almuerzo" | "cena" | "snack" | "fiesta";
+
+export type MealTotals = Pick<Nutrients, "kcal" | "protein_g" | "fat_g" | "carb_g" | "fiber_g" | "alcohol_g">;
+
+export type StoredItem = Omit<MealItemResult, "nutrients" | "warnings"> & { nutrients: MealTotals };
+
+export type Meal = {
+  id: string;
+  date: string;
+  time: string;
+  moment: MealMoment;
+  text: string;
+  items: StoredItem[];
+  totals: MealTotals;
+  engineVersion: string;
+  chatThreadId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MealDraft = Omit<Meal, "updatedAt"> & {
+  /** Turno del chat en que se creó: no se puede guardar en ese mismo turno. */
+  turnId: string;
+  /** Si corrige una comida ya guardada, su id. */
+  replacesMealId: string | null;
+  expiresAt: string;
+};
+
+export type BodyMeasurement = { id: string; date: string; waistCm: number | null; neckCm: number | null; bicepsCm: number | null; thighCm: number | null; notes: string };
+
+export interface NutritionStore {
+  getProfile(): Promise<NutritionProfile>;
+  saveProfile(p: NutritionProfile): Promise<void>;
+  listMeals(fromDate: string, toDate: string): Promise<Meal[]>;
+  getMeal(id: string): Promise<Meal | null>;
+  saveMeal(m: Meal): Promise<void>;
+  deleteMeal(id: string): Promise<void>;
+  getDraft(id: string): Promise<MealDraft | null>;
+  /** Borradores vigentes de un hilo de chat, el más reciente primero. */
+  listDrafts(chatThreadId: string | null): Promise<MealDraft[]>;
+  saveDraft(d: MealDraft): Promise<void>;
+  deleteDraft(id: string): Promise<void>;
+  listMeasurements(): Promise<BodyMeasurement[]>;
+  saveMeasurement(m: BodyMeasurement): Promise<void>;
+}
+
+export const newId = () => randomUUID();
+
+const DRAFT_TTL_MS = 24 * 3600 * 1000;
+export const draftExpiry = (now = Date.now()) => new Date(now + DRAFT_TTL_MS).toISOString();
+const alive = (d: MealDraft) => d.expiresAt > new Date().toISOString();
+
+// ───────── Archivo local ─────────
+
+type LocalData = { profile: NutritionProfile | null; meals: Meal[]; drafts: MealDraft[]; measurements: BodyMeasurement[] };
+
+export function createLocalStore(file = path.join(process.cwd(), ".data", "nutrition-store.json")): NutritionStore {
+  const read = (): LocalData => {
+    if (!existsSync(file)) return { profile: null, meals: [], drafts: [], measurements: [] };
+    try {
+      return { profile: null, meals: [], drafts: [], measurements: [], ...(JSON.parse(readFileSync(file, "utf8")) as Partial<LocalData>) };
+    } catch {
+      return { profile: null, meals: [], drafts: [], measurements: [] };
+    }
+  };
+  const write = (data: LocalData) => {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
+  };
+  const update = (fn: (d: LocalData) => void) => {
+    const d = read();
+    fn(d);
+    write(d);
+  };
+  return {
+    async getProfile() {
+      return read().profile ?? JUAN_DEFAULT_PROFILE;
+    },
+    async saveProfile(p) {
+      update((d) => void (d.profile = p));
+    },
+    async listMeals(from, to) {
+      return read().meals.filter((m) => m.date >= from && m.date <= to).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    },
+    async getMeal(id) {
+      return read().meals.find((m) => m.id === id) ?? null;
+    },
+    async saveMeal(m) {
+      update((d) => void (d.meals = [...d.meals.filter((x) => x.id !== m.id), m]));
+    },
+    async deleteMeal(id) {
+      update((d) => void (d.meals = d.meals.filter((x) => x.id !== id)));
+    },
+    async getDraft(id) {
+      const d = read().drafts.find((x) => x.id === id);
+      return d && alive(d) ? d : null;
+    },
+    async listDrafts(threadId) {
+      return read()
+        .drafts.filter((d) => alive(d) && d.chatThreadId === threadId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async saveDraft(draft) {
+      update((d) => void (d.drafts = [...d.drafts.filter((x) => x.id !== draft.id && alive(x)), draft]));
+    },
+    async deleteDraft(id) {
+      update((d) => void (d.drafts = d.drafts.filter((x) => x.id !== id)));
+    },
+    async listMeasurements() {
+      return read().measurements.sort((a, b) => a.date.localeCompare(b.date));
+    },
+    async saveMeasurement(m) {
+      update((d) => void (d.measurements = [...d.measurements.filter((x) => x.id !== m.id), m]));
+    },
+  };
+}
+
+// ───────── Firestore ─────────
+
+type FirestoreLike = {
+  collection(name: string): {
+    doc(id: string): { get(): Promise<{ exists: boolean; data(): unknown }>; set(data: unknown): Promise<unknown>; delete(): Promise<unknown> };
+    where(field: string, op: string, value: unknown): FirestoreQuery;
+  };
+};
+type FirestoreQuery = {
+  where(field: string, op: string, value: unknown): FirestoreQuery;
+  get(): Promise<{ docs: { data(): unknown }[] }>;
+};
+
+/** Colecciones en la raíz para Juan (como workouts/bodyWeight). */
+export function createFirestoreStore(db: FirestoreLike): NutritionStore {
+  const col = (name: string) => db.collection(name);
+  const get = async <T>(name: string, id: string) => {
+    const snap = await col(name).doc(id).get();
+    return snap.exists ? (snap.data() as T) : null;
+  };
+  return {
+    async getProfile() {
+      return (await get<NutritionProfile>("profile", "main")) ?? JUAN_DEFAULT_PROFILE;
+    },
+    async saveProfile(p) {
+      await col("profile").doc("main").set(p);
+    },
+    async listMeals(from, to) {
+      const snap = await col("meals").where("date", ">=", from).where("date", "<=", to).get();
+      return snap.docs.map((d) => d.data() as Meal).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    },
+    async getMeal(id) {
+      return get<Meal>("meals", id);
+    },
+    async saveMeal(m) {
+      await col("meals").doc(m.id).set(m);
+    },
+    async deleteMeal(id) {
+      await col("meals").doc(id).delete();
+    },
+    async getDraft(id) {
+      const d = await get<MealDraft>("mealDrafts", id);
+      return d && alive(d) ? d : null;
+    },
+    async listDrafts(threadId) {
+      const snap = await col("mealDrafts").where("chatThreadId", "==", threadId).get();
+      return snap.docs
+        .map((d) => d.data() as MealDraft)
+        .filter(alive)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async saveDraft(d) {
+      await col("mealDrafts").doc(d.id).set(d);
+    },
+    async deleteDraft(id) {
+      await col("mealDrafts").doc(id).delete();
+    },
+    async listMeasurements() {
+      const snap = await col("bodyMeasurements").where("date", ">=", "0000").get();
+      return snap.docs.map((d) => d.data() as BodyMeasurement).sort((a, b) => a.date.localeCompare(b.date));
+    },
+    async saveMeasurement(m) {
+      await col("bodyMeasurements").doc(m.id).set(m);
+    },
+  };
+}
+
+/** Suma de nutrientes de una lista de comidas. */
+export function sumTotals(meals: { totals: MealTotals }[]): MealTotals {
+  const out: MealTotals = { kcal: 0, protein_g: 0, fat_g: 0, carb_g: 0, fiber_g: 0, alcohol_g: 0 };
+  for (const m of meals) for (const k of Object.keys(out) as (keyof MealTotals)[]) out[k] += m.totals[k] ?? 0;
+  for (const k of Object.keys(out) as (keyof MealTotals)[]) out[k] = k === "kcal" ? Math.round(out[k]) : Math.round(out[k] * 10) / 10;
+  return out;
+}
