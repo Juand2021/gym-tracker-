@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { MealItemResult } from "./engine/pipeline.ts";
 import type { Nutrients } from "./engine/types.ts";
+import type { ChatCard } from "./cards.ts";
 import { EMPTY_PROFILE, type NutritionProfile } from "./profile.ts";
 
 /**
@@ -40,7 +41,7 @@ export type MealDraft = Omit<Meal, "updatedAt"> & {
 };
 
 /** Conversación del chat de la app de Comidas (aparte de los chats del Coach de Fuerza). */
-export type ComidasChatMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
+export type ComidasChatMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string; cards?: ChatCard[] };
 export type ComidasChat = { id: string; title: string; messages: ComidasChatMessage[]; createdAt: string; updatedAt: string };
 
 export type BodyMeasurement = { id: string; date: string; waistCm: number | null; neckCm: number | null; hipCm?: number | null; bicepsCm: number | null; thighCm: number | null; notes: string };
@@ -60,6 +61,9 @@ export interface NutritionStore {
   deleteDraft(id: string): Promise<void>;
   listMeasurements(): Promise<BodyMeasurement[]>;
   saveMeasurement(m: BodyMeasurement): Promise<void>;
+  /** Agua bebida en un día (ml). */
+  getWater(date: string): Promise<number>;
+  setWater(date: string, ml: number): Promise<void>;
   listChats(): Promise<ComidasChat[]>;
   getChat(id: string): Promise<ComidasChat | null>;
   saveChat(c: ComidasChat): Promise<void>;
@@ -82,8 +86,8 @@ export function normalizeProfile(stored: unknown): NutritionProfile | null {
 
 // ───────── Archivo local ─────────
 
-type LocalData = { profile: NutritionProfile | null; meals: Meal[]; drafts: MealDraft[]; measurements: BodyMeasurement[]; chats: ComidasChat[] };
-const emptyLocal = (): LocalData => ({ profile: null, meals: [], drafts: [], measurements: [], chats: [] });
+type LocalData = { profile: NutritionProfile | null; meals: Meal[]; drafts: MealDraft[]; measurements: BodyMeasurement[]; chats: ComidasChat[]; water: Record<string, number> };
+const emptyLocal = (): LocalData => ({ profile: null, meals: [], drafts: [], measurements: [], chats: [], water: {} });
 
 export function createLocalStore(file = path.join(process.cwd(), ".data", "nutrition-store.json")): NutritionStore {
   const read = (): LocalData => {
@@ -142,6 +146,12 @@ export function createLocalStore(file = path.join(process.cwd(), ".data", "nutri
     },
     async saveMeasurement(m) {
       update((d) => void (d.measurements = [...d.measurements.filter((x) => x.id !== m.id), m]));
+    },
+    async getWater(date) {
+      return read().water[date] ?? 0;
+    },
+    async setWater(date, ml) {
+      update((d) => void (d.water[date] = Math.max(0, Math.round(ml))));
     },
     async listChats() {
       return read().chats.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -218,6 +228,12 @@ export function createFirestoreStore(col: (name: string) => CollectionLike): Nut
     },
     async saveMeasurement(m) {
       await col("bodyMeasurements").doc(m.id).set(m);
+    },
+    async getWater(date) {
+      return (await get<{ ml: number }>("water", date))?.ml ?? 0;
+    },
+    async setWater(date, ml) {
+      await col("water").doc(date).set({ date, ml: Math.max(0, Math.round(ml)) });
     },
     async listChats() {
       const snap = await col("comidasChats").where("updatedAt", ">=", "0000").get();

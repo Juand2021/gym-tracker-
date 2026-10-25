@@ -4,6 +4,7 @@ import type { Profile } from "@/lib/profiles";
 import { getNutritionAiClient, type AiClient } from "./ai-client.ts";
 import { NUTRITION_PROMPT, NUTRITION_TOOLS, buildNutritionContext, runNutritionTool, type ToolContext } from "./chat-tools.ts";
 import { getNutritionStore, makeToolContext } from "./server.ts";
+import { cardFromTool, type ChatCard } from "./cards.ts";
 import type { ComidasChat, ComidasChatMessage } from "./store.ts";
 
 /**
@@ -25,8 +26,11 @@ const titleFrom = (text: string) => {
   return clean.length <= 36 ? clean.charAt(0).toUpperCase() + clean.slice(1) : `${clean.split(/\s+/).slice(0, 5).join(" ")}...`;
 };
 
-/** Modelo + herramientas, máximo 5 rondas. */
-async function runWithTools(ai: AiClient, messages: ChatMsg[], toolCtx: ToolContext): Promise<string> {
+type ToolEvent = { name: string; args: Record<string, unknown>; result: Record<string, unknown> };
+
+/** Modelo + herramientas, máximo 5 rondas. Devuelve el texto y lo que hicieron las herramientas. */
+async function runWithTools(ai: AiClient, messages: ChatMsg[], toolCtx: ToolContext): Promise<{ reply: string; events: ToolEvent[] }> {
+  const events: ToolEvent[] = [];
   for (let round = 0; round < 5; round++) {
     const completion = await ai.client.chat.completions.create({
       model: ai.model,
@@ -38,19 +42,32 @@ async function runWithTools(ai: AiClient, messages: ChatMsg[], toolCtx: ToolCont
     const msg = completion.choices[0]?.message;
     if (!msg) break;
     const calls = msg.tool_calls?.filter((c) => c.type === "function") ?? [];
-    if (!calls.length) return msg.content?.trim() || "No pude generar una respuesta en este momento.";
+    if (!calls.length) return { reply: msg.content?.trim() || "No pude generar una respuesta en este momento.", events };
     messages.push({ role: "assistant", content: msg.content ?? "", tool_calls: calls });
     for (const call of calls) {
       let result: Record<string, unknown>;
+      let args: Record<string, unknown> = {};
       try {
-        result = await runNutritionTool(call.function.name, JSON.parse(call.function.arguments || "{}"), toolCtx);
+        args = JSON.parse(call.function.arguments || "{}");
+        result = await runNutritionTool(call.function.name, args, toolCtx);
       } catch (err) {
         result = { error: err instanceof Error ? err.message : "Error en la herramienta" };
       }
+      events.push({ name: call.function.name, args, result });
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
     }
   }
-  return "No pude terminar de procesar eso. ¿Me lo repites?";
+  return { reply: "No pude terminar de procesar eso. ¿Me lo repites?", events };
+}
+
+/** Actualiza el estado de las tarjetas de borrador ya mostradas (guardado / descartado). */
+function settleDraftCards(chat: ComidasChat, events: ToolEvent[]) {
+  for (const e of events) {
+    const id = String(e.args.borrador_id ?? "");
+    const status = e.name === "guardar_comida" && e.result.guardada ? "saved" : e.name === "descartar_borrador" && e.result.descartado ? "discarded" : null;
+    if (!id || !status) continue;
+    for (const m of chat.messages) for (const c of m.cards ?? []) if (c.type === "draft" && c.draftId === id) c.status = status;
+  }
 }
 
 export class ComidasChatError extends Error {
@@ -62,7 +79,7 @@ export class ComidasChatError extends Error {
   }
 }
 
-/** Agrega el mensaje de Juan, responde y guarda la conversación. */
+/** Agrega el mensaje de la persona, responde y guarda la conversación. */
 export async function sendComidasMessage(profile: Profile, chatId: string | null, text: string): Promise<ComidasChat> {
   const ai = getNutritionAiClient();
   if (!ai) throw new ComidasChatError("IA no configurada: faltan las variables de Azure OpenAI.", 503);
@@ -84,9 +101,19 @@ export async function sendComidasMessage(profile: Profile, chatId: string | null
     { role: "system", content: `${systemFor(profile.displayName)}\n\n---\n${context}` },
     ...chat.messages.slice(-14).map((m) => ({ role: m.role, content: m.content }) as ChatMsg),
   ];
-  const reply = await runWithTools(ai, messages, toolCtx);
+  const { reply, events } = await runWithTools(ai, messages, toolCtx);
+  settleDraftCards(chat, events);
+  // Una tarjeta por borrador (la última versión si se corrigió en el mismo turno) y una por tipo para lo demás.
+  const cards: ChatCard[] = [];
+  for (const e of events) {
+    const card = cardFromTool(e.name, e.result);
+    if (!card) continue;
+    const same = cards.findIndex((c) => c.type === card.type && (c.type !== "draft" || (card.type === "draft" && c.draftId === card.draftId)));
+    if (same >= 0) cards[same] = card;
+    else cards.push(card);
+  }
 
-  chat.messages.push({ id: randomUUID(), role: "assistant", content: reply, createdAt: now() });
+  chat.messages.push({ id: randomUUID(), role: "assistant", content: reply, createdAt: now(), ...(cards.length ? { cards } : {}) });
   chat.updatedAt = now();
   await store.saveChat(chat);
   return chat;
