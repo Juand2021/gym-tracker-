@@ -223,3 +223,16 @@ Juan pidió implementar todo el frontend y dejar el fondo WebGL para después.
 - Capa 0 (fondo WebGL) y capa 2 (lentes con refracción real), que Juan dejó para después.
 - Imágenes de `04b-ficha-recursos.md`: copiarlas a `public/nutriverse/` y agregar su nombre a `NV_ASSETS` en `NvBubble.tsx`.
 - Pruebas en iPhone real: fluidez, batería y legibilidad al sol.
+
+## 13. Verla en el iPhone (red Wi-Fi)
+
+Se corre en el computador, con el iPhone en el mismo Wi-Fi:
+- `npm run iphone`: compila y arranca en **modo producción**. Es igual de fluida que la app real; úsala para revisar.
+- `npm run dev:iphone`: **modo desarrollo**. Los cambios del código se ven al instante, pero va más lenta.
+
+La terminal muestra la dirección, por ejemplo `http://192.168.1.20:3000/comidas`. Se abre en Safari y se usa **Compartir → Agregar a inicio** para tenerla como app con su ícono (manifiesto `/nutriverse.webmanifest`).
+
+Ajustes que lo hacen posible:
+- `allowedDevOrigins` en `next.config.ts`: sin él, Next bloquea los archivos de desarrollo pedidos desde otra IP.
+- `devIndicators: false`.
+- La cookie de sesión lleva `Secure` solo cuando la conexión es HTTPS (`isSecureRequest` en `src/lib/auth.ts`); en Vercel la conexión siempre es HTTPS.

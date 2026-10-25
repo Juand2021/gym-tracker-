@@ -7,6 +7,11 @@ import "./nutriverse.css";
 export const metadata: Metadata = {
   title: "NutriVerse",
   description: "Registra lo que comes hablando y mantén tu objetivo.",
+  manifest: "/nutriverse.webmanifest",
+  icons: {
+    icon: [{ url: "/nutriverse/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/nutriverse/icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "NutriVerse" },
 };
 

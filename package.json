@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:iphone": "node scripts/iphone.mjs",
+    "iphone": "node scripts/iphone.mjs --prod",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
