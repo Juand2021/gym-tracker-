@@ -1,6 +1,6 @@
 # Fase 2 — Motor de alimentos y precisión
 
-> Fecha: 2026-10-24 · Estado: **2a cerrada, diseño aprobado → 2b/2c en curso**
+> Fecha: 2026-10-24 (actualizado 2026-10-25) · Estado: **2a cerrada · 2b/2c construidos · falta la corrida con IA**
 > Notas completas con fuentes: `research_notes/Motor de alimentos open source/`
 
 ## 1. Qué aprendimos
@@ -76,3 +76,47 @@ Un mismo plato de restaurante varía **~35 %** en calorías de un lugar a otro (
 - **Set de prueba:** lo genera y revisa Claude; Juan no revisa la muestra.
 - **Diseño del motor aprobado** → se pasa a 2b (set de referencia) y 2c (prototipo + banco de pruebas).
 - Datos crudos descargados en `.data/nutrition-raw/` (ignorado por git).
+
+## 6. Lo construido (2b/2c, 2026-10-25)
+
+| Pieza | Archivo | Qué hace |
+|---|---|---|
+| Base unificada | `scripts/nutrition/build_db.ts` → `.data/nutrition/foods.json` | TCAC 899 + USDA 13.035 + 17 registros propios del núcleo = **13.951**. Deduce el etanol de las bebidas TCAC. Valida que todas las referencias del núcleo existan |
+| Verificación cruzada | `scripts/nutrition/cross_check.ts` | Núcleo vs USDA (alerta >30 %) y Atwater (±15 %). **Sin alertas** |
+| Texto | `engine/text.ts` | Minúsculas, sin tildes, plurales ("frijoles"→"frijol"), números en palabras ("media", "dos", "1/2") |
+| Búsqueda | `engine/search.ts` | BM25 sobre nombres y sinónimos es/en; prioridad al núcleo y a la TCAC; castiga marcas del USDA y alimentos no listos para comer (crudo, en polvo, mezcla) |
+| Porciones | `engine/portions.ts` | Gramos dichos > plantilla del plato > porción colombiana del núcleo > porción USDA > medida genérica > estimado de la IA |
+| Cálculo | `engine/compute.ts` | Nutrientes × gramos, Atwater, avisos de cantidades imposibles |
+| Lector IA | `engine/parse.ts`, `engine/rerank.ts` | gpt-5-mini con JSON Schema estricto (catálogo del núcleo y platos en el prompt) + elección entre ~25 candidatos. **Escrito, sin probar: faltan las credenciales** |
+| Lector por reglas | `engine/parse-rules.ts` | Sin IA: reconoce sinónimos, cantidades, unidades, tamaños, "sin X", platos y sus componentes. Sirve de **línea base** y de **respaldo** si la IA falla |
+| Pipeline | `engine/pipeline.ts` | Une todo; suma el aceite de cocción (frito 8 g/100 g, apanado 12, salteado 4) si el alimento no lo trae; máximo 1 pregunta por comida |
+| Pruebas | `engine/engine.test.ts` | 25 pruebas `node --test` (en `npm test`) |
+| Set de referencia | `scripts/nutrition/benchmark/meals.ts` | **100 comidas** (20 desayunos, 25 almuerzos, 17 cenas, 15 domicilios, 13 snacks, 10 fiestas), 2 descripciones cada una = 200. ~15 % usan alimentos fuera del núcleo. Las de número múltiplo de 3 son el **set de prueba congelado** (33 comidas, 66 descripciones) |
+| Banco de pruebas | `scripts/nutrition/benchmark.ts` | `--parser rules\|llm --set dev\|test\|all`; reporta % en ±10/±20 %, error medio, sesgo y error de proteína por categoría |
+
+### Correcciones de datos hechas en esta ronda
+- **Cerveza:** la TCAC da 63 kcal/100 ml (alto para 4 %) → USDA 43 kcal (3,9 g de etanol). Una pola de 330 ml: 142 kcal en vez de 208.
+- **Sancocho:** el análisis ICBF usó 450 g de gallina por porción (16,4 g de proteína y solo 2,9 g de carbohidratos por 100 g) → se reemplaza por receta típica de restaurante (plato de 600 g ≈ 606 kcal).
+- Huevos pericos: sin cantidad = 2 huevos (120 g); "3 pericos" = 3 × 60 g.
+- Porciones USDA "cantidad no especificada" (código 90000) ahora se usan como porción típica.
+
+## 7. Rondas del banco de pruebas
+
+Meta: con gramos ≥ 90 % dentro de ±10 % · vaga ≥ 80 % dentro de ±20 %.
+
+| Ronda | Lector | Set | Con gramos (±10 %) | Vaga (±20 %) | Cambios |
+|---|---|---|---|---|---|
+| R1 | reglas | dev | 77,6 % | 80,6 % | Primera medición |
+| R2 | reglas | dev | 86,6 % | 91,0 % | Búsqueda en la base completa para lo que no está en el núcleo; "6 cervezas de 330 ml" = 6 × 330; plurales sin cantidad = porción; sinónimos repetidos unidos; "poquito"/"harto" |
+| R3 | reglas | dev | 86,6 % | 91,0 % | Palabras genéricas dentro de un plato ("salchipapa: papas…, queso…") = sus componentes |
+| R4 | reglas | dev | **92,5 %** ✅ | **91,0 %** ✅ | Porciones USDA bien leídas; castigo a marcas y a "crudo/en polvo/mezcla"; "papas" junto a comida rápida = papas fritas |
+| R4 | reglas | **prueba** | 78,8 % ❌ | 69,7 % ❌ | Corrida única sobre el set congelado |
+
+**Lectura de R4:** el lector por reglas pasa la meta en el set con el que se ajustó, pero **no generaliza**: en el set de prueba falla justo en alimentos que nunca vio (shawarma, chontaduro, sushi, ensalada césar, avena en leche). Esto confirma el diseño: hace falta el lector con IA + la base con nombres en español. No se ajustó nada mirando el set de prueba.
+
+### Embeddings locales: descartados por ahora
+Se probaron 3 modelos multilingües locales (`multilingual-e5-small`, `multilingual-e5-base`, `paraphrase-multilingual-MiniLM-L12-v2`) en 5 casos español→inglés ("almendras" → "Nuts, almonds"; "shawarma" → "Gyro sandwich"…). Acertaron **0/5, 0/5 y 1/5**: prefieren el texto que comparte palabras en el mismo idioma ("almendras" → "Chigua, almendra"). La solución es **traducir los nombres USDA al español** (`enrich_names.ts`, una sola vez con gpt-5-mini) y dejar que el modelo elija entre candidatos. Se puede volver a probar con nombres ya traducidos (español↔español).
+
+### Siguiente ronda (bloqueada por credenciales)
+1. Correr `enrich_names.ts` (traduce 13.035 nombres USDA y agrega sinónimos colombianos a la TCAC) y regenerar `foods.json`.
+2. `benchmark.ts --parser llm --set dev`, iterar el prompt, y una sola corrida final con `--set test`.

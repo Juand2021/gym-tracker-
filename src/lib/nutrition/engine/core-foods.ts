@@ -539,10 +539,10 @@ export const CORE_FOODS: CoreFood[] = [
     aliases: ["huevos revueltos", "huevos pericos", "pericos", "perico", "huevo revuelto", "omelette", "tortilla de huevo"],
     ref: "TCAC-680",
     fatIncluded: true,
-    defaultUnit: "unidad",
+    defaultUnit: "porcion",
     portions: [p("unidad", 60), p("porcion", 120)],
     category: "huevo",
-    sourceNote: "1 huevo revuelto con tomate/cebolla ≈ 60 g; 'unidad' = por huevo.",
+    sourceNote: "1 huevo revuelto con tomate/cebolla ≈ 60 g; 'unidad' = por huevo; porción = 2 huevos.",
   },
 
   // ───────── Lácteos ─────────
@@ -701,9 +701,9 @@ export const CORE_FOODS: CoreFood[] = [
   { key: "arequipe", name: "Arequipe", aliases: ["arequipe", "dulce de leche", "manjar"], ref: "TCAC-706", defaultUnit: "cucharada", portions: [p("cucharada", 20)], category: "azucar" },
   { key: "bocadillo", name: "Bocadillo de guayaba", aliases: ["bocadillo", "bocadillo veleño"], ref: "TCAC-691", defaultUnit: "tajada", portions: [p("tajada", 30, "GABA"), p("unidad", 30)], category: "azucar" },
   { key: "chocolatina", name: "Chocolatina", aliases: ["chocolatina", "chocolate jet", "chocolate de leche"], ref: "TCAC-700", defaultUnit: "unidad", portions: [p("unidad", 25)], category: "snack" },
-  { key: "galletas_dulces", name: "Galletas dulces", aliases: ["galletas", "galleta", "galletas dulces", "festival", "oreo"], ref: "TCAC-33", defaultUnit: "unidad", portions: [p("unidad", 10), p("paquete", 40)], category: "snack" },
-  { key: "galletas_soda", name: "Galletas de soda", aliases: ["galletas de soda", "saltin", "saltinas"], ref: "TCAC-32", defaultUnit: "unidad", portions: [p("unidad", 8, "GABA"), p("paquete", 30)], category: "snack" },
-  { key: "papas_paquete", name: "Papas fritas de paquete", aliases: ["papas de paquete", "margarita", "papitas de paquete", "chips"], ref: "FDC-2709422", defaultUnit: "paquete", portions: [p("paquete", 30), p("punado", 15)], category: "snack" },
+  { key: "galletas_dulces", name: "Galletas dulces", aliases: ["galletas", "galleta", "galletas dulces", "festival", "oreo"], ref: "TCAC-33", defaultUnit: "unidad", portions: [p("unidad", 10), p("paquete", 40), p("porcion", 30)], category: "snack" },
+  { key: "galletas_soda", name: "Galletas de soda", aliases: ["galletas de soda", "saltin", "saltinas"], ref: "TCAC-32", defaultUnit: "unidad", portions: [p("unidad", 8, "GABA"), p("paquete", 30), p("porcion", 30)], category: "snack" },
+  { key: "papas_paquete", name: "Papas fritas de paquete", aliases: ["papas de paquete", "margarita", "papitas de paquete", "chips", "papitas margarita", "papas margarita"], ref: "FDC-2709422", defaultUnit: "paquete", portions: [p("paquete", 30), p("punado", 15)], category: "snack" },
   { key: "mani", name: "Maní tostado", aliases: ["mani", "maní", "manicito"], ref: "TCAC-962", defaultUnit: "punado", portions: [p("punado", 30), p("cucharada", 10, "GABA"), p("paquete", 40)], category: "snack" },
   { key: "helado", name: "Helado de crema", aliases: ["helado", "cono", "helado de crema"], ref: "TCAC-622", defaultUnit: "bola", portions: [p("bola", 70), p("unidad", 100)], category: "snack" },
 
@@ -720,7 +720,7 @@ export const CORE_FOODS: CoreFood[] = [
     category: "bebida",
   },
   { key: "chocolate_bebida", name: "Chocolate en leche y agua (pocillo)", aliases: ["chocolate", "chocolate caliente", "pocillo de chocolate"], ref: "TCAC-908", defaultUnit: "pocillo", portions: [p("pocillo", 240), p("taza", 240)], category: "bebida" },
-  { key: "jugo_fruta_agua", name: "Jugo natural de fruta en agua (sin azúcar)", aliases: ["jugo natural", "jugo en agua", "jugo de mora", "jugo de lulo", "jugo de guayaba", "jugo de maracuya", "jugo de tomate de arbol", "jugo"], ref: "TCAC-663", defaultUnit: "vaso", portions: [p("vaso", 250, "PAE"), p("jarra", 1000)].filter((x) => x.unit !== ("jarra" as never)), category: "bebida" },
+  { key: "jugo_fruta_agua", name: "Jugo natural de fruta en agua (sin azúcar)", aliases: ["jugo natural", "jugo en agua", "jugo de mora", "jugo de lulo", "jugo de guayaba", "jugo de maracuya", "jugo de tomate de arbol", "jugo"], ref: "TCAC-663", defaultUnit: "vaso", portions: [p("vaso", 250, "PAE")], category: "bebida" },
   { key: "jugo_naranja", name: "Jugo de naranja natural", aliases: ["jugo de naranja", "naranjada"], ref: "TCAC-340", defaultUnit: "vaso", portions: [p("vaso", 250)], category: "bebida" },
   { key: "gaseosa", name: "Gaseosa azucarada", aliases: ["gaseosa", "coca cola", "cocacola", "coca-cola", "colombiana", "postobon", "pepsi", "soda"], ref: "TCAC-658", defaultUnit: "botella", portions: [p("vaso", 250), p("lata", 330), p("botella", 400), p("unidad", 400)], category: "bebida" },
   { key: "gaseosa_zero", name: "Gaseosa cero / light", aliases: ["coca cola zero", "gaseosa zero", "gaseosa light", "coca zero"], per100g: n(0, 0, 0, 0, 0, 0, 100), source: "LABEL", defaultUnit: "botella", portions: [p("lata", 330), p("botella", 400)], category: "bebida" },
@@ -729,7 +729,7 @@ export const CORE_FOODS: CoreFood[] = [
   { key: "suero_hidratante", name: "Bebida hidratante (Gatorade/Powerade)", aliases: ["gatorade", "powerade", "suero", "hidratante"], ref: "FDC-2710771", defaultUnit: "botella", portions: [p("botella", 500)], category: "bebida" },
 
   // ───────── Alcohol ─────────
-  { key: "cerveza", name: "Cerveza (4–4,5 %)", aliases: ["cerveza", "pola", "aguila", "águila", "poker", "club colombia", "costeña", "redd's", "corona"], ref: "TCAC-656", defaultUnit: "botella", portions: [p("botella", 330), p("lata", 330), p("vaso", 250)], category: "alcohol" },
+  { key: "cerveza", name: "Cerveza (4–4,5 %)", aliases: ["cerveza", "pola", "aguila", "águila", "poker", "club colombia", "costeña", "redd's", "corona"], ref: "FDC-168746", sourceNote: "TCAC da 63 kcal/100 ml, alto para 4 %; se usa USDA (43 kcal, 3,9 g etanol).", crossCheck: "TCAC-656", defaultUnit: "botella", portions: [p("botella", 330), p("lata", 330), p("vaso", 250)], category: "alcohol" },
   {
     key: "aguardiente",
     name: "Aguardiente (29 % vol.)",
@@ -766,12 +766,12 @@ export const CORE_FOODS: CoreFood[] = [
   // ───────── Platos típicos (ICBF 18 preparaciones, laboratorio) ─────────
   { key: "ajiaco", name: "Ajiaco santafereño (sin acompañantes)", aliases: ["ajiaco", "ajiaco santafereño"], per100g: n(69, 6.4, 0.8, 9.1), source: "ICBF-18-PREP", defaultUnit: "plato", portions: [p("plato", 650), p("porcion", 650)], category: "plato" },
   { key: "bandeja_paisa_base", name: "Bandeja paisa (fríjol, arroz, carne molida, chicharrón, maduro, rellena, huevo)", aliases: ["bandeja paisa", "bandeja", "plato paisa"], per100g: n(198, 11.7, 11.0, 13.0), source: "ICBF-18-PREP", sourceNote: "No incluye arepa ni aguacate.", defaultUnit: "plato", portions: [p("plato", 850), p("porcion", 850)], category: "plato" },
-  { key: "sancocho", name: "Sancocho de gallina o de res", aliases: ["sancocho", "sancocho de gallina", "sancocho trifasico", "sancocho de res", "sancocho valluno"], per100g: n(113, 16.4, 4.0, 2.9), source: "ICBF-18-PREP", sourceNote: "Sancocho valluno de gallina (laboratorio ICBF).", defaultUnit: "plato", portions: [p("plato", 700), p("porcion", 700)], category: "plato" },
+  { key: "sancocho", name: "Sancocho de gallina o de res", aliases: ["sancocho", "sancocho de gallina", "sancocho trifasico", "sancocho de res", "sancocho valluno"], per100g: n(101, 5.8, 3.0, 12.7, 1.3), source: "ESTIMATE", sourceNote: "Receta típica de restaurante por plato de 600 g: presa 130 g, yuca 80, papa 80, plátano verde 60, mazorca 50, caldo. El ICBF (113 kcal, 16,4 P, 2,9 CHO) usó 450 g de gallina por porción y no representa el plato común.", defaultUnit: "plato", portions: [p("plato", 600), p("porcion", 600)], category: "plato" },
   { key: "tamal", name: "Tamal tolimense", aliases: ["tamal", "tamal tolimense", "tamal santandereano"], per100g: n(108, 5.7, 3.8, 12.7), source: "ICBF-18-PREP", defaultUnit: "unidad", portions: [p("unidad", 450)], category: "plato" },
   { key: "lechona", name: "Lechona tolimense", aliases: ["lechona"], per100g: n(224, 21.8, 12.0, 7.3), source: "ICBF-18-PREP", defaultUnit: "porcion", portions: [p("porcion", 350), p("plato", 350)], category: "plato" },
   { key: "arroz_atollado", name: "Arroz atollado", aliases: ["arroz atollado"], per100g: n(109, 10.1, 4.3, 7.5), source: "ICBF-18-PREP", defaultUnit: "plato", portions: [p("plato", 450)], category: "plato" },
   { key: "mute", name: "Mute santandereano", aliases: ["mute", "mute santandereano", "mondongo", "sopa de mondongo"], per100g: n(101, 8.1, 6.1, 3.5), source: "ICBF-18-PREP", defaultUnit: "plato", portions: [p("plato", 600)], category: "plato" },
-  { key: "sopa_dia", name: "Sopa del día (de arroz, verduras o pasta)", aliases: ["sopa", "sopita", "sopa del dia", "sopa de verduras", "sopa de arroz", "sopa de pasta", "crema"], ref: "TCAC-926", defaultUnit: "plato", portions: [p("plato", 300), p("porcion", 300), p("pocillo", 240)], category: "plato" },
+  { key: "sopa_dia", name: "Sopa del día (de arroz, verduras o pasta)", aliases: ["sopa", "sopita", "sopa del dia", "sopa de verduras", "sopa de arroz", "sopa de pasta", "crema de verduras", "crema de ahuyama", "consome", "caldo"], ref: "TCAC-926", defaultUnit: "plato", portions: [p("plato", 300), p("porcion", 300), p("pocillo", 240)], category: "plato" },
   { key: "empanada", name: "Empanada frita de maíz (carne/papa)", aliases: ["empanada", "empanadas", "empanadita"], ref: "TCAC-910", fatIncluded: true, defaultUnit: "unidad", portions: [p("unidad", 70)], category: "rapida" },
 
   // ───────── Comida rápida (USDA FNDDS; tamaños colombianos estimados) ─────────
@@ -780,7 +780,7 @@ export const CORE_FOODS: CoreFood[] = [
   { key: "perro_caliente", name: "Perro caliente colombiano", aliases: ["perro", "perro caliente", "hot dog", "perrito"], ref: "FDC-2707060", defaultUnit: "unidad", portions: [p("unidad", 250)], category: "rapida", sourceNote: "Con salsas, papita triturada y queso; 220–300 g estimado." },
   { key: "pizza", name: "Pizza (porción)", aliases: ["pizza", "porcion de pizza", "tajada de pizza", "dominos", "jenos"], ref: "FDC-2708616", defaultUnit: "porcion", portions: [p("porcion", 110), p("tajada", 110), p("unidad", 110)], category: "rapida" },
   { key: "burrito", name: "Burrito", aliases: ["burrito", "wrap"], ref: "FDC-2708534", defaultUnit: "unidad", portions: [p("unidad", 250)], category: "rapida" },
-  { key: "sandwich_jamon_queso", name: "Sándwich de jamón y queso", aliases: ["sandwich", "sándwich", "sanduche", "sanduche de jamon y queso"], ref: "FDC-2706965", defaultUnit: "unidad", portions: [p("unidad", 180)], category: "rapida" },
+  { key: "sandwich_jamon_queso", name: "Sándwich de jamón y queso", aliases: ["sandwich", "sándwich", "sanduche", "sanduche de jamon y queso", "sandwich de jamon y queso", "sándwich de jamón y queso"], ref: "FDC-2706965", defaultUnit: "unidad", portions: [p("unidad", 180)], category: "rapida" },
 
   // ───────── Suplementos ─────────
   { key: "proteina_whey", name: "Proteína en polvo (whey)", aliases: ["proteina", "proteína", "whey", "scoop de proteina", "batido de proteina"], ref: "FDC-173180", defaultUnit: "scoop", portions: [p("scoop", 30, "LABEL")], category: "suplemento" },
@@ -845,7 +845,7 @@ export const DISH_TEMPLATES: DishTemplate[] = [
   {
     key: "jugo_en_leche",
     name: "Jugo en leche",
-    aliases: ["jugo en leche", "batido", "jugo de fresa en leche", "jugo de mora en leche"],
+    aliases: ["jugo en leche", "batido de fruta", "jugo de fresa en leche", "jugo de mora en leche"],
     description: "Leche + fruta + azúcar",
     components: [
       { slot: "leche", coreKey: "leche_entera", grams: 180 },

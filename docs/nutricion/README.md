@@ -20,7 +20,7 @@ Regla de trabajo: **al entrar a cada fase, Claude resume lo que hará y hace pre
 ## Fases
 - **Fase 0 — Discovery** ✅ `docs/nutricion/00-discovery.md`
 - **Fase 1 — Investigación nutricional** ✅ `docs/nutricion/01-investigacion.md`
-- **Fase 2 — Motor de alimentos y precisión (NUEVA, prioridad máxima)**
+- **Fase 2 — Motor de alimentos y precisión (NUEVA, prioridad máxima)** 🟡 motor y banco de pruebas listos; falta la corrida con IA (ver `02-motor-alimentos.md` §6–7)
   - 2a. Investigar opciones open source / gratuitas: bases de datos (USDA FDC, Open Food Facts, TACO/TBCA Brasil, SMAE México, CIQUAL, otras con alimentos latinos), APIs con capa gratuita (FatSecret, Edamam, Nutritionix…), cómo lo hacen Fitia/MacroFactor/Cal AI, y proyectos open source de food logging con LLM. Cómo ampliar la tabla colombiana más allá de 150–300 alimentos.
   - 2b. Meta acordada (doble): con gramos dados ≥90 % de comidas dentro de ±10 % kcal; con porciones vagas ≥80 % dentro de ±20 %. Juan **no pesará** comidas (come mucho en restaurantes): el set de referencia se arma con porciones estándar ICBF/GABA y recetas publicadas; las cantidades que Juan diga a ojo se toman como verdad de entrada.
   - Restricciones: solo fuentes gratuitas/open source; foto queda para Fase 7.

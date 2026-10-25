@@ -1,6 +1,6 @@
 # Traspaso — App de Comidas (para continuar en otra sesión / en la nube)
 
-> Última actualización: 2026-10-24. Escrito al cortar la sesión local para continuar en Claude Code en la nube.
+> Última actualización: 2026-10-25 (sesión en la nube). Antes: 2026-10-24, al pasar de la sesión local a la nube.
 > **Leer primero:** `README.md` (plan de fases), `00-discovery.md`, `01-investigacion.md`, `02-motor-alimentos.md`.
 
 ## 1. Reglas de trabajo acordadas con Juan
@@ -15,7 +15,7 @@
 |---|---|
 | 0 Discovery | ✅ `00-discovery.md` |
 | 1 Investigación nutricional | ✅ `01-investigacion.md` (reglas de cálculo, objetivos por fase, alcohol, TDEE adaptativo) |
-| 2 Motor de alimentos y precisión | 🟡 2a ✅ investigación + diseño aprobado (`02-motor-alimentos.md`). **2b/2c en curso** |
+| 2 Motor de alimentos y precisión | 🟡 2a ✅ · 2b/2c ✅ construidos y medidos con el lector por reglas (`02-motor-alimentos.md` §6–7). **Falta la corrida con IA** (bloqueada por credenciales) |
 | 3 Arquitectura · 4 Frontend · 5 Implementación · 6 Validación · 7 Mejoras | Pendientes |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.
@@ -47,18 +47,23 @@ python -I scripts/nutrition/build_fdc.py .data/nutrition-raw/fdc .data/nutrition
 Juan ya autorizó estas descargas (≈160 MB) y la del modelo de embeddings local.
 
 ## 5. Bloqueo actual
-`.env.local` local tiene **vacías** `AZURE_OPENAI_ENDPOINT` y `AZURE_OPENAI_API_KEY` (la app en producción las tiene en Vercel). Para correr `enrich_names.ts` y el benchmark hace falta que Juan configure esas variables en el entorno de la nube (formato en `.env.example`: endpoint `https://<recurso>.services.ai.azure.com/openai/v1`, deployment `gpt-5-mini`). Nunca escribir la clave por él.
+En la nube **no hay** `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` / `AZURE_OPENAI_DEPLOYMENT` (tampoco `OPENAI_API_KEY`). Juan debe agregarlas como variables del entorno de Claude Code en la nube (formato en `.env.example`: endpoint `https://<recurso>.services.ai.azure.com/openai/v1`, deployment `gpt-5-mini`). Nunca escribir la clave por él.
 
 ## 6. Próximos pasos (en orden)
-1. Regenerar datos (sección 4) y verificar conteos (899 TCAC, 13.035 FDC).
-2. `scripts/nutrition/build_db.ts`: unir TCAC + FDC + `names_cache` → `.data/nutrition/foods.json`; calcular `alcohol_g` en bebidas TCAC como `(kcal − Atwater)/7`; validar que todas las `ref` del núcleo existen.
-3. Script de **verificación cruzada**: cada alimento del núcleo vs su `crossCheck`/equivalente USDA; alertar si difiere >30 % en kcal/100 g.
-4. Compilar/probar `core-foods.ts` (tipos; hay un `.filter` raro en `jugo_fruta_agua` que conviene limpiar).
-5. Motor (`src/lib/nutrition/engine/`): `text.ts` (normalizar español, sin tildes, plurales), `search.ts` (BM25 sobre nombres+sinónimos es/en; luego híbrido con embeddings locales + fusión RRF k=60), `portions.ts` (gramos dados > porción del núcleo > unidad genérica > estimación LLM marcada), `parse.ts` (gpt-5-mini, JSON Schema: ítems con core_key, cantidad, unidad, gramos dichos, estado crudo/cocido, método, plato de origen, confianza, supuesto; el prompt incluye la lista del núcleo y las plantillas; aceite/salsas/bebidas como ítems aparte), `rerank.ts` (LLM elige entre ~25 candidatos o "sin coincidencia"), `compute.ts` (nutrientes × gramos; validaciones Atwater ±15 %, densidad plausible, máximos), `pipeline.ts` (resultado editable + ≤1 pregunta aclaratoria por comida).
-6. Tests `node --test` de text/search/portions/compute (agregarlos al script `test` de `package.json`).
-7. **Set de referencia** (`scripts/nutrition/benchmark/`): ~100 comidas canónicas (desayunos, corrientazos, cenas de sobras, domicilios, snacks, fiestas) definidas como claves del núcleo + gramos estándar; generar 2 descripciones por comida en español colombiano (con gramos / vaga) → apuntar a ≥200 por set; separar set dev y set de prueba congelado.
-8. `scripts/nutrition/benchmark.ts`: correr el pipeline, reportar % dentro de ±10/±20 % kcal, MAPE, sesgo, error de proteína, por categoría; iterar hasta la meta y registrar cada ronda en `02-motor-alimentos.md`.
-9. Al pasar la meta: presentar resultados a Juan y entrar a la **Fase 3 (Arquitectura)** con resumen + preguntas.
+Hecho el 2026-10-25: datos regenerados (899 TCAC, 13.035 FDC), `build_db.ts`, `cross_check.ts` (sin alertas), motor completo (`text`, `search` BM25, `portions`, `compute`, `parse` IA, `rerank` IA, `parse-rules`, `pipeline`), 25 pruebas en `npm test`, set de referencia de 100 comidas × 2 descripciones, `benchmark.ts`. Embeddings locales probados y descartados (ver `02-motor-alimentos.md` §7).
+
+Comandos (después de regenerar los datos de la sección 4):
+```bash
+node --experimental-strip-types scripts/nutrition/build_db.ts
+node --experimental-strip-types scripts/nutrition/cross_check.ts
+node --experimental-strip-types scripts/nutrition/benchmark.ts --parser rules --set dev
+```
+
+Pendiente, cuando haya credenciales:
+1. `node --experimental-strip-types scripts/nutrition/enrich_names.ts` (traduce nombres USDA; caché reanudable) → volver a correr `build_db.ts`.
+2. `benchmark.ts --parser llm --set dev`; iterar prompt/plantillas/porciones solo mirando el set dev; registrar cada ronda en `02-motor-alimentos.md` §7.
+3. Una sola corrida final `--parser llm --set test`. Meta: con gramos ≥90 % en ±10 %; vaga ≥80 % en ±20 %.
+4. Al pasar la meta: presentar resultados a Juan y entrar a la **Fase 3 (Arquitectura)** con resumen + preguntas (incluye decidir cómo servir `foods.json` en producción sin publicar datos TCAC en el repo público).
 
 ## 7. Pendientes para fases posteriores (ya acordados)
 - Perfil único en servidor compartido por Fuerza y Comidas (migrar `AppSettingsContext` de localStorage); medidas corporales (cintura, cuello, bíceps, pierna…) también visibles en Fuerza.
