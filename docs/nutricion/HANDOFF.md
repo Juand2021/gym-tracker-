@@ -16,7 +16,8 @@
 | 0 Discovery | ✅ `00-discovery.md` |
 | 1 Investigación nutricional | ✅ `01-investigacion.md` (reglas de cálculo, objetivos por fase, alcohol, TDEE adaptativo) |
 | 2 Motor de alimentos y precisión | ✅ Meta cumplida con IA en el set de prueba congelado (R9: 92 % / 86 %). Ver `02-motor-alimentos.md` §6–7 |
-| 3 Arquitectura · 4 Frontend · 5 Implementación · 6 Validación · 7 Mejoras | Pendientes |
+| 3 Arquitectura | 🟡 Propuesta escrita (`03-arquitectura.md`), esperando aprobación de Juan |
+| 4 Frontend · 5 Implementación · 6 Validación · 7 Mejoras | Pendientes |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.
 
@@ -60,7 +61,7 @@ node --experimental-strip-types scripts/nutrition/benchmark.ts --parser llm --se
 ```
 Nota: `names_cache.json` vive en `.data/` (no se sube). Si se pierde, se regenera con `enrich_names.ts`.
 
-**Siguiente: Fase 3 (Arquitectura)** — presentar resumen + preguntas a Juan y esperar aprobación (ver sección 8).
+**Siguiente:** Juan revisa `03-arquitectura.md`. Con su aprobación → Fase 4 (Frontend mínimo) y Fase 5 (Implementación), cada una con resumen + preguntas.
 
 ## 7. Pendientes para fases posteriores (ya acordados)
 - Perfil único en servidor compartido por Fuerza y Comidas (migrar `AppSettingsContext` de localStorage); medidas corporales (cintura, cuello, bíceps, pierna…) también visibles en Fuerza.
@@ -69,7 +70,7 @@ Nota: `names_cache.json` vive en `.data/` (no se sube). Si se pierde, se regener
 - Confirmación obligatoria antes de guardar cada comida.
 - Números provisionales de Juan mientras tanto: ~2.200 kcal, ~170 g proteína (supuesto 78 kg; recalcular con su peso real).
 
-## 8. Preguntas abiertas para la Fase 3 (presentadas a Juan el 2026-10-25)
+## 8. Preguntas de la Fase 3 — RESPONDIDAS el 2026-10-25 (ver `03-arquitectura.md` §1)
 1. Dónde vive la base de alimentos en producción (7,2 MB; 0,9 MB comprimida) sin subir datos TCAC al repo público. Propuesta: archivo privado en Firebase Storage, cargado y guardado en memoria por el servidor.
 2. Cómo se registra una comida: pestaña nueva "Comidas" con caja de texto + tarjetas editables, o también desde el chat IA existente.
 3. ¿Laura también usa Comidas?
