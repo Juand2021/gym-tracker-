@@ -38,6 +38,10 @@ export type MealDraft = Omit<Meal, "updatedAt"> & {
   expiresAt: string;
 };
 
+/** Conversación del chat de la app de Comidas (aparte de los chats del Coach de Fuerza). */
+export type ComidasChatMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
+export type ComidasChat = { id: string; title: string; messages: ComidasChatMessage[]; createdAt: string; updatedAt: string };
+
 export type BodyMeasurement = { id: string; date: string; waistCm: number | null; neckCm: number | null; bicepsCm: number | null; thighCm: number | null; notes: string };
 
 export interface NutritionStore {
@@ -54,6 +58,10 @@ export interface NutritionStore {
   deleteDraft(id: string): Promise<void>;
   listMeasurements(): Promise<BodyMeasurement[]>;
   saveMeasurement(m: BodyMeasurement): Promise<void>;
+  listChats(): Promise<ComidasChat[]>;
+  getChat(id: string): Promise<ComidasChat | null>;
+  saveChat(c: ComidasChat): Promise<void>;
+  deleteChat(id: string): Promise<void>;
 }
 
 export const newId = () => randomUUID();
@@ -64,15 +72,16 @@ const alive = (d: MealDraft) => d.expiresAt > new Date().toISOString();
 
 // ───────── Archivo local ─────────
 
-type LocalData = { profile: NutritionProfile | null; meals: Meal[]; drafts: MealDraft[]; measurements: BodyMeasurement[] };
+type LocalData = { profile: NutritionProfile | null; meals: Meal[]; drafts: MealDraft[]; measurements: BodyMeasurement[]; chats: ComidasChat[] };
+const emptyLocal = (): LocalData => ({ profile: null, meals: [], drafts: [], measurements: [], chats: [] });
 
 export function createLocalStore(file = path.join(process.cwd(), ".data", "nutrition-store.json")): NutritionStore {
   const read = (): LocalData => {
-    if (!existsSync(file)) return { profile: null, meals: [], drafts: [], measurements: [] };
+    if (!existsSync(file)) return emptyLocal();
     try {
-      return { profile: null, meals: [], drafts: [], measurements: [], ...(JSON.parse(readFileSync(file, "utf8")) as Partial<LocalData>) };
+      return { ...emptyLocal(), ...(JSON.parse(readFileSync(file, "utf8")) as Partial<LocalData>) };
     } catch {
-      return { profile: null, meals: [], drafts: [], measurements: [] };
+      return emptyLocal();
     }
   };
   const write = (data: LocalData) => {
@@ -123,6 +132,18 @@ export function createLocalStore(file = path.join(process.cwd(), ".data", "nutri
     },
     async saveMeasurement(m) {
       update((d) => void (d.measurements = [...d.measurements.filter((x) => x.id !== m.id), m]));
+    },
+    async listChats() {
+      return read().chats.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async getChat(id) {
+      return read().chats.find((c) => c.id === id) ?? null;
+    },
+    async saveChat(c) {
+      update((d) => void (d.chats = [...d.chats.filter((x) => x.id !== c.id), c]));
+    },
+    async deleteChat(id) {
+      update((d) => void (d.chats = d.chats.filter((x) => x.id !== id)));
     },
   };
 }
@@ -190,6 +211,19 @@ export function createFirestoreStore(db: FirestoreLike): NutritionStore {
     },
     async saveMeasurement(m) {
       await col("bodyMeasurements").doc(m.id).set(m);
+    },
+    async listChats() {
+      const snap = await col("comidasChats").where("updatedAt", ">=", "0000").get();
+      return snap.docs.map((d) => d.data() as ComidasChat).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async getChat(id) {
+      return get<ComidasChat>("comidasChats", id);
+    },
+    async saveChat(c) {
+      await col("comidasChats").doc(c.id).set(c);
+    },
+    async deleteChat(id) {
+      await col("comidasChats").doc(id).delete();
     },
   };
 }

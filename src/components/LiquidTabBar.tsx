@@ -21,9 +21,13 @@ const MIN_LENS_WIDTH = 54;
 type Slot = { left: number; width: number };
 
 function activeIndexFor(pathname: string, links: TabLink[]): number {
-  return links.findIndex((link) =>
-    link.href === "/" ? pathname === "/" : pathname.startsWith(link.href),
-  );
+  // La ruta más específica gana ("/comidas/chat" sobre "/comidas").
+  let best = -1;
+  links.forEach((link, i) => {
+    const match = link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
+    if (match && (best < 0 || link.href.length > links[best].href.length)) best = i;
+  });
+  return best;
 }
 
 function slotIndexAt(slots: Slot[], x: number): number {

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { clearSession } from "@/lib/client-cache";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { AppSwitcher, appFromPath, type AppId } from "@/components/AppSwitcher";
 import { LiquidTabBar } from "@/components/LiquidTabBar";
 import { RestTimerButton } from "@/components/RestTimerButton";
 import { UserProfileDrawer } from "@/components/UserProfileDrawer";
@@ -17,10 +17,17 @@ const links = [
   { href: "/ia", label: "IA", short: "IA" },
 ];
 
+/** Pestañas de la app de Comidas (la Fase de frontend dedicada las ampliará). */
+const comidasLinks = [
+  { href: "/comidas", label: "Hoy", short: "Hoy" },
+  { href: "/comidas/chat", label: "Chat", short: "Chat" },
+];
+
 export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -30,12 +37,13 @@ export function AppNav() {
       .then(async (res) => {
         if (!res.ok) return null;
         return (await res.json()) as {
-          profile?: { displayName?: string };
+          profile?: { id?: string; displayName?: string };
         };
       })
       .then((data) => {
         if (!cancelled) {
           setDisplayName(data?.profile?.displayName ?? null);
+          setProfileId(data?.profile?.id ?? null);
         }
       })
       .catch(() => {
@@ -48,6 +56,10 @@ export function AppNav() {
 
   if (pathname === "/login") return null;
 
+  const currentApp = appFromPath(pathname);
+  // Comidas solo existe para Juan por ahora.
+  const availableApps: AppId[] = profileId === "juan" ? ["fuerza", "comidas"] : ["fuerza"];
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     clearSession();
@@ -59,17 +71,14 @@ export function AppNav() {
     <>
       <header className="app-topbar">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2.5">
-          <Link href="/" className="hd-logo" aria-label="Fuerza, inicio">
-            FUERZA
-            <span className="hd-logo-dot">.</span>
-          </Link>
+          <AppSwitcher current={currentApp} available={availableApps} />
 
           {/* Cápsula de vidrio con descanso, perfil y salida */}
           <div className="hd-cluster">
-            <RestTimerButton />
+            {currentApp === "fuerza" ? <RestTimerButton /> : null}
             {displayName ? (
               <>
-                <span className="hd-divider" aria-hidden="true" />
+                {currentApp === "fuerza" ? <span className="hd-divider" aria-hidden="true" /> : null}
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(true)}
@@ -117,7 +126,7 @@ export function AppNav() {
         displayName={displayName}
       />
 
-      <LiquidTabBar links={links} />
+      <LiquidTabBar links={currentApp === "comidas" ? comidasLinks : links} />
     </>
   );
 }

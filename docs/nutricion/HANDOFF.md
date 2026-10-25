@@ -17,7 +17,7 @@
 | 1 Investigación nutricional | ✅ `01-investigacion.md` (reglas de cálculo, objetivos por fase, alcohol, TDEE adaptativo) |
 | 2 Motor de alimentos y precisión | ✅ Meta cumplida con IA en el set de prueba congelado (R9: 92 % / 86 %). Ver `02-motor-alimentos.md` §6–7 |
 | 3 Arquitectura | ✅ Aprobada el 2026-10-25 (`03-arquitectura.md`) |
-| 4 Frontend mínimo | ✅ Franja "Hoy" en /ia + respuestas rápidas "Sí, guárdalo / No lo guardes" (solo Juan) |
+| 4 Frontend mínimo | ✅ **Comidas es una app aparte** (corrección de Juan): selector de apps en el logo, `/comidas` (Hoy) y `/comidas/chat` (asistente propio). El Coach `/ia` de Fuerza quedó como estaba |
 | 5 Implementación | 🟡 Partes 1–4 hechas y probadas en localhost: perfil, objetivos, almacenamiento (Firestore o `.data/nutrition-store.json`), herramientas del chat, modo fiesta y ¿qué pido?. **Falta:** subir la base a Firestore y probar con datos reales (necesita `FIREBASE_SERVICE_ACCOUNT`), migrar edad/estatura de Fuerza al perfil del servidor, medidas corporales |
 | 4b Frontend dedicado · 6 Validación · 7 Mejoras | Pendientes. Juan pidió una fase de frontend dedicada al estilo (más allá de lo mínimo) |
 
@@ -64,7 +64,7 @@ node --experimental-strip-types scripts/nutrition/benchmark.ts --parser llm --se
 Nota: `names_cache.json` vive en `.data/` (no se sube). Si se pierde, se regenera con `enrich_names.ts`.
 
 **Estado 2026-10-25:** todo queda en la rama, **sin pull request ni publicación** hasta que Juan apruebe (lo verá en localhost).
-- Probar en local: `.env.local` con `SITE_PIN` (+ variables de Azure) → `npx next dev` → /ia → "almorcé…".
+- Probar en local: `.env.local` con `SITE_PIN` (+ variables de Azure) → `npx next dev` → tocar el logo → Comidas → Chat → "almorcé…".
 - Sin Firebase, Comidas guarda en `.data/nutrition-store.json` y lee la base de `.data/nutrition/foods.json`.
 - Con Firebase: `node --env-file=.env.local --experimental-strip-types scripts/nutrition/upload_db.ts` sube la base a `nutritionDb/current`.
 - Tiempos medidos: registrar una comida 9–10 s (razonamiento "low"); guardar ~5 s.

@@ -71,6 +71,19 @@ export async function todaySummary(profile: Profile) {
     protein: Math.round(eaten.protein_g),
     proteinTarget: t.protein_g,
     alcohol: eaten.alcohol_g,
-    meals: meals.length,
+    fat: Math.round(eaten.fat_g),
+    fatTarget: t.fat_g,
+    carbs: Math.round(eaten.carb_g),
+    carbsTarget: t.carb_g,
+    phase: (await getNutritionStore().getProfile()).phase,
+    meals: meals.map((m) => ({
+      id: m.id,
+      time: m.time,
+      moment: m.moment,
+      text: m.text,
+      kcal: m.totals.kcal,
+      protein: Math.round(m.totals.protein_g),
+      items: m.items.map((i) => ({ name: i.name, grams: i.grams, kcal: i.nutrients.kcal })),
+    })),
   };
 }

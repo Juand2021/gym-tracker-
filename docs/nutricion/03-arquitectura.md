@@ -2,6 +2,14 @@
 
 > Fecha: 2026-10-25 · Estado: **✅ aprobada por Juan el 2026-10-25**
 
+## 0. Corrección importante (2026-10-25, tarde)
+**Comidas es una APP DISTINTA a Fuerza, no una función del Coach.** Comparten el login y el perfil, pero cada una tiene su logo, sus pestañas y su chat:
+- Al tocar el logo ("FUERZA." o "COMIDAS.") se abre el menú **"Tus apps"** para cambiar de una a otra (`src/components/AppSwitcher.tsx`).
+- **El Coach de Fuerza (`/ia`) queda solo para el entreno**: se deshicieron todos los cambios de Comidas en `/ia` y en `/api/ai/chat`.
+- La app Comidas vive en `/comidas` (Hoy) y `/comidas/chat` (su propio asistente de nutrición), con API en `/api/comidas/*` y conversaciones guardadas aparte (`comidasChats`).
+- Solo Juan la ve: Laura no tiene selector, `/comidas` la devuelve a Fuerza y la API le responde 403.
+Donde este documento dice "el chat de IA que ya existe" o "/ia", léase **el chat de la app Comidas**.
+
 ## 1. Decisiones de Juan (2026-10-25)
 
 | Tema | Decisión |
