@@ -1,6 +1,7 @@
 import { structuredCompletion, type AiClient } from "../ai-client.ts";
 import { CORE_FOODS, DISH_TEMPLATES } from "./core-foods.ts";
 import { expandDish, type MealParser, type ParsedItem } from "./pipeline.ts";
+import { normalize } from "./text.ts";
 import { PORTION_UNITS } from "./types.ts";
 
 /**
@@ -103,7 +104,7 @@ Reglas:
    - "media de aguardiente" = quantity 1, unit "media". "media taza" = quantity 0.5, unit "taza". "2 huevos" = quantity 2, unit "unidad".
    - Si NO dijo cantidad ("con aguacate", "arroz con frijoles"), deja quantity = null y unit = null: el código usa la porción típica colombiana. No pongas "1 unidad" por tu cuenta.
    - size: pequeno/mediano/grande solo si lo dijo (o "poquito" = pequeno, "harto" = grande).
-4. Platos de la lista (corrientazo, calentado, salchipapa…): NO los descompongas tú. Ponlos en "dishes" con su dish_key; el código agrega los componentes de la plantilla (incluidos los opcionales).
+4. "dishes" va VACÍO ([]) salvo que la persona nombre uno de los platos de la lista con su nombre (corrientazo, almuerzo corriente, calentado, salchipapa, milo en leche…). Nunca agregues un plato que no dijo. Si lo nombra, NO lo descompongas tú. Ponlos en "dishes" con su dish_key; el código agrega los componentes de la plantilla (incluidos los opcionales).
    - swaps: si cambia un componente ("corrientazo de cerdo" → slot proteina = cerdo_asado; "con lentejas" → principio = lentejas; "jugo de lulo" sigue siendo jugo_fruta_agua).
    - omit: componentes que dijo que no hubo ("sin sopa" → sopa; "jugo sin azúcar" → azucar_jugo).
    - grams_said: solo si dio gramos de un componente.
@@ -131,14 +132,28 @@ type RawDish = {
 
 export function makeLlmParser(ai: AiClient): MealParser {
   return async (text) => {
-    const res = await structuredCompletion<{ dishes: RawDish[]; items: RawItem[] }>(ai, {
-      system: PARSE_SYSTEM,
-      user: text,
-      schemaName: "meal_items",
-      schema: PARSE_SCHEMA,
-      reasoningEffort: "low",
+    const ask = () =>
+      structuredCompletion<{ dishes: RawDish[]; items: RawItem[] }>(ai, {
+        system: PARSE_SYSTEM,
+        user: text,
+        schemaName: "meal_items",
+        schema: PARSE_SCHEMA,
+        reasoningEffort: "low",
+      });
+    let res = await ask();
+    // A veces el modelo devuelve todo vacío: se reintenta una vez.
+    if (!res.items.length && !res.dishes.length && text.trim()) res = await ask();
+    // Protección: solo platos que la persona nombró de verdad, y cada uno una sola vez.
+    const said = normalize(text);
+    const seen = new Set<string>();
+    const dishes = res.dishes.filter((d) => {
+      const dish = DISH_TEMPLATES.find((t) => t.key === d.dish_key);
+      if (!dish || seen.has(d.dish_key)) return false;
+      const named = [dish.key.replace(/_/g, " "), ...dish.aliases].some((a) => said.includes(normalize(a)));
+      if (named) seen.add(d.dish_key);
+      return named;
     });
-    const fromDishes = res.dishes.flatMap((d) =>
+    const fromDishes = dishes.flatMap((d) =>
       expandDish(d.dish_key, {
         overrides: Object.fromEntries(d.swaps.map((x) => [x.slot, x.core_key])),
         omit: d.omit,
