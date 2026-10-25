@@ -1,6 +1,6 @@
 # Fase 3 — Arquitectura
 
-> Fecha: 2026-10-25 · Estado: **propuesta, pendiente de aprobación de Juan**
+> Fecha: 2026-10-25 · Estado: **✅ aprobada por Juan el 2026-10-25**
 
 ## 1. Decisiones de Juan (2026-10-25)
 

@@ -16,7 +16,7 @@
 | 0 Discovery | ✅ `00-discovery.md` |
 | 1 Investigación nutricional | ✅ `01-investigacion.md` (reglas de cálculo, objetivos por fase, alcohol, TDEE adaptativo) |
 | 2 Motor de alimentos y precisión | ✅ Meta cumplida con IA en el set de prueba congelado (R9: 92 % / 86 %). Ver `02-motor-alimentos.md` §6–7 |
-| 3 Arquitectura | 🟡 Propuesta escrita (`03-arquitectura.md`), esperando aprobación de Juan |
+| 3 Arquitectura | ✅ Aprobada el 2026-10-25 (`03-arquitectura.md`) |
 | 4 Frontend · 5 Implementación · 6 Validación · 7 Mejoras | Pendientes |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.
@@ -61,7 +61,7 @@ node --experimental-strip-types scripts/nutrition/benchmark.ts --parser llm --se
 ```
 Nota: `names_cache.json` vive en `.data/` (no se sube). Si se pierde, se regenera con `enrich_names.ts`.
 
-**Siguiente:** Juan revisa `03-arquitectura.md`. Con su aprobación → Fase 4 (Frontend mínimo) y Fase 5 (Implementación), cada una con resumen + preguntas.
+**Siguiente:** Fases 4 (Frontend mínimo) y 5 (Implementación): resumen + preguntas presentados a Juan el 2026-10-25; esperar su aprobación.
 
 ## 7. Pendientes para fases posteriores (ya acordados)
 - Perfil único en servidor compartido por Fuerza y Comidas (migrar `AppSettingsContext` de localStorage); medidas corporales (cintura, cuello, bíceps, pierna…) también visibles en Fuerza.
