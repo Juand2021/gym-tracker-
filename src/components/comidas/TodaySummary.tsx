@@ -4,16 +4,19 @@ import { useEffect, useState } from "react";
 
 export type ComidasToday = {
   date: string;
+  /** false si al perfil le faltan datos: no hay objetivos todavía. */
+  profileComplete: boolean;
+  missing: string[];
   kcal: number;
-  kcalTarget: number;
+  kcalTarget: number | null;
   protein: number;
-  proteinTarget: number;
+  proteinTarget: number | null;
   fat: number;
-  fatTarget: number;
+  fatTarget: number | null;
   carbs: number;
-  carbsTarget: number;
+  carbsTarget: number | null;
   alcohol: number;
-  phase: { type: string; start: string; end: string | null; ratePctPerWeek: number; objective: string };
+  phase: { type: string; start: string; end: string | null; ratePctPerWeek: number; objective: string } | null;
   meals: { id: string; time: string; moment: string; text: string; kcal: number; protein: number; items: { name: string; grams: number; kcal: number }[] }[];
 };
 
@@ -67,6 +70,7 @@ function Bar({ label, value, target, unit }: { label: string; value: number; tar
 
 /** Tarjeta "Hoy": kcal y proteína (y grasa/carbohidratos si `full`). */
 export function TodaySummary({ data, full = false }: { data: ComidasToday; full?: boolean }) {
+  if (data.kcalTarget == null || data.proteinTarget == null) return null;
   const left = data.kcalTarget - data.kcal;
   return (
     <section className="ia-glass nt-strip" aria-label="Resumen de hoy">
@@ -81,8 +85,8 @@ export function TodaySummary({ data, full = false }: { data: ComidasToday; full?
       <Bar label="Proteína" value={data.protein} target={data.proteinTarget} unit="g" />
       {full ? (
         <>
-          <Bar label="Grasa" value={data.fat} target={data.fatTarget} unit="g" />
-          <Bar label="Carbohidratos" value={data.carbs} target={data.carbsTarget} unit="g" />
+          <Bar label="Grasa" value={data.fat} target={data.fatTarget ?? 0} unit="g" />
+          <Bar label="Carbohidratos" value={data.carbs} target={data.carbsTarget ?? 0} unit="g" />
         </>
       ) : null}
     </section>

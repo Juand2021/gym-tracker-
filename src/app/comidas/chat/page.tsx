@@ -10,12 +10,15 @@ type Chat = { id: string; title: string; messages: Msg[]; createdAt: string; upd
 type ChatSummary = { id: string; title: string; updatedAt: string; messageCount: number; lastMessageSnippet: string };
 
 const SESSION_KEY = "comidas:chat";
+/** Mensaje inicial que deja la pantalla "Hoy" al tocar "Empezar". */
+const STARTER_KEY = "comidas:starter";
 
 const EXAMPLES = [
+  "¿Qué como hoy?",
   "Almorcé un corrientazo de cerdo con jugo de mora",
   "Desayuné 2 arepas con huevos pericos y un tinto",
   "¿Cómo voy hoy?",
-  "¿Qué me conviene más: una salchipapa o un cuarto de pollo con ensalada?",
+  "Quiero cambiar mi objetivo a volumen",
 ];
 
 /** Respuestas rápidas cuando el asistente pregunta si guarda o borra algo. */
@@ -83,6 +86,21 @@ export default function ComidasChatPage() {
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 132)}px`;
   }, [input]);
+
+  // Desde "Configura tu perfil": conversación nueva con el mensaje ya escrito.
+  useEffect(() => {
+    const starter = readSession<string>(STARTER_KEY);
+    if (!starter) return;
+    writeSession(SESSION_KEY, "new");
+    const t = window.setTimeout(() => {
+      // Se borra aquí (no antes) porque en desarrollo React monta los efectos dos veces.
+      writeSession(STARTER_KEY, "");
+      setChat(null);
+      setInput(starter);
+      taRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Volver a la conversación abierta y cargar el historial.
   useEffect(() => {

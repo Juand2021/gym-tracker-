@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { writeSession } from "@/lib/client-cache";
 import { TodaySummary, fmt, useComidasToday } from "@/components/comidas/TodaySummary";
 
 const MOMENT_LABEL: Record<string, string> = {
@@ -32,7 +33,9 @@ export default function ComidasHoyPage() {
           </svg>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="ia-kicker">{data ? `${PHASE_LABEL[data.phase.type] ?? data.phase.type} · hasta ${data.phase.end ?? "sin fecha"}` : "Comida saludable"}</p>
+          <p className="ia-kicker">
+            {data?.phase ? `${PHASE_LABEL[data.phase.type] ?? data.phase.type}${data.phase.end ? ` · hasta ${data.phase.end}` : ""}` : "Comida saludable"}
+          </p>
           <h1 className="ia-title">Tu día</h1>
         </div>
         <Link href="/comidas/chat" className="ia-pill is-primary">
@@ -45,7 +48,22 @@ export default function ComidasHoyPage() {
 
       {data ? (
         <>
-          <TodaySummary data={data} full />
+          {data.profileComplete ? (
+            <TodaySummary data={data} full />
+          ) : (
+            <Link
+              href="/comidas/chat"
+              className="ia-glass cm-empty cm-setup"
+              onClick={() => writeSession("comidas:starter", "Hola, quiero configurar mi perfil y mi objetivo")}
+            >
+              <p className="ia-kicker">Primero, tu objetivo</p>
+              <p className="cm-empty-title">Configura tu perfil para saber cuánto comer</p>
+              <p className="cm-empty-text">
+                Me faltan: {data.missing.join(", ")}. Te pregunto por el chat y en un par de minutos tienes tus calorías, proteína y un plan de comidas.
+              </p>
+              <span className="ia-pill is-primary cm-setup-cta">Empezar</span>
+            </Link>
+          )}
 
           <p className="ia-section-label">Comidas de hoy</p>
           {data.meals.length === 0 ? (

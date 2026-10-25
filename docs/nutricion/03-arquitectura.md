@@ -10,6 +10,16 @@
 - Solo Juan la ve: Laura no tiene selector, `/comidas` la devuelve a Fuerza y la API le responde 403.
 Donde este documento dice "el chat de IA que ya existe" o "/ia", léase **el chat de la app Comidas**.
 
+## 0b. Para cualquier persona (2026-10-25, pedido de Juan)
+La app tiene que servir a un usuario nuevo: entra, dice "quiero déficit" o "quiero volumen" y la app le dice cuánto y qué comer.
+- **Perfil por persona** (`src/lib/nutrition/profile.ts`): sexo, fecha de nacimiento, estatura, peso declarado, % de grasa (medido) o estimación (bajo/medio/alto), actividad (sedentario/ligero/activo/muy activo) o pasos, días y minutos de entreno, estilo (omnívoro/pescetariano/vegetariano/vegano), alimentos que no come, comidas al día y objetivo (déficit/mantenimiento/recomposición/volumen, ritmo, fechas, meta). Validación con mensajes simples (`applyProfilePatch`).
+- **Datos separados por persona**: Juan en la raíz (como `workouts`); los demás en `users/{id}/profile|meals|mealDrafts|comidasChats|bodyMeasurements`. Local: `.data/nutrition-store-{id}.json`.
+- **Quién puede usar Comidas**: variable `COMIDAS_PROFILES` (por defecto `juan`); la leen el menú del logo (`/api/auth/me` → `apps`), el middleware y la API.
+- **Bienvenida guiada**: si al perfil le faltan datos, "Hoy" muestra "Configura tu perfil" y el asistente pregunta de a 2–3 cosas, guardando cada respuesta. Sin perfil completo no da objetivos, pero sí deja registrar comidas.
+- **Herramientas nuevas del chat**: `ver_perfil`, `actualizar_perfil` (incluye cambiar de objetivo), `registrar_peso` (se ve en Fuerza), `registrar_medidas` (estima grasa con cintura y cuello) y `plan_comidas` (qué y cuánto comer en lo que queda del día, con gramos calculados del catálogo y respetando estilo y alimentos evitados).
+- **Objetivos para cualquiera** (`targets.ts`): sin historial en Fuerza usa los días de entreno declarados; actividad declarada si no hay pasos; volumen (+0,25–0,5 %/semana, 1,8 g/kg de proteína, 30 % grasa); recomposición; fórmulas y mínimos por sexo; los datos de demostración de Fuerza nunca cuentan.
+- **Perfil compartido con Fuerza**: `/api/profile` (GET/PUT). El panel de perfil de Fuerza lee y guarda ahí la edad (como fecha de nacimiento) y la estatura.
+
 ## 1. Decisiones de Juan (2026-10-25)
 
 | Tema | Decisión |

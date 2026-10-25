@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const profile = comidasProfile(request);
   if (profile instanceof NextResponse) return profile;
   try {
-    const chats = await getNutritionStore().listChats();
+    const chats = await getNutritionStore(profile).listChats();
     return NextResponse.json({
       chats: chats.map((c) => ({
         id: c.id,

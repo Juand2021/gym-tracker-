@@ -9,7 +9,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (profile instanceof NextResponse) return profile;
   const { id } = await params;
   try {
-    const chat = await getNutritionStore().getChat(id);
+    const chat = await getNutritionStore(profile).getChat(id);
     if (!chat) return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
     return NextResponse.json({ chat });
   } catch (error) {
@@ -22,7 +22,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (profile instanceof NextResponse) return profile;
   const { id } = await params;
   try {
-    await getNutritionStore().deleteChat(id);
+    await getNutritionStore(profile).deleteChat(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return errorResponse(error, "Error al borrar la conversación");

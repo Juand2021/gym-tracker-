@@ -6408,3 +6408,13 @@ button.en-last:active {
   white-space: normal;
   text-align: left;
 }
+
+.cm-setup {
+  gap: 0.5rem;
+  padding: 1.1rem 1rem;
+}
+
+.cm-setup-cta {
+  justify-self: start;
+  margin-top: 0.3rem;
+}

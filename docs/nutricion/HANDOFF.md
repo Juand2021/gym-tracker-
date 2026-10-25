@@ -18,7 +18,7 @@
 | 2 Motor de alimentos y precisión | ✅ Meta cumplida con IA en el set de prueba congelado (R9: 92 % / 86 %). Ver `02-motor-alimentos.md` §6–7 |
 | 3 Arquitectura | ✅ Aprobada el 2026-10-25 (`03-arquitectura.md`) |
 | 4 Frontend mínimo | ✅ **Comidas es una app aparte** (corrección de Juan): selector de apps en el logo, `/comidas` (Hoy) y `/comidas/chat` (asistente propio). El Coach `/ia` de Fuerza quedó como estaba |
-| 5 Implementación | 🟡 Partes 1–4 hechas y probadas en localhost: perfil, objetivos, almacenamiento (Firestore o `.data/nutrition-store.json`), herramientas del chat, modo fiesta y ¿qué pido?. **Falta:** subir la base a Firestore y probar con datos reales (necesita `FIREBASE_SERVICE_ACCOUNT`), migrar edad/estatura de Fuerza al perfil del servidor, medidas corporales |
+| 5 Implementación | ✅ Lista para cualquier persona (ver `03-arquitectura.md` §0b): perfil completo y validado, bienvenida guiada, cambio de objetivo, peso, medidas, plan de comidas, perfil compartido con Fuerza, Firebase conectado. Probado: persona nueva de punta a punta (local) y Juan con datos reales (Firebase) |
 | 4b Frontend dedicado · 6 Validación · 7 Mejoras | Pendientes. Juan pidió una fase de frontend dedicada al estilo (más allá de lo mínimo) |
 
 Decisiones clave de la Fase 2: meta doble (con gramos ≥90 % dentro de ±10 % kcal; vaga ≥80 % dentro de ±20 %), Juan **no pesa** comida, solo fuentes gratis, foto para después, embeddings con modelo **local** (`@huggingface/transformers`), uso personal de la TCAC (Juan decidirá sobre ICBF antes de abrir a otros usuarios), Juan no revisa el set de prueba.

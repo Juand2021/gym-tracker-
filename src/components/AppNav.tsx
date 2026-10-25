@@ -27,7 +27,7 @@ export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [displayName, setDisplayName] = useState<string | null>(null);
-  const [profileId, setProfileId] = useState<string | null>(null);
+  const [apps, setApps] = useState<AppId[]>(["fuerza"]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -38,12 +38,13 @@ export function AppNav() {
         if (!res.ok) return null;
         return (await res.json()) as {
           profile?: { id?: string; displayName?: string };
+          apps?: AppId[];
         };
       })
       .then((data) => {
         if (!cancelled) {
           setDisplayName(data?.profile?.displayName ?? null);
-          setProfileId(data?.profile?.id ?? null);
+          setApps(data?.apps?.length ? data.apps : ["fuerza"]);
         }
       })
       .catch(() => {
@@ -57,8 +58,6 @@ export function AppNav() {
   if (pathname === "/login") return null;
 
   const currentApp = appFromPath(pathname);
-  // Comidas solo existe para Juan por ahora.
-  const availableApps: AppId[] = profileId === "juan" ? ["fuerza", "comidas"] : ["fuerza"];
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -71,7 +70,7 @@ export function AppNav() {
     <>
       <header className="app-topbar">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2.5">
-          <AppSwitcher current={currentApp} available={availableApps} />
+          <AppSwitcher current={currentApp} available={apps} />
 
           {/* Cápsula de vidrio con descanso, perfil y salida */}
           <div className="hd-cluster">

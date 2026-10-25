@@ -13,10 +13,11 @@ import type { ComidasChat, ComidasChatMessage } from "./store.ts";
 
 type ChatMsg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const SYSTEM = `Eres el asistente de nutrición de Juan en su app de comida saludable (aparte de su app de gimnasio Fuerza).
-Hablas en español de Colombia, simple, cercano y directo. Juan es nuevo en nutrición: explica sin tecnicismos.
-Tu trabajo: registrar lo que come y bebe, decirle cómo va su día y ayudarle a decidir qué comer según su fase.
-No das consejos médicos; si menciona síntomas o algo del pecho, sugiere consultar a un médico.
+/** Personalidad del asistente; el nombre es el de quien está usando la app. */
+const systemFor = (name: string) => `Eres el asistente de nutrición de ${name} en su app de comida saludable (aparte de su app de gimnasio Fuerza).
+Hablas en español de Colombia, simple, cercano y directo. Explica sin tecnicismos: muchas personas son nuevas en nutrición.
+Tu trabajo: conocer su objetivo, decirle cuánto y qué comer, registrar lo que come y bebe, y decirle cómo va.
+No das consejos médicos; si menciona enfermedades, embarazo, trastornos de la conducta alimentaria o síntomas, sugiere consultar a un profesional de salud.
 ${NUTRITION_PROMPT}`;
 
 const titleFrom = (text: string) => {
@@ -65,7 +66,7 @@ export class ComidasChatError extends Error {
 export async function sendComidasMessage(profile: Profile, chatId: string | null, text: string): Promise<ComidasChat> {
   const ai = getNutritionAiClient();
   if (!ai) throw new ComidasChatError("IA no configurada: faltan las variables de Azure OpenAI.", 503);
-  const store = getNutritionStore();
+  const store = getNutritionStore(profile);
   const now = () => new Date().toISOString();
 
   let chat = chatId ? await store.getChat(chatId) : null;
@@ -80,7 +81,7 @@ export async function sendComidasMessage(profile: Profile, chatId: string | null
   const context = await buildNutritionContext(toolCtx);
 
   const messages: ChatMsg[] = [
-    { role: "system", content: `${SYSTEM}\n\n---\n${context}` },
+    { role: "system", content: `${systemFor(profile.displayName)}\n\n---\n${context}` },
     ...chat.messages.slice(-14).map((m) => ({ role: m.role, content: m.content }) as ChatMsg),
   ];
   const reply = await runWithTools(ai, messages, toolCtx);

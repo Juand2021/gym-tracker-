@@ -5,9 +5,10 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { buildNutritionContext, runNutritionTool, type ToolContext } from "./chat-tools.ts";
 import type { MealResult } from "./engine/pipeline.ts";
-import { JUAN_DEFAULT_PROFILE } from "./profile.ts";
+import { JUAN_PROFILE, missingForTargets, type NutritionProfile } from "./profile.ts";
 import { createLocalStore } from "./store.ts";
-import { computeTargets } from "./targets.ts";
+import { computeTargets, type TargetsLookup } from "./targets.ts";
+import type { Nutrients } from "./engine/types.ts";
 
 const NOW = new Date("2026-10-25T18:00:00Z"); // 13:00 en Colombia
 
@@ -22,11 +23,38 @@ function fakeAnalyze(text: string): Promise<MealResult> {
   return Promise.resolve({ items, totals, question: null });
 }
 
-function makeCtx(turnId: string, store = createLocalStore(path.join(mkdtempSync(path.join(tmpdir(), "nutri-")), "s.json"))): ToolContext {
+/** Igual que server.ts: objetivos si el perfil está completo; si no, lo que falta. */
+async function lookup(store: ToolContext["store"], weighIns: number[]): Promise<TargetsLookup> {
+  const profile = await store.getProfile();
+  const missing = missingForTargets(profile, weighIns.length > 0);
+  if (missing.length || !profile) return { ok: false, missing, profile };
+  return { ok: true, profile, targets: computeTargets({ profile, weightKg: weighIns.at(-1) ?? profile.weightKg!, workoutDates: [], today: "2026-10-25" }) };
+}
+
+const n = (kcal: number, protein_g: number, fat_g: number, carb_g: number): Nutrients => ({ kcal, protein_g, fat_g, carb_g, fiber_g: 0, alcohol_g: 0, water_g: 0 });
+const NUTRIENTS: Record<string, Nutrients> = {
+  pechuga_asada: n(163, 29.7, 4.9, 0),
+  res_asada: n(277, 36.9, 14.4, 0),
+  huevo_cocido: n(134, 14, 8.6, 0.1),
+  lentejas: n(117, 7, 1.4, 19),
+  frijoles: n(137, 8.2, 1.7, 22.2),
+  yogurt_griego: n(94, 8.8, 4.4, 4.8),
+  arroz_blanco: n(153, 3.2, 2.1, 30.5),
+  arepa_blanca: n(160, 3.6, 0.5, 35.5),
+  ensalada: n(35, 1.8, 0.3, 6.4),
+};
+
+function makeCtx(turnId: string, store = createLocalStore(path.join(mkdtempSync(path.join(tmpdir(), "nutri-")), "s.json")), profile: NutritionProfile | null = JUAN_PROFILE): ToolContext {
+  const weighIns: number[] = [];
+  if (profile) void store.saveProfile(profile);
   return {
     store,
     analyze: fakeAnalyze,
-    targetsFor: async () => computeTargets({ profile: JUAN_DEFAULT_PROFILE, weightKg: 78, workoutDates: [], today: "2026-10-25" }),
+    targetsFor: () => lookup(store, weighIns),
+    nutrientsOf: (k) => NUTRIENTS[k],
+    logWeight: async (_d, kg) => {
+      weighIns.push(kg);
+    },
     threadId: "hilo-1",
     turnId,
     now: NOW,
@@ -115,5 +143,100 @@ describe("herramientas de Comidas en el chat", () => {
     assert.equal((res.opciones as unknown[]).length, 2);
     assert.equal((await ctx.store.listMeals("2026-10-25", "2026-10-25")).length, 0);
     assert.equal((await ctx.store.listDrafts("hilo-1")).length, 0);
+  });
+});
+
+describe("perfil y objetivo por el chat (cualquier persona)", () => {
+  it("una persona nueva: sin perfil pide datos y no da objetivos", async () => {
+    const ctx = makeCtx("t1", undefined, null);
+    const res = await runNutritionTool("ver_perfil", {}, ctx);
+    assert.equal(res.perfil_incompleto, true);
+    assert.ok((res.faltan as string[]).includes("objetivo"));
+    const text = await buildNutritionContext(ctx);
+    assert.match(text, /PERFIL INCOMPLETO/);
+    assert.match(text, /persona nueva/);
+  });
+
+  it("completa el perfil paso a paso y calcula sus objetivos", async () => {
+    const ctx = makeCtx("t1", undefined, null);
+    const a = await runNutritionTool("actualizar_perfil", { sexo: "F", fecha_nacimiento: "1996-03-02", estatura_cm: 163 }, ctx);
+    assert.equal(a.guardado, true);
+    assert.equal(a.perfil_incompleto, true);
+    const b = await runNutritionTool(
+      "actualizar_perfil",
+      { peso_kg: 64, actividad: "ligero", dias_entreno_semana: 3, objetivo: { tipo: "deficit", ritmo_pct_semana: 0.5, descripcion: "bajar 4 kg" } },
+      ctx,
+    );
+    assert.equal(b.guardado, true);
+    const objetivos = b.objetivos_diarios as { kcal: number; proteina_g: number };
+    assert.ok(objetivos.kcal >= 1200 && objetivos.kcal < 2200, String(objetivos.kcal));
+    assert.equal(objetivos.proteina_g, Math.round(2.2 * 64));
+  });
+
+  it("no guarda datos imposibles", async () => {
+    const ctx = makeCtx("t1", undefined, null);
+    const res = await runNutritionTool("actualizar_perfil", { estatura_cm: 400 }, ctx);
+    assert.ok(res.error);
+    assert.equal(await ctx.store.getProfile(), null);
+  });
+
+  it("cambiar a volumen sube las calorías", async () => {
+    const ctx = makeCtx("t1");
+    const before = (await runNutritionTool("ver_perfil", {}, ctx)).objetivos_diarios as { kcal: number };
+    const after = (await runNutritionTool("actualizar_perfil", { objetivo: { tipo: "volumen" } }, ctx)).objetivos_diarios as { kcal: number };
+    assert.ok(after.kcal > before.kcal + 500);
+  });
+
+  it("registrar peso lo manda a Fuerza y recalcula", async () => {
+    const ctx = makeCtx("t1");
+    const res = await runNutritionTool("registrar_peso", { peso_kg: 75, fecha: null }, ctx);
+    assert.equal(res.registrado, true);
+    assert.equal((res.calculo as { peso_usado_kg: number }).peso_usado_kg, 75);
+  });
+
+  it("medidas: estima la grasa con cintura y cuello", async () => {
+    const ctx = makeCtx("t1");
+    const res = await runNutritionTool("registrar_medidas", { fecha: null, cintura_cm: 92, cuello_cm: 38 }, ctx);
+    assert.equal(res.guardadas, true);
+    assert.ok(typeof res.grasa_estimada_pct === "number");
+    assert.equal((await ctx.store.listMeasurements()).length, 1);
+  });
+
+  it("plan de comidas: reparte lo que falta con gramos calculados", async () => {
+    const ctx = makeCtx("t1");
+    const plan = await runNutritionTool("plan_comidas", {}, ctx);
+    const comidas = plan.comidas as { kcal_objetivo: number; proteina_objetivo_g: number; opciones: { alimentos: { clave: string; gramos: number }[]; proteina_g: number }[] }[];
+    assert.equal(comidas.length, JUAN_PROFILE.mealsPerDay);
+    const first = comidas[0].opciones[0];
+    assert.ok(first.alimentos[0].gramos > 0);
+    assert.ok(Math.abs(first.proteina_g - comidas[0].proteina_objetivo_g) < 15, `${first.proteina_g} vs ${comidas[0].proteina_objetivo_g}`);
+  });
+
+  it("plan de comidas vegetariano no trae carnes y respeta lo que no come", async () => {
+    const ctx = makeCtx("t1", undefined, { ...JUAN_PROFILE, dietStyle: "vegetariano", avoidFoods: ["huevo"] });
+    const plan = await runNutritionTool("plan_comidas", {}, ctx);
+    const keys = (plan.comidas as { opciones: { alimentos: { clave: string }[] }[] }[]).flatMap((c) => c.opciones.flatMap((o) => o.alimentos.map((a) => a.clave)));
+    assert.ok(!keys.some((k) => ["pechuga_asada", "res_asada", "huevo_cocido"].includes(k)), keys.join(","));
+    assert.ok(keys.some((k) => ["lentejas", "frijoles", "yogurt_griego"].includes(k)));
+  });
+});
+
+describe("plan de comidas: calidad", () => {
+  it("cada opción cubre al menos ~75 % de la proteína de su comida", async () => {
+    const ctx = makeCtx("t1");
+    const plan = await runNutritionTool("plan_comidas", {}, ctx);
+    for (const c of plan.comidas as { proteina_objetivo_g: number; opciones: { proteina_g: number }[] }[]) {
+      for (const o of c.opciones) assert.ok(o.proteina_g >= c.proteina_objetivo_g * 0.7, `${o.proteina_g} vs ${c.proteina_objetivo_g}`);
+    }
+  });
+  it("el yogur griego no va con ensalada", async () => {
+    const ctx = makeCtx("t1", undefined, { ...JUAN_PROFILE, dietStyle: "vegetariano" });
+    const plan = await runNutritionTool("plan_comidas", {}, ctx);
+    for (const c of plan.comidas as { opciones: { alimentos: { clave: string }[] }[] }[]) {
+      for (const o of c.opciones) {
+        const keys = o.alimentos.map((a) => a.clave);
+        if (keys.includes("yogurt_griego")) assert.ok(!keys.includes("ensalada"), keys.join(","));
+      }
+    }
   });
 });

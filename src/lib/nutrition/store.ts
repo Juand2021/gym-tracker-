@@ -3,11 +3,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { MealItemResult } from "./engine/pipeline.ts";
 import type { Nutrients } from "./engine/types.ts";
-import { JUAN_DEFAULT_PROFILE, type NutritionProfile } from "./profile.ts";
+import { EMPTY_PROFILE, type NutritionProfile } from "./profile.ts";
 
 /**
  * Datos de Comidas (docs/nutricion/03-arquitectura.md §3): perfil, comidas, borradores y medidas.
  * Dos implementaciones con la misma interfaz: archivo local (.data/, sin Firebase) y Firestore.
+ * Cada persona tiene su propio almacén (ver server.ts: raíz para Juan, users/{id}/... para los demás).
  */
 
 export type MealMoment = "desayuno" | "almuerzo" | "cena" | "snack" | "fiesta";
@@ -42,10 +43,11 @@ export type MealDraft = Omit<Meal, "updatedAt"> & {
 export type ComidasChatMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
 export type ComidasChat = { id: string; title: string; messages: ComidasChatMessage[]; createdAt: string; updatedAt: string };
 
-export type BodyMeasurement = { id: string; date: string; waistCm: number | null; neckCm: number | null; bicepsCm: number | null; thighCm: number | null; notes: string };
+export type BodyMeasurement = { id: string; date: string; waistCm: number | null; neckCm: number | null; hipCm?: number | null; bicepsCm: number | null; thighCm: number | null; notes: string };
 
 export interface NutritionStore {
-  getProfile(): Promise<NutritionProfile>;
+  /** null si la persona todavía no ha creado su perfil. */
+  getProfile(): Promise<NutritionProfile | null>;
   saveProfile(p: NutritionProfile): Promise<void>;
   listMeals(fromDate: string, toDate: string): Promise<Meal[]>;
   getMeal(id: string): Promise<Meal | null>;
@@ -69,6 +71,14 @@ export const newId = () => randomUUID();
 const DRAFT_TTL_MS = 24 * 3600 * 1000;
 export const draftExpiry = (now = Date.now()) => new Date(now + DRAFT_TTL_MS).toISOString();
 const alive = (d: MealDraft) => d.expiresAt > new Date().toISOString();
+
+/** Completa perfiles guardados con versiones anteriores del esquema. */
+export function normalizeProfile(stored: unknown): NutritionProfile | null {
+  if (!stored || typeof stored !== "object") return null;
+  const old = stored as Partial<NutritionProfile> & { fallbackWeightKg?: number };
+  const { fallbackWeightKg, ...rest } = old;
+  return { ...EMPTY_PROFILE, ...rest, weightKg: rest.weightKg ?? fallbackWeightKg ?? null, avoidFoods: rest.avoidFoods ?? [] };
+}
 
 // ───────── Archivo local ─────────
 
@@ -95,7 +105,7 @@ export function createLocalStore(file = path.join(process.cwd(), ".data", "nutri
   };
   return {
     async getProfile() {
-      return read().profile ?? JUAN_DEFAULT_PROFILE;
+      return normalizeProfile(read().profile);
     },
     async saveProfile(p) {
       update((d) => void (d.profile = p));
@@ -150,27 +160,24 @@ export function createLocalStore(file = path.join(process.cwd(), ".data", "nutri
 
 // ───────── Firestore ─────────
 
-type FirestoreLike = {
-  collection(name: string): {
-    doc(id: string): { get(): Promise<{ exists: boolean; data(): unknown }>; set(data: unknown): Promise<unknown>; delete(): Promise<unknown> };
-    where(field: string, op: string, value: unknown): FirestoreQuery;
-  };
+export type CollectionLike = {
+  doc(id: string): { get(): Promise<{ exists: boolean; data(): unknown }>; set(data: unknown): Promise<unknown>; delete(): Promise<unknown> };
+  where(field: string, op: string, value: unknown): FirestoreQuery;
 };
 type FirestoreQuery = {
   where(field: string, op: string, value: unknown): FirestoreQuery;
   get(): Promise<{ docs: { data(): unknown }[] }>;
 };
 
-/** Colecciones en la raíz para Juan (como workouts/bodyWeight). */
-export function createFirestoreStore(db: FirestoreLike): NutritionStore {
-  const col = (name: string) => db.collection(name);
+/** `col` da la colección de esta persona: raíz para Juan (como workouts), users/{id}/... para los demás. */
+export function createFirestoreStore(col: (name: string) => CollectionLike): NutritionStore {
   const get = async <T>(name: string, id: string) => {
     const snap = await col(name).doc(id).get();
     return snap.exists ? (snap.data() as T) : null;
   };
   return {
     async getProfile() {
-      return (await get<NutritionProfile>("profile", "main")) ?? JUAN_DEFAULT_PROFILE;
+      return normalizeProfile(await get<NutritionProfile>("profile", "main"));
     },
     async saveProfile(p) {
       await col("profile").doc("main").set(p);

@@ -103,8 +103,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // La app de Comidas solo existe para Juan por ahora.
-  if (session.id !== "juan" && (pathname === "/comidas" || pathname.startsWith("/comidas/"))) {
+  // La app de Comidas solo para los perfiles en COMIDAS_PROFILES (por defecto, Juan).
+  const comidasProfiles = (process.env.COMIDAS_PROFILES ?? "juan").split(",").map((s) => s.trim());
+  if (!comidasProfiles.includes(session.id) && (pathname === "/comidas" || pathname.startsWith("/comidas/"))) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

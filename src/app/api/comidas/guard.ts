@@ -3,7 +3,7 @@ import { nutritionEnabled } from "@/lib/nutrition/server";
 import type { Profile } from "@/lib/profiles";
 import { profileFromRequest, unauthorized } from "@/lib/request-profile";
 
-/** La app de Comidas solo existe para Juan por ahora. */
+/** Solo los perfiles con acceso a Comidas (COMIDAS_PROFILES). */
 export function comidasProfile(request: NextRequest): Profile | NextResponse {
   const profile = profileFromRequest(request);
   if (!profile) return unauthorized();
