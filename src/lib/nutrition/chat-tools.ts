@@ -15,6 +15,23 @@ import { navyBodyFat, PARTY_ETHANOL_G, type TargetsLookup } from "./targets.ts";
 
 export const ENGINE_VERSION = "2026-10-25-r9";
 
+/** Cocina (Planes): recetas, despensa y snacks. La implementa src/lib/nutrition/kitchen/server.ts. */
+export type KitchenChatTools = {
+  search(query: string | null, kind: "desayuno" | "comida" | "snack" | null, onlyReady: boolean): Promise<Record<string, unknown>[]>;
+  pantry(addText: string | null, removeText: string | null): Promise<{ agregados: string[]; quitados: string[]; recetas_listas: number }>;
+  snacks(): Promise<Record<string, unknown>>;
+  /** Plan del día con recetas; null si falta el perfil. */
+  plan(): Promise<Record<string, unknown> | null>;
+  /** Alimentos y totales de una receta (ajustada a la siguiente comida si `fitted`). */
+  /** Acepta el id o el nombre; si el nombre no es claro devuelve las candidatas. */
+  recipeMeal(idOrName: string, servings: number, fitted: boolean): Promise<{ recipeId: string; kind: string; text: string; items: StoredItem[]; totals: MealTotals } | { candidatas: string[] }>;
+  markCooked(recipeId: string, date: string): Promise<void>;
+  /** La IA propone una receta con la despensa y queda guardada como "Por probar". */
+  propose(kind: "desayuno" | "comida" | "snack" | null, wish: string | null): Promise<Record<string, unknown>>;
+  /** Guarda una receta escrita por la persona. */
+  saveText(text: string): Promise<Record<string, unknown>>;
+};
+
 export type ToolContext = {
   store: NutritionStore;
   /** Corre el motor de la Fase 2 sobre un texto. */
@@ -25,6 +42,8 @@ export type ToolContext = {
   nutrientsOf?: (coreKey: string) => Nutrients | undefined;
   /** Registra un pesaje (se comparte con Fuerza). */
   logWeight?: (date: string, weightKg: number) => Promise<void>;
+  /** Recetas, despensa y snacks (Planes). */
+  kitchen?: KitchenChatTools;
   threadId: string | null;
   /** Identificador de esta petición al chat. */
   turnId: string;
@@ -118,8 +137,95 @@ export const NUTRITION_TOOLS = [
     type: "function" as const,
     function: {
       name: "plan_comidas",
-      description: "Qué y cuánto comer en lo que queda del día: reparte las kcal y la proteína que faltan entre las comidas restantes con alimentos del catálogo y gramos calculados.",
+      description: "Qué y cuánto comer en lo que queda del día: una receta de su recetario por cada comida que falta, ajustada a las kcal y proteína que le quedan y a lo que tiene en casa.",
       parameters: { type: "object", additionalProperties: false, required: [], properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "buscar_recetas",
+      description: "Busca en su recetario (Planes) recetas fáciles con kcal y proteína por porción y si tiene los ingredientes en casa. Para: qué puedo cocinar, una receta con pollo, algo rápido de desayuno.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["texto", "tipo", "solo_listas"],
+        properties: {
+          texto: nullable("string", { description: "Ingrediente o palabra a buscar (pollo, avena, air fryer...)" }),
+          tipo: nullable("string", { enum: ["desayuno", "comida", "snack", null] }),
+          solo_listas: { type: "boolean", description: "true si solo quiere las que puede hacer ya con lo que tiene" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "actualizar_despensa",
+      description: "Actualiza lo que tiene en casa (compré pollo y huevos; se me acabó la avena). Sal, aceite y especias ya cuentan.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["agregar", "quitar"],
+        properties: {
+          agregar: nullable("string", { description: "Lo que compró o tiene, como lo dijo" }),
+          quitar: nullable("string", { description: "Lo que se le acabó" }),
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "sugerir_snack",
+      description: "Tiene hambre entre comidas: 3 snacks de su recetario que caben en lo que le queda, los que más llenan primero.",
+      parameters: { type: "object", additionalProperties: false, required: [], properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "registrar_receta",
+      description: "Comió una receta de su recetario (hice los pancakes de avena): crea un borrador calculado con la receta. Igual que analizar_comida: muestra y pregunta antes de guardar.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["receta_id", "porciones", "ajustada"],
+        properties: {
+          receta_id: { type: "string", description: "El receta_id, o el nombre de la receta si no lo sabes" },
+          porciones: nullable("number", { description: "Porciones que comió (por defecto 1)" }),
+          ajustada: { type: "boolean", description: "true si la hizo con las cantidades ajustadas a su día que muestra la app (lo normal)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "proponer_receta",
+      description: "Inventa una receta NUEVA, fácil y alta en proteína con lo que tiene en la despensa y su equipo. Queda guardada en su recetario como 'Por probar'.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["tipo", "deseo"],
+        properties: {
+          tipo: nullable("string", { enum: ["desayuno", "comida", "snack", null] }),
+          deseo: nullable("string", { description: "Lo que pidió (con pollo, algo dulce, sin estufa...)" }),
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "guardar_receta",
+      description: "Guarda en su recetario una receta que la persona escribió (ingredientes y pasos). Solo si pidió guardarla.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["texto"],
+        properties: { texto: { type: "string", description: "La receta tal como la escribió" } },
+      },
     },
   },
   {
@@ -416,7 +522,12 @@ export async function runNutritionTool(name: string, args: Args, ctx: ToolContex
       return { error: "Indica borrador_id o comida_id" };
     }
     case "guardar_comida": {
-      const draft = await ctx.store.getDraft(String(args.borrador_id ?? ""));
+      let draft = await ctx.store.getDraft(String(args.borrador_id ?? ""));
+      if (!draft) {
+        // El modelo a veces copia mal el id: si hay UN solo borrador pendiente de un turno anterior, es ese.
+        const pending = (await ctx.store.listDrafts(ctx.threadId)).filter((d) => d.items.length > 0 && d.turnId !== ctx.turnId);
+        if (pending.length === 1) draft = pending[0];
+      }
       if (!draft) return { error: "Ese borrador ya no existe (venció o ya se guardó)" };
       if (draft.turnId === ctx.turnId) {
         return { error: "No se puede guardar en el mismo turno en que se analizó. Muestra el resumen y espera el sí." };
@@ -432,6 +543,7 @@ export async function runNutritionTool(name: string, args: Args, ctx: ToolContex
         totals: draft.totals,
         engineVersion: draft.engineVersion,
         chatThreadId: draft.chatThreadId,
+        ...(draft.recipeId ? { recipeId: draft.recipeId } : {}),
         createdAt: draft.createdAt,
         updatedAt: now,
       };
@@ -441,6 +553,7 @@ export async function runNutritionTool(name: string, args: Args, ctx: ToolContex
       }
       await ctx.store.saveMeal(meal);
       await ctx.store.deleteDraft(draft.id);
+      if (draft.recipeId && !draft.replacesMealId) await ctx.kitchen?.markCooked(draft.recipeId, meal.date).catch(() => undefined);
       const day = await dayStatus(ctx, meal.date);
       return { guardada: true, comida_id: meal.id, dia: day.resumen };
     }
@@ -510,6 +623,18 @@ export async function runNutritionTool(name: string, args: Args, ctx: ToolContex
       };
     }
     case "plan_comidas": {
+      if (ctx.kitchen) {
+        const plan = await ctx.kitchen.plan();
+        const comidas = (plan?.comidas as { receta: unknown }[] | undefined) ?? [];
+        if (plan && comidas.some((c) => c.receta)) {
+          return {
+            con_recetas: true,
+            ...plan,
+            instruccion:
+              "La app muestra una tarjeta con las recetas (cada una abre la receta con sus pasos). Da en pocas líneas la idea del día: qué cocinar en cada comida y, si le falta algo, qué comprar. Si quiere otra opción, usa buscar_recetas.",
+          };
+        }
+      }
       const day = await dayStatus(ctx, today);
       if (!day.lookup.ok) return { error: "Faltan datos del perfil para planear", faltan: day.lookup.missing };
       if (!ctx.nutrientsOf) return { error: "La base de alimentos no está disponible" };
@@ -525,6 +650,77 @@ export async function runNutritionTool(name: string, args: Args, ctx: ToolContex
         instruccion:
           "Presenta las opciones como comidas colombianas normales (ej. 'pechuga a la plancha 150 g + arroz 120 g + ensalada'), con kcal y proteína de cada una. Puede cambiar alimentos por equivalentes; si pide otra cosa, usa consultar_opciones para calcularla.",
       };
+    }
+    case "buscar_recetas": {
+      if (!ctx.kitchen) return { error: "El recetario no está disponible" };
+      const kind = ["desayuno", "comida", "snack"].includes(String(args.tipo)) ? (args.tipo as "desayuno" | "comida" | "snack") : null;
+      const recetas = await ctx.kitchen.search(str(args.texto), kind, args.solo_listas === true);
+      return {
+        recetas,
+        instruccion: recetas.length
+          ? "La app muestra una tarjeta con las recetas. Recomienda 1–2 en pocas líneas (lo que tiene en casa y su objetivo). Si quiere registrarla después de comerla, usa registrar_receta."
+          : "No hay recetas con eso. Ofrece buscar sin filtros o revisar la despensa en Planes.",
+      };
+    }
+    case "actualizar_despensa": {
+      if (!ctx.kitchen) return { error: "La despensa no está disponible" };
+      const add = str(args.agregar);
+      const remove = str(args.quitar);
+      if (!add && !remove) return { error: "No hay nada para agregar ni quitar" };
+      const res = await ctx.kitchen.pantry(add, remove);
+      return {
+        ...res,
+        instruccion:
+          res.agregados.length || res.quitados.length
+            ? "Confirma en una línea qué quedó en la despensa y cuántas recetas puede hacer ya."
+            : "No reconocí esos ingredientes en el catálogo: pide que los marque en Planes → Despensa.",
+      };
+    }
+    case "sugerir_snack": {
+      if (!ctx.kitchen) return { error: "El recetario no está disponible" };
+      return { ...(await ctx.kitchen.snacks()), instruccion: "La app muestra una tarjeta con los snacks. Recomienda uno en una o dos líneas." };
+    }
+    case "registrar_receta": {
+      if (!ctx.kitchen) return { error: "El recetario no está disponible" };
+      const id = str(args.receta_id);
+      if (!id) return { error: "Falta la receta" };
+      const servings = Math.min(4, Math.max(0.25, numOrNull(args.porciones) ?? 1));
+      const meal = await ctx.kitchen.recipeMeal(id, servings, args.ajustada !== false);
+      if ("candidatas" in meal) return { error: "No sé cuál de estas recetas es", candidatas: meal.candidatas };
+      const now = ctx.now ?? new Date();
+      const time = timeInBogota(now);
+      const draft: MealDraft = {
+        id: newId(),
+        date: today,
+        time,
+        moment: meal.kind === "desayuno" ? "desayuno" : meal.kind === "snack" ? "snack" : time < "16:30" ? "almuerzo" : "cena",
+        text: meal.text,
+        items: meal.items,
+        totals: meal.totals,
+        engineVersion: "receta-1",
+        chatThreadId: ctx.threadId,
+        recipeId: meal.recipeId,
+        createdAt: now.toISOString(),
+        turnId: ctx.turnId,
+        replacesMealId: null,
+        expiresAt: draftExpiry(now.getTime()),
+      };
+      await ctx.store.saveDraft(draft);
+      return presentDraft(ctx, draft, null);
+    }
+    case "proponer_receta": {
+      if (!ctx.kitchen) return { error: "El recetario no está disponible" };
+      const kind = ["desayuno", "comida", "snack"].includes(String(args.tipo)) ? (args.tipo as "desayuno" | "comida" | "snack") : null;
+      return {
+        ...(await ctx.kitchen.propose(kind, str(args.deseo))),
+        instruccion: "La app muestra la receta en una tarjeta. Cuéntala en 2–3 líneas (por qué le sirve) y dile que quedó en su recetario como 'Por probar' para cocinarla en modo paso a paso.",
+      };
+    }
+    case "guardar_receta": {
+      if (!ctx.kitchen) return { error: "El recetario no está disponible" };
+      const text = str(args.texto);
+      if (!text) return { error: "Falta la receta" };
+      return { ...(await ctx.kitchen.saveText(text)), instruccion: "Confirma que quedó guardada con sus kcal y proteína por porción; menciona los avisos si los hay." };
     }
     case "ver_perfil": {
       return describeProfile(await ctx.targetsFor(today), today);
@@ -630,7 +826,15 @@ PERFIL Y OBJETIVO:
 - Cuando esté completo, usa ver_perfil y explica en simple: cuánto gasta al día, cuánto comer, cuánta proteína y por qué; y ofrece armar el plan del día (plan_comidas).
 - Si pide cambiar de objetivo ("quiero hacer volumen", "quiero un déficit más suave"), usa actualizar_perfil con el nuevo objetivo y explica cómo cambian sus números. Recomienda ritmos seguros: déficit 0,5–1 % del peso por semana; volumen 0,25–0,5 %. Si tiene mucha grasa y pide volumen, sugiere primero déficit o recomposición, pero respeta su decisión.
 - "Hoy pesé X" → registrar_peso. Medidas con cinta → registrar_medidas.
-- "¿Qué como?", "¿qué ceno?", "arma mi día" → plan_comidas.
+- "¿Qué como?", "¿qué ceno?", "arma mi día" → plan_comidas (usa su recetario y su despensa).
+
+RECETAS Y DESPENSA (Planes):
+- "¿Qué puedo cocinar?", "una receta con pollo", "algo rápido" → buscar_recetas. Prefiere las que puede hacer ya.
+- "Tengo hambre", "¿qué pico?" entre comidas → sugerir_snack.
+- "Compré…", "se me acabó…" → actualizar_despensa.
+- "Invéntame una receta", "¿qué hago con lo que tengo?" → proponer_receta. "Guarda mi receta de…" (con ingredientes) → guardar_receta.
+- "Hice/comí <receta del recetario>" (pericos, pancakes de avena, bowl mexicano…) → registrar_receta con su id o su nombre, NO analizar_comida. Es un borrador: igual que una comida, pregunta "¿Lo guardo?".
+- No todos son expertos en cocina: si pregunta cómo se hace algo, explica en pasos cortos o sugiere abrir la receta en modo cocinar.
 
 REGISTRO DE COMIDAS:
 - Si cuenta algo que comió o bebió, llama analizar_comida con su texto tal cual. La app muestra una TARJETA con cada alimento, gramos, kcal y el total: tu texto debe ser corto (1–3 líneas): los supuestos importantes, cómo queda el día y termina preguntando "¿Lo guardo?". No repitas la lista de alimentos. Si hay pregunta_sugerida, inclúyela. Si el perfil está incompleto, igual se puede registrar.

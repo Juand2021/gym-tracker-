@@ -48,7 +48,7 @@ const SWEET_CARBS = ["avena_hojuelas", "banano"];
 /** Una opción debe cubrir al menos este % de la proteína de la comida. */
 const MIN_PROTEIN_SHARE = 0.75;
 
-const EXCLUDED_CATEGORIES: Record<DietStyle, string[]> = {
+export const EXCLUDED_CATEGORIES: Record<DietStyle, string[]> = {
   omnivoro: [],
   pescetariano: ["carne", "pollo"],
   vegetariano: ["carne", "pollo", "pescado"],

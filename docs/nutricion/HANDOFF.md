@@ -3,6 +3,12 @@
 > Última actualización: **2026-10-25 (noche), sesión local en Claude Desktop**: revisión 1 del frontend, vidrio Cristal, 60 fps y arreglo de la cuota de Firebase. **Publicado en `main` / Vercel.**
 > **Leer primero:** `README.md` (plan de fases), `reports/2026-10-25-revision-1.md` (lo último), `05-firebase-cuota.md`, `04-frontend.md`.
 
+## 0a. Planes 2.0 (2026-10-25, noche) — rama `feat/nutriverse-planes-recetas`
+- Recetas, despensa, snacks ("Tengo hambre"), plan del día con recetas, semana con meal prep y lista de compras, recetas propias y de la IA, modo cocinar. Todo en `06-planes-recetas.md`.
+- Probado en local **sin Firebase** con `node scripts/dev-local.mjs` (puerto 3100, PIN de `.env.example`, datos en `.data/`, base de prueba en `.data/nutrition-local/foods.json`). El chat se probó con Azure.
+- `npm test`: todo pasa. `next build` y ESLint de los archivos tocados: sin errores.
+- Falta: la revisión de Juan en el iPhone y unir a `main`.
+
 ## 0. Estado actual (2026-10-25, noche)
 - **Rama**: todo el trabajo de NutriVerse se unió a **`main`** por pull request y Vercel publica esa versión. Para trabajo nuevo: crear una rama desde `main`.
 - **Último trabajo** (detalle en `reports/2026-10-25-revision-1.md`):
@@ -52,6 +58,7 @@
 | 4 Frontend mínimo | ✅ **Comidas es una app aparte** (corrección de Juan): selector de apps en el logo, `/comidas` (Hoy) y `/comidas/chat` (asistente propio). El Coach `/ia` de Fuerza quedó como estaba |
 | 5 Implementación | ✅ Lista para cualquier persona (ver `03-arquitectura.md` §0b): perfil completo y validado, bienvenida guiada, cambio de objetivo, peso, medidas, plan de comidas, perfil compartido con Fuerza, Firebase conectado. Probado: persona nueva de punta a punta (local) y Juan con datos reales (Firebase) |
 | 4b Frontend de **NutriVerse** | ✅ Implementado (`04-frontend.md` §12) y **revisado por Juan** (§12b): vidrio Cristal, luz del dedo, 60 fps. Pendiente: fondo WebGL y lentes con refracción (para después) e imágenes de `04b-ficha-recursos.md` |
+| Planes 2.0 (recetas, despensa, semana) | 🟡 Implementado en rama; falta revisión en iPhone (`06-planes-recetas.md`) |
 | Cuota de Firebase | 🟡 Arreglo publicado (`05-firebase-cuota.md`); falta la migración de entrenos y medir con la cuota reiniciada |
 | 6 Validación · 7 Mejoras | Pendientes |
 

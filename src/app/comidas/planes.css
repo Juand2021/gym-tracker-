@@ -1,0 +1,683 @@
+/* ═════════════════════════════════════════════════════════════════════
+   Planes 2.0: recetas, despensa, snacks, semana y modo cocinar
+   (docs/nutricion/06-planes-recetas.md). Usa los tokens de nutriverse.css.
+   ═════════════════════════════════════════════════════════════════════ */
+
+.nv-mt {
+  margin-top: 0.6rem;
+}
+
+.nv-pad {
+  padding: 0 0.3rem;
+}
+
+.nv-center {
+  text-align: center;
+}
+
+.nv-tag.is-green {
+  color: var(--nv-green-deep);
+  background: rgba(91, 214, 138, 0.18);
+}
+
+.nv-tag.is-quiet {
+  color: var(--nv-muted);
+  background: rgba(150, 160, 170, 0.14);
+}
+
+.nv-btn.is-picked {
+  color: var(--nv-green-deep);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(46, 158, 91, 0.6),
+    inset 0 1.5px 1px #fff;
+}
+
+/* Filtros en una fila que se desliza de lado */
+.nv-filter-row {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  margin: 0 -0.2rem;
+  padding: 0.2rem 0.2rem 0.4rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nv-filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.nv-filter-row .nv-pill {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* ───────── Tarjeta de receta ───────── */
+.nv-recipes {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.nv-recipe {
+  --nv-radius: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem 0.7rem 0.7rem;
+  color: var(--nv-ink);
+  text-decoration: none;
+}
+
+.nv-recipe-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.nv-recipe-name {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.nv-recipe-meta {
+  font-size: 0.76rem;
+  color: var(--nv-muted);
+}
+
+.nv-recipe-meta b {
+  color: var(--nv-ink-2);
+}
+
+.nv-recipe-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.nv-recipe-chips.is-center {
+  justify-content: center;
+}
+
+.nv-recipe-chips .nv-chip {
+  padding: 0.22rem 0.6rem;
+  font-size: 0.7rem;
+}
+
+/* ───────── Detalle ───────── */
+.nv-recipe-hero {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  padding: 1.5rem 1.1rem 1.2rem;
+}
+
+.nv-recipe-hero .nv-title {
+  font-size: 1.45rem;
+}
+
+.nv-fav {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+}
+
+.nv-fav:not(.is-on) {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.nv-recipe-totals {
+  margin: 0.8rem 0 0.4rem;
+  text-align: center;
+}
+
+.nv-ingredients {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+.nv-ingredients li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgba(150, 160, 170, 0.18);
+}
+
+.nv-ingredients li:last-child {
+  border-bottom: 0;
+}
+
+.nv-ingredients li.is-optional {
+  opacity: 0.7;
+}
+
+.nv-ing-check {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1.5px rgba(150, 160, 170, 0.45);
+}
+
+.nv-ing-check.is-have {
+  background: linear-gradient(165deg, #5bd68a, #23864c);
+  box-shadow:
+    inset 0 1px 1px rgba(235, 255, 242, 0.9),
+    0 3px 8px -3px rgba(30, 140, 76, 0.6);
+}
+
+.nv-ing-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.nv-ing-note {
+  color: var(--nv-muted);
+  font-weight: 400;
+}
+
+.nv-ing-amount {
+  font-size: 0.84rem;
+  color: var(--nv-ink-2);
+  text-align: right;
+}
+
+.nv-steps {
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.nv-steps li {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+
+.nv-step-n {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex: none;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(165deg, #5bd68a, #23864c);
+}
+
+.nv-step-text {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.nv-step-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--nv-green-deep);
+  background: rgba(91, 214, 138, 0.16);
+  white-space: nowrap;
+}
+
+.nv-tips {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+
+.nv-tips p {
+  display: flex;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.82rem;
+  color: var(--nv-ink-2);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.nv-rate {
+  display: grid;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.nv-rate .nv-h2 {
+  margin: 0;
+}
+
+.nv-cook-bar {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 0.6rem;
+}
+
+.nv-log-total {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--nv-muted);
+}
+
+.nv-log-total span {
+  display: grid;
+  padding: 0.7rem;
+  border-radius: 1rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 1px 1px #fff;
+}
+
+.nv-log-total b {
+  font-size: 1.4rem;
+  color: var(--nv-ink);
+}
+
+/* ───────── Modo cocinar (pantalla completa, letra grande) ───────── */
+.nv-cook {
+  display: flex;
+  flex-direction: column;
+  max-width: 32rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(0.6rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+  gap: 0.8rem;
+}
+
+.nv-cook-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.nv-cook-title {
+  min-width: 0;
+}
+
+.nv-cook-title .nv-h2 {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nv-cook-dots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.nv-cook-dots span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 1rem;
+  background: rgba(150, 160, 170, 0.35);
+  transition:
+    width 0.3s var(--nv-ease),
+    background 0.3s var(--nv-ease);
+}
+
+.nv-cook-dots span.is-done {
+  background: var(--nv-green-hi);
+}
+
+.nv-cook-dots span.is-on {
+  width: 1.4rem;
+  background: var(--nv-green);
+}
+
+.nv-cook-body {
+  flex: 1;
+  display: grid;
+  align-content: start;
+}
+
+.nv-cook-step {
+  display: grid;
+  gap: 1rem;
+  padding: 1.4rem 1.2rem;
+}
+
+.nv-cook-text {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--nv-ink);
+}
+
+.nv-cook-timer {
+  --nv-radius: 1.5rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  padding: 1rem;
+}
+
+.nv-cook-timer-time {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.nv-cook-timer.is-ringing {
+  animation: nv-ring 0.9s var(--nv-ease) infinite;
+}
+
+@keyframes nv-ring {
+  50% {
+    box-shadow: 0 0 0 6px rgba(91, 214, 138, 0.35);
+  }
+}
+
+.nv-cook-list {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-cook-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: 1rem;
+  text-align: left;
+  color: var(--nv-ink);
+}
+
+.nv-cook-item.is-done .nv-ing-name {
+  color: var(--nv-muted);
+  text-decoration: line-through;
+}
+
+.nv-cook-done {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+  text-align: center;
+  padding: 1.8rem 1.2rem;
+}
+
+.nv-cook-nav {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 0.6rem;
+}
+
+/* ───────── Despensa ───────── */
+.nv-pantry-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: var(--nv-ink);
+  text-decoration: none;
+}
+
+.nv-pantry-count {
+  display: grid;
+  place-items: center;
+  min-width: 3.4rem;
+  height: 3.4rem;
+  padding: 0 0.5rem;
+  border-radius: 1.2rem;
+  font-size: 1.7rem;
+  color: #fff;
+  background: linear-gradient(165deg, #5bd68a, #23864c);
+  box-shadow:
+    inset 0 1.5px 1px rgba(235, 255, 242, 0.9),
+    0 10px 22px -10px rgba(30, 140, 76, 0.7);
+}
+
+.nv-pantry-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.nv-pantry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.nv-pantry-item {
+  --nv-radius: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.75rem 0.45rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--nv-ink-2);
+  text-align: left;
+}
+
+.nv-pantry-item .nv-ing-check {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.nv-pantry-item.is-on {
+  color: var(--nv-green-deep);
+  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(46, 158, 91, 0.55),
+    inset 0 1.5px 1px #fff;
+}
+
+.nv-pantry-item:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+/* ───────── Hoy: receta por comida y "Tengo hambre" ───────── */
+.nv-plan-recipe {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.nv-plan-recipe-top {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--nv-ink);
+  text-decoration: none;
+}
+
+.nv-link {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--nv-green-deep);
+  text-decoration: underline;
+  background: none;
+}
+
+.nv-snack {
+  --nv-radius: 1.3rem;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.nv-snack-lines {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--nv-muted);
+}
+
+/* ───────── Semana y lista de compras ───────── */
+.nv-week-day.is-today {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(46, 158, 91, 0.45),
+    0 18px 40px -22px rgba(30, 140, 76, 0.45);
+}
+
+.nv-week-day.is-past {
+  opacity: 0.6;
+}
+
+.nv-week-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.nv-week-head .nv-h2 {
+  text-transform: capitalize;
+}
+
+.nv-week-slots {
+  display: grid;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-week-slots li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(150, 160, 170, 0.18);
+}
+
+.nv-week-slots li:last-child {
+  border-bottom: 0;
+}
+
+.nv-week-slot {
+  width: 4.6rem;
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nv-green);
+}
+
+.nv-week-recipe {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  color: var(--nv-ink);
+  text-decoration: none;
+}
+
+.nv-week-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.nv-week-meta {
+  font-size: 0.74rem;
+  color: var(--nv-muted);
+}
+
+.nv-shop-group {
+  margin-top: 0.9rem;
+}
+
+.nv-shop {
+  display: grid;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.45rem 0.2rem;
+  text-align: left;
+  color: var(--nv-ink);
+  border-bottom: 1px solid rgba(150, 160, 170, 0.15);
+}
+
+.nv-shop-item.is-have:not(.is-done) {
+  opacity: 0.75;
+}
+
+.nv-shop-item.is-done .nv-ing-name {
+  color: var(--nv-muted);
+  text-decoration: line-through;
+}
+
+.nv-shop-for {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--nv-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ───────── Crear receta ───────── */
+.nv-textarea {
+  --nv-radius: 1.1rem;
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.8rem 0.9rem;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--nv-ink);
+  background-color: transparent;
+}
+
+.nv-textarea:focus {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(46, 158, 91, 0.6),
+    0 0 0 4px rgba(91, 214, 138, 0.18);
+}
+
+.nv-author-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ChatCard } from "@/lib/nutrition/cards";
 import { fmt } from "./glass/motion";
 import { NvMiniGauge } from "./NvGauge";
@@ -162,6 +163,31 @@ export function NvTargetsCard({ card }: { card: TargetsCard }) {
         </span>
       </div>
       {card.maintenance ? <p className="nv-sub">Tu mantenimiento: {fmt(card.maintenance)} kcal</p> : null}
+    </div>
+  );
+}
+
+type Recipes = Extract<ChatCard, { type: "recipes" }>;
+
+/** Recetas sugeridas en el chat: cada una abre su receta en Planes. */
+export function NvRecipesCard({ card }: { card: Recipes }) {
+  return (
+    <div className="nv-card nv-glass is-read nv-plan">
+      <p className="nv-kicker">{card.title}</p>
+      <div className="nv-plan-opts">
+        {card.items.map((r) => (
+          <Link key={`${r.label ?? ""}${r.id}`} href={`/comidas/planes/recetas/${r.id}`} className="nv-plan-opt nv-glass is-thin nv-press">
+            <span className="nv-plan-opt-foods">
+              {r.label ? <b>{r.label}: </b> : null}
+              {r.name}
+              {r.note ? <span className="nv-tag">{r.note}</span> : null}
+            </span>
+            <span className="nv-plan-opt-meta">
+              {fmt(r.kcal)} kcal · {r.protein} g{r.minutes ? ` · ${r.minutes} min` : ""}
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

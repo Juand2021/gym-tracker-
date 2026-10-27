@@ -271,7 +271,8 @@ function TabSlot({ tab, index, active, setRef }: { tab: (typeof TABS)[number]; i
 
 export function NvShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const full = FULL.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // El modo cocinar de una receta también va a pantalla completa.
+  const full = FULL.some((p) => pathname === p || pathname.startsWith(`${p}/`)) || pathname.endsWith("/cocinar");
   const [me, setMe] = useState<{ name: string; apps: AppId[] }>({ name: "", apps: ["comidas"] });
   // Fondo y decoración en pausa al cambiar de pantalla o hacer scroll (el vidrio no re-desenfoca).
   useQuietWhileBusy(pathname);

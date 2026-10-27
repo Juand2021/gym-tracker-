@@ -131,9 +131,11 @@ Basado en "Tus estadísticas":
 - **Balance**: "la fiesta del sábado sumó 1.400 kcal: repartidas en 4 días son ~350 menos por día".
 
 ### 5.5 Planes
-- **Plan del día** (de `plan_comidas`): las comidas que faltan con 2 opciones cada una, en tarjetas con burbujas de comida, kcal y proteína; "Elegir" la manda al chat para registrarla cuando la coma.
-- **"¿Qué pido?"**: escribir o dictar opciones de un menú y verlas comparadas.
-- Más adelante (Fase 7): plan de la semana y lista de compras (como en la referencia).
+> **Actualizado (Planes 2.0, 2026-10-25):** ver `06-planes-recetas.md`. Pestañas internas: Hoy · Recetas · Despensa · Semana.
+- **Hoy**: una receta ajustada por comida que falta (con "Cambiar"), **Tengo hambre** (snacks) y **"¿Qué pido?"**.
+- **Recetas**: biblioteca con filtros, recetas propias y propuestas por la IA, detalle con porción ajustada y **modo cocinar** paso a paso.
+- **Despensa**: lo que hay en casa activa las recetas que se pueden hacer.
+- **Semana**: plan de 7 días con meal prep y **lista de compras**.
 
 ### 5.6 Perfil (como en la referencia)
 - **Encabezado**: foto (o avatar), nombre con hoja, lema ("Constancia · Disciplina · Resultados").

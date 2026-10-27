@@ -29,6 +29,7 @@ Regla de trabajo: **al entrar a cada fase, Claude resume lo que hará y hace pre
 - **Fase 3 — Arquitectura** ✅ aprobada el 2026-10-25. `docs/nutricion/03-arquitectura.md`.
 - **Fase 4 — Frontend** ✅ NutriVerse implementado y revisado por Juan (vidrio Cristal, 60 fps). `docs/nutricion/04-frontend.md` §12–12b.
 - **Fase 5 — Implementación** ✅ perfil y medidas, objetivos, motor productivo, chat de registro, pantalla del día, fiestas, "¿qué pido?", estadísticas y perfil compartido con Fuerza. Pendiente: **TDEE adaptativo** (ajustar las calorías con el peso real).
+- **Planes 2.0** 🟡 recetas (46), despensa, "Tengo hambre", plan del día con recetas, semana con meal prep y lista de compras, recetas propias y de la IA, modo cocinar. Implementado en la rama `feat/nutriverse-planes-recetas`; falta la revisión de Juan en el iPhone. `docs/nutricion/06-planes-recetas.md`.
 - **Cuota de Firebase** 🟡 arreglo publicado; falta la migración y la medición. `docs/nutricion/05-firebase-cuota.md`.
 - **Fase 6 — Validación real** ⏳ siguiente: 1–2 semanas de uso en el iPhone y recalibración. Registro de revisiones en `docs/nutricion/reports/`.
 - **Fase 7 — Mejoras** (foto, código de barras, comidas frecuentes, transición de fases).
