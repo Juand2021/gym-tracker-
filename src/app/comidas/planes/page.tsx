@@ -1,103 +1,220 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cardFromTool, type ChatCard } from "@/lib/nutrition/cards";
+import { SLOT_LABEL } from "@/lib/nutrition/kitchen/state";
 import { NvCompareCard } from "@/components/nutriverse/NvCards";
 import { NvBubble } from "@/components/nutriverse/NvBubble";
 import { NvIcon } from "@/components/nutriverse/NvIcon";
+import { HungrySheet, LogRecipeSheet, PantryChip, bubbleForKind, type LogPayload } from "@/components/nutriverse/NvKitchen";
 import { NvError, NvPageHead, NvSkeleton } from "@/components/nutriverse/NvUi";
 import { fmt } from "@/components/nutriverse/glass/motion";
-import { nvSend, openChatWith, useNv, type PlanData } from "@/components/nutriverse/data";
+import { nvSend, openChatWith, useNv, type FoodPlan, type PlanData, type PlannedRecipe } from "@/components/nutriverse/data";
 
-const MEAL_KIND = ["desayuno", "almuerzo", "cena", "snack"] as const;
+type Slot = Extract<PlanData, { ok: true }>["slots"][number];
 
-export default function NutriVersePlans() {
-  const router = useRouter();
+export default function PlanesToday() {
   const { data, error, reload } = useNv<PlanData>("/api/comidas/plan");
+  const [hungry, setHungry] = useState(false);
+  const [log, setLog] = useState<LogPayload | null>(null);
 
   return (
-    <div className="nv-stack">
-      <NvPageHead kicker="Qué y cuánto comer" title="Planes" />
+    <>
+      <NvPageHead
+        kicker="Qué y cuánto comer"
+        title="Hoy"
+        action={
+          <button type="button" className="nv-btn nv-glass is-green nv-press is-small" onClick={() => setHungry(true)}>
+            <NvIcon name="flame" size={16} tone="white" /> Tengo hambre
+          </button>
+        }
+      />
 
       {!data ? (
         error ? (
           <NvError text={error} onRetry={reload} />
         ) : (
-          <NvSkeleton h={320} />
+          <NvSkeleton h={360} />
         )
       ) : !data.ok ? (
         <section className="nv-card nv-glass is-thick nv-setup nv-rise">
           <NvIcon name="plan" size={44} />
           <h2 className="nv-h2">Primero tu perfil</h2>
           <p className="nv-sub">Para armar tu plan me faltan: {data.missing.join(", ")}.</p>
+          <Link href="/comidas/perfil" className="nv-btn nv-glass is-green nv-press">
+            Completar perfil
+          </Link>
         </section>
       ) : (
         <>
           <section className="nv-card nv-glass is-thick nv-plan-hero nv-rise" style={{ ["--i" as string]: 1 }}>
-            <p className="nv-kicker">Plan del día</p>
-            {data.plan.restante_kcal > 0 ? (
+            <p className="nv-kicker">Lo que queda de tu día</p>
+            {data.left.kcal > 120 ? (
               <p className="nv-plan-hero-text">
-                Te quedan <b className="nv-num">{fmt(data.plan.restante_kcal)}</b> kcal y <b className="nv-num">{fmt(data.plan.restante_proteina_g)}</b> g de proteína
+                Te quedan <b className="nv-num">{fmt(data.left.kcal)}</b> kcal y <b className="nv-num">{fmt(data.left.protein_g)}</b> g de proteína
               </p>
             ) : (
-              <p className="nv-plan-hero-text">Ya cubriste tus calorías de hoy. Si te da hambre, prefiere algo con mucha proteína y pocas kcal.</p>
+              <p className="nv-plan-hero-text">Ya cubriste tus calorías de hoy. Si te da hambre, algo con mucha proteína y pocas kcal.</p>
             )}
+            <p className="nv-sub">Las recetas se ajustan solas: más proteína o menos arroz según lo que te falte.</p>
           </section>
-          {data.plan.comidas.map((c, ci) => (
-            <section key={c.comida} className="nv-card nv-glass is-read nv-rise" style={{ ["--i" as string]: ci + 2 }}>
-              <div className="nv-section-head">
-                <h2 className="nv-h2">Comida {c.comida}</h2>
-                <span className="nv-sub">
-                  ~{fmt(c.kcal_objetivo)} kcal · {c.proteina_objetivo_g} g prot.
-                </span>
-              </div>
-              <div className="nv-options">
-                {c.opciones.map((o, i) => {
-                  const text = o.alimentos.map((a) => `${a.alimento} ${fmt(a.gramos)} g`).join(", ");
-                  return (
-                    <div key={i} className="nv-option nv-glass is-thin">
-                      <NvBubble kind={MEAL_KIND[(ci + i) % MEAL_KIND.length]} size={46} />
-                      <div className="min-w-0 flex-1">
-                        <ul className="nv-option-foods">
-                          {o.alimentos.map((a) => (
-                            <li key={a.alimento}>
-                              <span>{a.alimento}</span>
-                              <span className="nv-num">{fmt(a.gramos)} g</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="nv-option-meta">
-                          {fmt(o.kcal)} kcal · {o.proteina_g} g proteína
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="nv-btn nv-glass is-green nv-press is-small"
-                        onClick={() => {
-                          openChatWith(`Comí ${text}`);
-                          router.push("/comidas/chat");
-                        }}
-                        aria-label={`Elegir: ${text}`}
-                      >
-                        Elegir
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+
+          {data.slots.map((s, i) => (
+            <SlotCard key={`${s.slot}-${i}`} slot={s} i={i + 2} onLog={setLog} />
           ))}
+
+          {data.extra.kcal >= 150 ? (
+            <section className="nv-card nv-glass is-thin nv-soon nv-rise">
+              <NvIcon name="sparkle" size={28} />
+              <p className="nv-sub">
+                Después de esto te quedan ~{fmt(data.extra.kcal)} kcal
+                {data.extra.protein_g >= 10 ? ` y ${fmt(data.extra.protein_g)} g de proteína` : ""}.{" "}
+                {data.phase?.type === "deficit" ? "En déficit no tienes que comértelas todas" : "Puedes sumar algo más"}
+                {data.extra.protein_g >= 15 ? ", pero procura llegar a la proteína. " : ". "}
+                <button type="button" className="nv-link nv-press" onClick={() => setHungry(true)}>
+                  Ver snacks
+                </button>
+              </p>
+            </section>
+          ) : null}
+
+          {data.fallback ? <FoodOptions plan={data.fallback} /> : null}
+
+          {data.slots.length && data.slots.every((s) => !s.pick) ? (
+            <section className="nv-card nv-glass is-thin nv-soon nv-rise">
+              <NvIcon name="bowl" size={28} />
+              <p className="nv-sub">
+                No encontré recetas que vayan con tu dieta y tu equipo. <Link href="/comidas/planes/despensa">Revisa tu despensa</Link>.
+              </p>
+            </section>
+          ) : null}
         </>
       )}
 
       <WhatToOrder />
 
-      <section className="nv-card nv-glass is-thin nv-soon nv-rise">
-        <NvIcon name="calendar" size={28} />
-        <p className="nv-sub">Próximamente: plan de la semana y lista de compras.</p>
-      </section>
-    </div>
+      <HungrySheet open={hungry} onClose={() => setHungry(false)} onPick={(p) => setLog(p)} />
+      <LogRecipeSheet open={log !== null} onClose={() => setLog(null)} payload={log} />
+    </>
+  );
+}
+
+const toPayload = (p: PlannedRecipe): LogPayload => ({
+  recipeId: p.card.id,
+  name: p.card.name,
+  kind: p.card.kind,
+  kcal: p.kcal,
+  protein_g: p.protein_g,
+  gramsPerServing: p.gramsPerServing,
+  swaps: p.swaps,
+});
+
+/** Una comida del plan: la receta elegida y "Cambiar" para ver las otras. */
+function SlotCard({ slot, i, onLog }: { slot: Slot; i: number; onLog: (p: LogPayload) => void }) {
+  const options = slot.pick ? [slot.pick, ...slot.alternatives] : [];
+  const [k, setK] = useState(0);
+  const cur = options[k % Math.max(1, options.length)];
+
+  return (
+    <section className="nv-card nv-glass is-read nv-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
+      <div className="nv-section-head">
+        <h2 className="nv-h2">{SLOT_LABEL[slot.slot]}</h2>
+        <span className="nv-sub">
+          meta ~{fmt(slot.kcal)} kcal · {slot.protein_g} g prot.
+        </span>
+      </div>
+      {!cur ? (
+        <p className="nv-sub">No hay recetas para esta comida con tu despensa y tu equipo.</p>
+      ) : (
+        <div className="nv-plan-recipe">
+          <Link href={`/comidas/planes/recetas/${cur.card.id}`} className="nv-plan-recipe-top nv-press">
+            <NvBubble kind={bubbleForKind(cur.card.kind)} size={54} />
+            <span className="nv-recipe-main">
+              <span className="nv-recipe-name">{cur.card.name}</span>
+              <span className="nv-recipe-meta">
+                <b className="nv-num">{fmt(cur.kcal)}</b> kcal · <b className="nv-num">{cur.protein_g}</b> g prot. · {cur.card.minutes} min
+              </span>
+              <span className="nv-recipe-chips">
+                <PantryChip card={cur.card} />
+                {cur.card.state.favorite ? <span className="nv-chip is-ok">Favorita</span> : null}
+              </span>
+            </span>
+            <NvIcon name="chevronR" size={16} />
+          </Link>
+          <ul className="nv-option-foods">
+            {cur.lines.map((l) => (
+              <li key={l.name}>
+                <span>{l.name}</span>
+                <span className="nv-num">{l.amount}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="nv-row">
+            {options.length > 1 ? (
+              <button type="button" className="nv-btn nv-glass is-thin nv-press is-small" onClick={() => setK((x) => x + 1)}>
+                <NvIcon name="history" size={16} /> Cambiar ({(k % options.length) + 1}/{options.length})
+              </button>
+            ) : null}
+            <button type="button" className="nv-btn nv-glass is-green nv-press is-small" onClick={() => onLog(toPayload(cur))}>
+              Ya me lo comí
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Respaldo: opciones de alimentos sueltos (el plan de antes). */
+function FoodOptions({ plan }: { plan: FoodPlan }) {
+  const router = useRouter();
+  return (
+    <>
+      {plan.comidas.map((c, ci) => (
+        <section key={c.comida} className="nv-card nv-glass is-read nv-rise" style={{ ["--i" as string]: ci + 2 }}>
+          <div className="nv-section-head">
+            <h2 className="nv-h2">Comida {c.comida}</h2>
+            <span className="nv-sub">
+              ~{fmt(c.kcal_objetivo)} kcal · {c.proteina_objetivo_g} g prot.
+            </span>
+          </div>
+          <div className="nv-options">
+            {c.opciones.map((o, i) => {
+              const text = o.alimentos.map((a) => `${a.alimento} ${fmt(a.gramos)} g`).join(", ");
+              return (
+                <div key={i} className="nv-option nv-glass is-thin">
+                  <div className="min-w-0 flex-1">
+                    <ul className="nv-option-foods">
+                      {o.alimentos.map((a) => (
+                        <li key={a.alimento}>
+                          <span>{a.alimento}</span>
+                          <span className="nv-num">{fmt(a.gramos)} g</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="nv-option-meta">
+                      {fmt(o.kcal)} kcal · {o.proteina_g} g proteína
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="nv-btn nv-glass is-green nv-press is-small"
+                    onClick={() => {
+                      openChatWith(`Comí ${text}`);
+                      router.push("/comidas/chat");
+                    }}
+                  >
+                    Elegir
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </>
   );
 }
 
@@ -131,7 +248,7 @@ function WhatToOrder() {
         <h2 className="nv-h2">¿Qué pido?</h2>
         <NvIcon name="sparkle" size={24} />
       </div>
-      <p className="nv-sub">Escribe las opciones del menú y te digo cuál te conviene hoy.</p>
+      <p className="nv-sub">¿Comes fuera? Escribe las opciones del menú y te digo cuál te conviene hoy.</p>
       <div className="nv-order-inputs">
         {opts.map((o, i) => (
           <div key={i} className="nv-field nv-glass is-thin">

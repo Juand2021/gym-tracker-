@@ -86,7 +86,10 @@ export async function makeToolContext(profile: Profile, threadId: string | null,
   if (!ai || !foodDb) return null;
   const parser = makeLlmParser(ai);
   const reranker = makeLlmReranker(ai);
+  // Importación tardía: kitchen/server.ts usa este archivo (evita el ciclo al cargar).
+  const { chatKitchen } = await import("./kitchen/server.ts");
   return {
+    kitchen: chatKitchen(profile),
     store: getNutritionStore(profile),
     analyze: (text) => analyzeMeal(text, { db: foodDb, parser, reranker }),
     targetsFor: (date) => targetsFor(profile, date),
@@ -111,8 +114,18 @@ export async function daySummary(profile: Profile, date = todayInBogota()) {
   ]);
   const eaten = sumTotals(meals);
   const gauge = t.ok && t.profile.phase ? gaugeFor(t.profile.phase.type, t.targets.kcal) : null;
-  let suggestion: { kcal: number; protein: number; foods: { name: string; grams: number }[] } | null = null;
+  let suggestion: { kcal: number; protein: number; foods: { name: string; grams: number }[]; recipe?: import("./kitchen/server.ts").NextRecipe } | null = null;
+  // Primero una receta de Planes (con lo que hay en casa); si no hay ninguna, alimentos sueltos.
   if (t.ok && foodDb && date === todayInBogota()) {
+    try {
+      const { nextRecipeSuggestion } = await import("./kitchen/server.ts");
+      const recipe = await nextRecipeSuggestion(profile, t, meals);
+      if (recipe) suggestion = { kcal: recipe.kcal, protein: recipe.protein_g, foods: [], recipe };
+    } catch (err) {
+      console.error("[comidas] receta sugerida", err);
+    }
+  }
+  if (!suggestion && t.ok && foodDb && date === todayInBogota()) {
     const plan = buildMealPlan({
       profile: t.profile,
       targets: t.targets,
@@ -152,6 +165,7 @@ export async function daySummary(profile: Profile, date = todayInBogota()) {
       text: m.text,
       kcal: m.totals.kcal,
       protein: Math.round(m.totals.protein_g),
+      recipeId: m.recipeId ?? null,
       items: m.items.map((i) => ({ name: i.name, grams: i.grams, kcal: i.nutrients.kcal })),
     })),
   };

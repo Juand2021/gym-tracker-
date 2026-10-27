@@ -20,6 +20,7 @@ const BASIS: Record<string, string> = {
   generic: "porción típica",
   llm: "estimado",
   fallback: "estimado",
+  recipe: "de la receta",
 };
 
 export default function MealDetail() {

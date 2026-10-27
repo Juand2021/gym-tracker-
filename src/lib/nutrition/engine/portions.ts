@@ -22,7 +22,7 @@ export type PortionRequest = {
   llmGrams?: number | null;
 };
 
-export type GramsBasis = "said" | "template" | "core" | "core_default" | "usda" | "generic" | "llm" | "fallback";
+export type GramsBasis = "said" | "template" | "core" | "core_default" | "usda" | "generic" | "llm" | "fallback" | "recipe";
 
 export type PortionResult = { grams: number; basis: GramsBasis; note: string };
 

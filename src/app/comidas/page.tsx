@@ -7,6 +7,7 @@ import { NvGauge } from "@/components/nutriverse/NvGauge";
 import { NvTube, NvWater } from "@/components/nutriverse/NvCharts";
 import { NvIcon } from "@/components/nutriverse/NvIcon";
 import { NvBubble } from "@/components/nutriverse/NvBubble";
+import { LogRecipeSheet, bubbleForKind } from "@/components/nutriverse/NvKitchen";
 import { NvCapsule, NvError, NvSkeleton } from "@/components/nutriverse/NvUi";
 import { fmt, useCountUp } from "@/components/nutriverse/glass/motion";
 import { dateLabel, MOMENT_LABEL, nvSend, openChatWith, useNv, type DayData, type DayMeal } from "@/components/nutriverse/data";
@@ -134,7 +135,7 @@ export default function NutriVerseHome() {
         <div className="nv-capsules">
           {capsules.map(({ m, x }, i) =>
             x ? (
-              <NvCapsule key={x.id} i={i} href={`/comidas/comida/${x.id}`} kind={x.moment} title={`${MOMENT_LABEL[x.moment]} · ${x.time}`} sub={x.items.map((it) => it.name).join(", ") || x.text} kcal={x.kcal} />
+              <NvCapsule key={x.id} i={i} href={`/comidas/comida/${x.id}`} kind={x.moment} title={`${MOMENT_LABEL[x.moment]} · ${x.time}`} sub={x.recipeId ? x.text : x.items.map((it) => it.name).join(", ") || x.text} kcal={x.kcal} />
             ) : isToday ? (
               <AddCapsule key={m} i={i} moment={m as (typeof MAIN_MOMENTS)[number]} />
             ) : null,
@@ -158,7 +159,9 @@ export default function NutriVerseHome() {
         </div>
       </section>
 
-      {isToday && data.suggestion ? (
+      {isToday && data.suggestion?.recipe ? (
+        <RecipeSuggestion recipe={data.suggestion.recipe} onSaved={() => void reload()} />
+      ) : isToday && data.suggestion ? (
         <section className="nv-card nv-glass is-read nv-suggest nv-rise" style={{ ["--i" as string]: 6 }}>
           <div className="nv-suggest-head">
             <NvBubble kind="plato" size={52} />
@@ -195,6 +198,48 @@ export default function NutriVerseHome() {
         </section>
       ) : null}
     </div>
+  );
+}
+
+/** "¿Qué como ahora?" con una receta de Planes, ya ajustada a lo que falta. */
+function RecipeSuggestion({ recipe, onSaved }: { recipe: NonNullable<NonNullable<DayData["suggestion"]>["recipe"]>; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="nv-card nv-glass is-read nv-suggest nv-rise" style={{ ["--i" as string]: 6 }}>
+      <div className="nv-suggest-head">
+        <NvBubble kind={bubbleForKind(recipe.kind)} size={52} />
+        <div className="min-w-0 flex-1">
+          <p className="nv-kicker">¿Qué como ahora?</p>
+          <p className="nv-suggest-title">{recipe.name}</p>
+          <p className="nv-sub">
+            ~{fmt(recipe.kcal)} kcal · {recipe.protein_g} g proteína · {recipe.minutes} min
+            {recipe.status === "ready" ? " · tienes todo" : recipe.missing.length ? ` · falta: ${recipe.missing.join(", ").toLowerCase()}` : ""}
+          </p>
+        </div>
+      </div>
+      <ul className="nv-suggest-foods">
+        {recipe.lines.map((f) => (
+          <li key={f.name}>
+            <span>{f.name}</span>
+            <span className="nv-num">{f.amount}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="nv-row">
+        <Link href={`/comidas/planes/recetas/${recipe.id}`} className="nv-btn nv-glass is-thin nv-press">
+          Ver receta
+        </Link>
+        <button type="button" className="nv-btn nv-glass is-green nv-press" onClick={() => setOpen(true)}>
+          Ya me lo comí
+        </button>
+      </div>
+      <LogRecipeSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        onDone={onSaved}
+        payload={{ recipeId: recipe.id, name: recipe.name, kind: recipe.kind, kcal: recipe.kcal, protein_g: recipe.protein_g, gramsPerServing: recipe.gramsPerServing, swaps: recipe.swaps, withOptional: recipe.withOptional }}
+      />
+    </section>
   );
 }
 

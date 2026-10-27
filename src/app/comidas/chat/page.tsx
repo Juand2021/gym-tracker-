@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ChatCard } from "@/lib/nutrition/cards";
 import { readSession, writeSession } from "@/lib/client-cache";
-import { NvCompareCard, NvDraftCard, NvPlanCard, NvTargetsCard } from "@/components/nutriverse/NvCards";
+import { NvCompareCard, NvDraftCard, NvPlanCard, NvRecipesCard, NvTargetsCard } from "@/components/nutriverse/NvCards";
 import { NvIcon } from "@/components/nutriverse/NvIcon";
 import { NvLeaves } from "@/components/nutriverse/NvLogo";
 import { NvSheet } from "@/components/nutriverse/NvUi";
@@ -260,6 +260,8 @@ export default function NutriVerseChat() {
                     <NvPlanCard card={c} onPick={(t) => prefill(`Comí ${t}`)} />
                   ) : c.type === "compare" ? (
                     <NvCompareCard card={c} />
+                  ) : c.type === "recipes" ? (
+                    <NvRecipesCard card={c} />
                   ) : (
                     <NvTargetsCard card={c} />
                   )}

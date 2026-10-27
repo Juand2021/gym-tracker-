@@ -9,7 +9,7 @@ import type { MealMoment } from "@/lib/nutrition/store";
 
 /** Formas de las respuestas de /api/comidas/* (espejo de src/lib/nutrition/server.ts). */
 
-export type DayMeal = { id: string; time: string; moment: MealMoment; text: string; kcal: number; protein: number; items: { name: string; grams: number; kcal: number }[] };
+export type DayMeal = { id: string; time: string; moment: MealMoment; text: string; kcal: number; protein: number; recipeId?: string | null; items: { name: string; grams: number; kcal: number }[] };
 
 export type DayData = {
   date: string;
@@ -31,7 +31,7 @@ export type DayData = {
   phase: Phase | null;
   gauge: Gauge | null;
   status: { tone: GaugeZone["tone"]; text: string; left: number; leftText: string } | null;
-  suggestion: { kcal: number; protein: number; foods: { name: string; grams: number }[] } | null;
+  suggestion: { kcal: number; protein: number; foods: { name: string; grams: number }[]; recipe?: import("@/lib/nutrition/kitchen/server").NextRecipe } | null;
   meals: DayMeal[];
 };
 
@@ -49,9 +49,9 @@ export type StatsData = {
 };
 
 export type PlanOption = { kcal: number; proteina_g: number; alimentos: { alimento: string; gramos: number; kcal: number; proteina_g?: number }[] };
-export type PlanData =
-  | { ok: false; missing: string[] }
-  | { ok: true; phase: Phase | null; plan: { restante_kcal: number; restante_proteina_g: number; comidas: { comida: number; kcal_objetivo: number; proteina_objetivo_g: number; opciones: PlanOption[] }[] } };
+/** Plan con alimentos sueltos (respaldo cuando ninguna receta sirve). */
+export type FoodPlan = { restante_kcal: number; restante_proteina_g: number; comidas: { comida: number; kcal_objetivo: number; proteina_objetivo_g: number; opciones: PlanOption[] }[] };
+export type PlanData = import("@/lib/nutrition/kitchen/server").RecipePlanData & { fallback?: FoodPlan | null };
 
 export type ProfileData = {
   name: string;
@@ -177,3 +177,31 @@ export function dateLabel(date: string, today: string): string {
 
 /** Preferencia de la app "Reducir movimiento" (además de la del sistema). */
 export const CALM_KEY = "nv:calm";
+
+// ───────── Planes: recetas, despensa y snacks (src/lib/nutrition/kitchen/server.ts) ─────────
+
+export type { RecipeCard, RecipeDetail } from "@/lib/nutrition/kitchen/server";
+
+export type RecipesData = { recipes: import("@/lib/nutrition/kitchen/server").RecipeCard[]; readyCount: number };
+
+export type PantryData = {
+  groups: { group: string; label: string; items: { key: string; name: string; have: boolean; staple: boolean }[] }[];
+  equipment: import("@/lib/nutrition/kitchen/recipes").Equipment[];
+  readyCount: number;
+  total: number;
+};
+
+/** Una receta elegida para una comida, ya ajustada. */
+export type PlannedRecipe = {
+  card: import("@/lib/nutrition/kitchen/server").RecipeCard;
+  kcal: number;
+  protein_g: number;
+  gramsPerServing: Record<string, number>;
+  swaps: Record<string, string>;
+  lines: { name: string; amount: string }[];
+};
+
+export type SnacksData = { left: { kcal: number; protein_g: number } | null; snacks: PlannedRecipe[]; tip: string };
+
+/** Lo que el detalle le pasa a la hoja de registro (y a "Cocinar"). */
+export const RECIPE_FIT = "nv:recipe-fit:";

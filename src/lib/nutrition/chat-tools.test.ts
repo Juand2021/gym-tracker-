@@ -10,7 +10,9 @@ import { createLocalStore } from "./store.ts";
 import { computeTargets, type TargetsLookup } from "./targets.ts";
 import type { Nutrients } from "./engine/types.ts";
 
-const NOW = new Date("2026-10-25T18:00:00Z"); // 13:00 en Colombia
+// Hoy a las 13:00 de Colombia: los borradores vencen con el reloj real (24 h), así que la fecha no puede ser fija.
+const NOW = new Date(`${new Date().toISOString().slice(0, 10)}T18:00:00Z`);
+const TODAY = NOW.toISOString().slice(0, 10);
 
 function fakeAnalyze(text: string): Promise<MealResult> {
   const arepas = /2 arepas/.test(text) ? 2 : 1;
@@ -28,7 +30,7 @@ async function lookup(store: ToolContext["store"], weighIns: number[]): Promise<
   const profile = await store.getProfile();
   const missing = missingForTargets(profile, weighIns.length > 0);
   if (missing.length || !profile) return { ok: false, missing, profile };
-  return { ok: true, profile, targets: computeTargets({ profile, weightKg: weighIns.at(-1) ?? profile.weightKg!, workoutDates: [], today: "2026-10-25" }) };
+  return { ok: true, profile, targets: computeTargets({ profile, weightKg: weighIns.at(-1) ?? profile.weightKg!, workoutDates: [], today: TODAY }) };
 }
 
 const n = (kcal: number, protein_g: number, fat_g: number, carb_g: number): Nutrients => ({ kcal, protein_g, fat_g, carb_g, fiber_g: 0, alcohol_g: 0, water_g: 0 });
@@ -76,7 +78,7 @@ describe("herramientas de Comidas en el chat", () => {
     const res = await runNutritionTool("analizar_comida", { texto: "una arepa", fecha: null, momento: null }, ctx);
     const save = await runNutritionTool("guardar_comida", { borrador_id: res.borrador_id }, ctx);
     assert.ok(save.error);
-    assert.equal((await ctx.store.listMeals("2026-10-25", "2026-10-25")).length, 0);
+    assert.equal((await ctx.store.listMeals(TODAY, TODAY)).length, 0);
   });
 
   it("guarda en el turno siguiente y cuenta en el día", async () => {
@@ -107,7 +109,7 @@ describe("herramientas de Comidas en el chat", () => {
     const saved = await runNutritionTool("guardar_comida", { borrador_id: a.borrador_id }, { ...ctx, turnId: "t2" });
     const fix = await runNutritionTool("corregir_comida", { borrador_id: null, comida_id: saved.comida_id, correccion: "eran 2 arepas" }, { ...ctx, turnId: "t3" });
     await runNutritionTool("guardar_comida", { borrador_id: fix.borrador_id }, { ...ctx, turnId: "t4" });
-    const meals = await ctx.store.listMeals("2026-10-25", "2026-10-25");
+    const meals = await ctx.store.listMeals(TODAY, TODAY);
     assert.equal(meals.length, 1);
     assert.equal(meals[0].totals.kcal, 224);
   });
@@ -120,10 +122,10 @@ describe("herramientas de Comidas en el chat", () => {
     assert.equal(ask.pendiente_de_confirmar, true);
     // Repetir en el mismo turno no borra.
     await runNutritionTool("borrar_comida", { comida_id: saved.comida_id }, { ...ctx, turnId: "t3" });
-    assert.equal((await ctx.store.listMeals("2026-10-25", "2026-10-25")).length, 1);
+    assert.equal((await ctx.store.listMeals(TODAY, TODAY)).length, 1);
     const done = await runNutritionTool("borrar_comida", { comida_id: saved.comida_id }, { ...ctx, turnId: "t4" });
     assert.equal(done.borrada, true);
-    assert.equal((await ctx.store.listMeals("2026-10-25", "2026-10-25")).length, 0);
+    assert.equal((await ctx.store.listMeals(TODAY, TODAY)).length, 0);
   });
 
   it("marca la fiesta y la muestra en el contexto", async () => {
@@ -141,7 +143,7 @@ describe("herramientas de Comidas en el chat", () => {
     const ctx = makeCtx("t1");
     const res = await runNutritionTool("consultar_opciones", { opciones: ["una arepa", "2 arepas"] }, ctx);
     assert.equal((res.opciones as unknown[]).length, 2);
-    assert.equal((await ctx.store.listMeals("2026-10-25", "2026-10-25")).length, 0);
+    assert.equal((await ctx.store.listMeals(TODAY, TODAY)).length, 0);
     assert.equal((await ctx.store.listDrafts("hilo-1")).length, 0);
   });
 });
@@ -238,5 +240,58 @@ describe("plan de comidas: calidad", () => {
         if (keys.includes("yogurt_griego")) assert.ok(!keys.includes("ensalada"), keys.join(","));
       }
     }
+  });
+});
+
+describe("recetas en el chat", () => {
+  const recipeItems = [{ name: "Huevos", recordId: "FDC-171287", recordName: "Egg", coreKey: null, grams: 150, gramsBasis: "recipe" as const, gramsNote: "receta", nutrients: { kcal: 215, protein_g: 19, fat_g: 14, carb_g: 1, fiber_g: 0, alcohol_g: 0 }, confidence: 1, assumption: null, fromDish: "Pericos", addedOil: false }];
+  const withKitchen = (ctx: ToolContext, cooked: string[]) => ({
+    ...ctx,
+    kitchen: {
+      search: async () => [{ receta_id: "pericos-con-arepa", nombre: "Pericos", despensa: "tiene todo" }],
+      pantry: async (add: string | null) => ({ agregados: add ? ["Pechuga de pollo"] : [], quitados: [], recetas_listas: 4 }),
+      snacks: async () => ({ snacks: [] }),
+      plan: async () => null,
+      recipeMeal: async (id: string, servings: number) => ({ recipeId: id, kind: "desayuno", text: "Pericos", items: recipeItems, totals: { kcal: 215 * servings, protein_g: 19 * servings, fat_g: 14, carb_g: 1, fiber_g: 0, alcohol_g: 0 } }),
+      markCooked: async (id: string) => void cooked.push(id),
+      propose: async () => ({ receta_id: "ia-x", nombre: "Nueva" }),
+      saveText: async () => ({ receta_id: "mia-x", nombre: "Mía" }),
+    },
+  });
+
+  it("registrar_receta crea un borrador y solo se guarda en el turno siguiente", async () => {
+    const cooked: string[] = [];
+    const t1 = withKitchen(makeCtx("t1"), cooked);
+    const res = await runNutritionTool("registrar_receta", { receta_id: "pericos-con-arepa", porciones: 1, ajustada: true }, t1);
+    assert.ok(res.borrador_id);
+    assert.equal(res.momento, "desayuno");
+    assert.ok((await runNutritionTool("guardar_comida", { borrador_id: res.borrador_id }, t1)).error);
+    const t2 = withKitchen({ ...t1, turnId: "t2" }, cooked);
+    const saved = await runNutritionTool("guardar_comida", { borrador_id: res.borrador_id }, t2);
+    assert.equal(saved.guardada, true);
+    const meals = await t2.store.listMeals(TODAY, TODAY);
+    assert.equal(meals[0].recipeId, "pericos-con-arepa");
+    assert.deepEqual(cooked, ["pericos-con-arepa"]);
+  });
+
+  it("si el modelo copia mal el id, guarda el único borrador pendiente", async () => {
+    const t1 = makeCtx("t1");
+    await runNutritionTool("analizar_comida", { texto: "una arepa", fecha: null, momento: null }, t1);
+    const saved = await runNutritionTool("guardar_comida", { borrador_id: "id-inventado" }, { ...t1, turnId: "t2" });
+    assert.equal(saved.guardada, true);
+  });
+
+  it("despensa y búsqueda responden; sin cocina dan error claro", async () => {
+    const ctx = withKitchen(makeCtx("t1"), []);
+    assert.deepEqual((await runNutritionTool("actualizar_despensa", { agregar: "compré pollo", quitar: null }, ctx)).agregados, ["Pechuga de pollo"]);
+    assert.equal(((await runNutritionTool("buscar_recetas", { texto: "huevo", tipo: null, solo_listas: false }, ctx)).recetas as unknown[]).length, 1);
+    assert.ok((await runNutritionTool("sugerir_snack", {}, makeCtx("t1"))).error);
+  });
+
+  it("plan_comidas usa el plan de alimentos si no hay recetas", async () => {
+    const ctx = withKitchen(makeCtx("t1"), []);
+    const res = await runNutritionTool("plan_comidas", {}, ctx);
+    assert.ok(Array.isArray(res.comidas));
+    assert.equal(res.con_recetas, undefined);
   });
 });

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { NvShell } from "@/components/nutriverse/NvShell";
 import { nvFont } from "@/components/nutriverse/font";
 import "./nutriverse.css";
+import "./planes.css";
 
 export const metadata: Metadata = {
   title: "NutriVerse",

@@ -35,6 +35,12 @@ export type ChatCard =
       best: number;
     }
   | {
+      /** Recetas de Planes: búsqueda, snacks o el plan del día con recetas. */
+      type: "recipes";
+      title: string;
+      items: { id: string; name: string; kcal: number; protein: number; minutes: number | null; label: string | null; ready: boolean; note: string | null }[];
+    }
+  | {
       type: "targets";
       kcal: number;
       protein: number;
@@ -49,7 +55,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0
 /** Convierte el resultado de una herramienta en tarjeta (o null si no lleva). */
 export function cardFromTool(name: string, result: Record<string, unknown>): ChatCard | null {
   if (result.error) return null;
-  if ((name === "analizar_comida" || name === "corregir_comida") && typeof result.borrador_id === "string") {
+  if ((name === "analizar_comida" || name === "corregir_comida" || name === "registrar_receta") && typeof result.borrador_id === "string") {
     const items = (result.alimentos as { alimento: string; gramos: number; kcal: number; proteina_g: number; supuesto?: string; sin_coincidencia?: boolean }[]) ?? [];
     const totals = (result.totales as { kcal: number; protein_g: number }) ?? { kcal: 0, protein_g: 0 };
     const day = (result.dia_si_se_guarda as { objetivo_kcal?: number; consumido_kcal?: number }) ?? {};
@@ -64,6 +70,33 @@ export function cardFromTool(name: string, result: Record<string, unknown>): Cha
       dayTarget: day.objetivo_kcal ?? null,
       dayAfter: Math.round(num(day.consumido_kcal)),
       status: "pending",
+    };
+  }
+  if (name === "plan_comidas" && Array.isArray(result.comidas) && result.con_recetas) {
+    type Slot = { comida: string; receta: { receta_id: string; nombre: string; kcal: number; proteina_g: number; minutos: number; despensa: string } | null };
+    const SLOT: Record<string, string> = { desayuno: "Desayuno", almuerzo: "Almuerzo", cena: "Cena", snack: "Snack" };
+    return {
+      type: "recipes",
+      title: "Tu plan para lo que queda del día",
+      items: (result.comidas as Slot[])
+        .filter((c) => c.receta)
+        .map((c) => ({ id: c.receta!.receta_id, name: c.receta!.nombre, kcal: Math.round(c.receta!.kcal), protein: Math.round(c.receta!.proteina_g), minutes: c.receta!.minutos, label: SLOT[c.comida] ?? c.comida, ready: c.receta!.despensa === "tiene todo", note: c.receta!.despensa === "tiene todo" ? null : c.receta!.despensa })),
+    };
+  }
+  if ((name === "proponer_receta" || name === "guardar_receta") && typeof result.receta_id === "string") {
+    return {
+      type: "recipes",
+      title: name === "proponer_receta" ? "Receta nueva para ti" : "Guardada en tu recetario",
+      items: [{ id: result.receta_id, name: String(result.nombre ?? "Receta"), kcal: Math.round(num(result.kcal_porcion)), protein: Math.round(num(result.proteina_g_porcion)), minutes: num(result.minutos) || null, label: null, ready: result.despensa === "tiene todo", note: null }],
+    };
+  }
+  if ((name === "buscar_recetas" && Array.isArray(result.recetas)) || (name === "sugerir_snack" && Array.isArray(result.snacks))) {
+    type R = { receta_id: string; nombre: string; kcal?: number; kcal_porcion?: number; proteina_g?: number; proteina_g_porcion?: number; minutos?: number; despensa: string };
+    const list = (name === "buscar_recetas" ? result.recetas : result.snacks) as R[];
+    return {
+      type: "recipes",
+      title: name === "sugerir_snack" ? "Snacks para el hambre" : "Recetas",
+      items: list.map((x) => ({ id: x.receta_id, name: x.nombre, kcal: Math.round(x.kcal ?? x.kcal_porcion ?? 0), protein: Math.round(x.proteina_g ?? x.proteina_g_porcion ?? 0), minutes: x.minutos ?? null, label: null, ready: x.despensa === "tiene todo", note: x.despensa === "tiene todo" ? null : x.despensa })),
     };
   }
   if (name === "plan_comidas" && Array.isArray(result.comidas)) {

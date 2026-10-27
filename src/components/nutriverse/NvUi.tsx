@@ -36,6 +36,10 @@ export function NvSheet({ open, onClose, title, children, footer }: { open: bool
       y.current = v;
       paint(v);
     }, 0, () => setMounted(false));
+    // Respaldo: si la app se va a segundo plano a mitad del cierre (sin cuadros de animación),
+    // la hoja se quita igual para que su sombra no quede tapando la pantalla.
+    const t = window.setTimeout(() => setMounted(false), 700);
+    return () => window.clearTimeout(t);
   }, [open, mounted]);
 
   useLayoutEffect(() => {

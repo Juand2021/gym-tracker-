@@ -6,6 +6,8 @@ import type { MealItemResult } from "./engine/pipeline.ts";
 import type { Nutrients } from "./engine/types.ts";
 import type { ChatCard } from "./cards.ts";
 import { EMPTY_PROFILE, type NutritionProfile } from "./profile.ts";
+import { normalizeKitchen, type KitchenState, type WeekPlan } from "./kitchen/state.ts";
+import type { Recipe } from "./kitchen/recipes.ts";
 
 /**
  * Datos de Comidas (docs/nutricion/03-arquitectura.md §3): perfil, comidas, borradores y medidas.
@@ -29,6 +31,8 @@ export type Meal = {
   totals: MealTotals;
   engineVersion: string;
   chatThreadId: string | null;
+  /** Si se registró desde una receta (Planes). */
+  recipeId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -69,6 +73,16 @@ export interface NutritionStore {
   getChat(id: string): Promise<ComidasChat | null>;
   saveChat(c: ComidasChat): Promise<void>;
   deleteChat(id: string): Promise<void>;
+  /** Cocina (Planes): despensa, equipo y estado de las recetas, en un solo documento. */
+  getKitchen(): Promise<KitchenState>;
+  saveKitchen(k: KitchenState): Promise<void>;
+  /** Recetas propias o de la IA (las de la biblioteca viven en el código). */
+  listRecipes(): Promise<Recipe[]>;
+  saveRecipe(r: Recipe): Promise<void>;
+  deleteRecipe(id: string): Promise<void>;
+  /** Plan de la semana, por lunes (YYYY-MM-DD). */
+  getWeekPlan(weekStart: string): Promise<WeekPlan | null>;
+  saveWeekPlan(p: WeekPlan): Promise<void>;
 }
 
 export const newId = () => randomUUID();
@@ -87,8 +101,18 @@ export function normalizeProfile(stored: unknown): NutritionProfile | null {
 
 // ───────── Archivo local ─────────
 
-type LocalData = { profile: NutritionProfile | null; meals: Meal[]; drafts: MealDraft[]; measurements: BodyMeasurement[]; chats: ComidasChat[]; water: Record<string, number> };
-const emptyLocal = (): LocalData => ({ profile: null, meals: [], drafts: [], measurements: [], chats: [], water: {} });
+type LocalData = {
+  profile: NutritionProfile | null;
+  meals: Meal[];
+  drafts: MealDraft[];
+  measurements: BodyMeasurement[];
+  chats: ComidasChat[];
+  water: Record<string, number>;
+  kitchen: KitchenState | null;
+  recipes: Recipe[];
+  weekPlans: Record<string, WeekPlan>;
+};
+const emptyLocal = (): LocalData => ({ profile: null, meals: [], drafts: [], measurements: [], chats: [], water: {}, kitchen: null, recipes: [], weekPlans: {} });
 
 export function createLocalStore(file = path.join(process.cwd(), ".data", "nutrition-store.json")): NutritionStore {
   const read = (): LocalData => {
@@ -165,6 +189,27 @@ export function createLocalStore(file = path.join(process.cwd(), ".data", "nutri
     },
     async deleteChat(id) {
       update((d) => void (d.chats = d.chats.filter((x) => x.id !== id)));
+    },
+    async getKitchen() {
+      return normalizeKitchen(read().kitchen);
+    },
+    async saveKitchen(k) {
+      update((d) => void (d.kitchen = k));
+    },
+    async listRecipes() {
+      return read().recipes.sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async saveRecipe(r) {
+      update((d) => void (d.recipes = [...d.recipes.filter((x) => x.id !== r.id), r]));
+    },
+    async deleteRecipe(id) {
+      update((d) => void (d.recipes = d.recipes.filter((x) => x.id !== id)));
+    },
+    async getWeekPlan(weekStart) {
+      return read().weekPlans[weekStart] ?? null;
+    },
+    async saveWeekPlan(p) {
+      update((d) => void (d.weekPlans[p.weekStart] = p));
     },
   };
 }
@@ -257,6 +302,29 @@ export function createFirestoreStore(col: (name: string) => CollectionLike): Nut
     },
     async deleteChat(id) {
       await col("comidasChats").doc(id).delete();
+    },
+    async getKitchen() {
+      return normalizeKitchen(await get<KitchenState>("kitchen", "main"));
+    },
+    async saveKitchen(k) {
+      await col("kitchen").doc("main").set(k);
+    },
+    async listRecipes() {
+      const snap = await col("recipes").where("source", "in", ["mia", "ia"]).get();
+      countReads("comidas: recipes", snap.docs.length);
+      return snap.docs.map((d) => d.data() as Recipe).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async saveRecipe(r) {
+      await col("recipes").doc(r.id).set(r);
+    },
+    async deleteRecipe(id) {
+      await col("recipes").doc(id).delete();
+    },
+    async getWeekPlan(weekStart) {
+      return get<WeekPlan>("mealPlans", weekStart);
+    },
+    async saveWeekPlan(p) {
+      await col("mealPlans").doc(p.weekStart).set(p);
     },
   };
 }

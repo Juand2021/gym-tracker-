@@ -45,7 +45,8 @@ async function loadFromFirestore(db: ChunkedDb): Promise<FoodDb | null> {
 export function getServerFoodDb(getFirestore?: () => ChunkedDb): Promise<FoodDb | null> {
   if (!cached) {
     cached = (async () => {
-      const local = path.join(process.cwd(), ".data", "nutrition", "foods.json");
+      // NUTRITION_DB_FILE: otra base local (la usa scripts/dev-local.mjs para probar sin Firebase).
+      const local = process.env.NUTRITION_DB_FILE ? path.resolve(process.env.NUTRITION_DB_FILE) : path.join(process.cwd(), ".data", "nutrition", "foods.json");
       if (existsSync(local)) return makeFoodDb(JSON.parse(readFileSync(local, "utf8")) as FoodRecord[]);
       if (getFirestore) return loadFromFirestore(getFirestore());
       return null;
